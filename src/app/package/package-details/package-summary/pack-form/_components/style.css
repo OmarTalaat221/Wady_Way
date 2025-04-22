@@ -1,0 +1,312 @@
+/* =============================
+   General Layout
+============================= */
+.login-container {
+  min-height: 120vh;
+  background-color: #f3f4f6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.login-card {
+  position: relative;
+  width: 100%;
+  max-width: 550px;
+}
+
+/* =============================
+   Gradient Background
+============================= */
+.login-gradient-bg {
+  position: absolute;
+  inset: 0;
+  /* background: linear-gradient(to right, #06b6d4, #0ea5e9); */
+  background: linear-gradient(to right, #e75242, #cd533b, #e65c47);
+
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  transform: skewY(0deg) rotate(-3deg); /* Combined transforms */
+  border-radius: 20px;
+}
+
+/* =============================
+   Form Container
+============================= */
+.login-content {
+  position: relative;
+  background-color: white;
+  padding: 40px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  z-index: 1;
+  text-align: center;
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+/* =============================
+   Input Fields
+============================= */
+.login-input-group {
+  position: relative;
+  /* margin-bottom: 20px; */
+  border-bottom: 2px solid #ccc;
+  padding-block: 15px;
+}
+
+.login-input-group:first-of-type,
+.login-input-group:last-of-type {
+  border-bottom: none;
+}
+
+.login-input-group input {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-bottom: 2px solid #ccc;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.login-input-group input::placeholder {
+  opacity: 0;
+}
+.login-input-group input:focus {
+  border-bottom: 2px solid var(--primary-color2);
+}
+
+.login-label {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.3s ease;
+}
+
+.login-input-group input:focus + .login-label,
+.login-input-group input:not(:placeholder-shown) + .login-label {
+  top: -10px;
+  font-size: 12px;
+  color: var(--primary-color2);
+}
+
+/* =============================
+   Submit Button
+============================= */
+.login-submit-btn {
+  background-color: var(--primary-color2);
+  color: white;
+  padding: 10px 15px;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.3s ease;
+}
+
+.login-submit-btn:hover {
+  background-color: #af4029;
+}
+
+/* =============================
+   Social Login
+============================= */
+.login-social {
+  margin-top: 20px;
+}
+
+.login-google-btn {
+  display: flex;
+  align-items: center;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px;
+  font-size: 14px;
+  color: #444;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.3s ease;
+}
+
+.login-google-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.login-google-icon {
+  width: 20px;
+  margin-right: 10px;
+}
+
+.login-input-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-bottom: 2px solid #ccc;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.3s ease;
+  resize: none;
+}
+
+.login-input-group textarea::placeholder {
+  opacity: 0;
+}
+
+.login-input-group textarea:focus {
+  border-bottom: 2px solid var(--primary-color2);
+}
+
+.login-input-group textarea:focus + .login-label,
+.login-input-group textarea:not(:placeholder-shown) + .login-label {
+  top: -10px;
+  font-size: 12px;
+  color: var(--primary-color2);
+}
+
+/* Video Upload Section */
+.video-upload-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.video-upload-label {
+  cursor: pointer;
+  padding: 10px 0;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  display: flex;
+  text-align: center;
+  color: #555;
+  width: 102px;
+  height: 102px;
+  font-size: 12px;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  transition: 0.3s ease-in-out;
+}
+
+.video-upload-label:hover {
+  border-color: #1677ff;
+}
+/* Hide the file input */
+.video-upload-input {
+  display: none;
+}
+
+/* Video Preview List */
+.video-preview-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.video-thumbnail {
+  width: 102px;
+  height: 102px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 8px;
+  border: 1px solid #d9d9d9;
+  /* animation: zoomIn 0.6s ease-in-out forwards; */
+}
+
+.video-thumbnail video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video_cont::before {
+  position: absolute;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: all 0.3s;
+  top: 0;
+  left: 0;
+  content: "";
+}
+
+.video_cont {
+  width: 100%;
+  position: relative;
+  height: 100%;
+  /* z-index: 99; */
+}
+
+.video_cont:hover::before {
+  opacity: 1;
+}
+.video_cont:hover .video_preview {
+  opacity: 1 !important;
+  z-index: 99;
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.zoomIn {
+  animation: zoomIn 0.2s ease-in-out forwards;
+}
+.video_preview {
+  position: absolute;
+  inset-inline-start: 0;
+  z-index: 10;
+  width: 100%;
+  white-space: nowrap;
+  height: 100%;
+  text-align: center;
+  opacity: 0;
+  transition: all 0.3s;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  top: 0;
+  left: 0;
+}
+
+/* 
+@keyframes zoomOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+} */
+
+/* Apply animation */
+
+/* .zoomOut {
+  animation: zoomOut 0.3s ease-in-out forwards;
+} */

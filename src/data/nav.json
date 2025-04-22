@@ -1,0 +1,71 @@
+[
+    {
+        "id": "1",
+        "label": "Home",
+        "link": "/",
+        "icon": false
+    },
+    {
+        "id": "2",
+        "label": "About",
+        "link": "/about",
+        "icon": false
+    },
+    {
+        "id": "3",
+        "label": "Tours",
+        "link": "/package",
+        "icon": false
+    },
+    {
+        "id": "4",
+        "label": "Destination",
+        "link": "/destination",
+        "icon": false
+    },
+    {
+        "id": "5",
+        "label": "Activities",
+        "link": "/hotel-suits",
+        "icon": true,
+        "subMenu": [
+            {
+                "id": "2",
+                "label": "Hotel",
+                "link": "/hotel-suits",
+                "icon": false
+                
+            },
+            {
+                "id": "3",
+                "label": "Activities",
+                "link": "/activities",
+                "icon": false
+                
+            },
+            {
+                "id": "6",
+                "label": "Blog",
+                "link": "/blog",
+                "icon": false
+            },
+            
+            {
+                "id": "9",
+                "label": "Gallery",
+                "link": "/gallery"
+            },
+            {
+                "id": "10",
+                "label": "Faqs",
+                "link": "/faq"
+            }
+        ]
+    },
+    {
+        "id": "6",
+        "label": "Contact",
+        "link": "/contact",
+        "icon": false
+    }
+]
