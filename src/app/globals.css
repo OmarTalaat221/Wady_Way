@@ -1,0 +1,32 @@
+@import url("https://fonts.googleapis.com/css2?family=Edu+NSW+ACT+Cursive:wght@400..700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}
+
+.edu-cursive {
+  font-family: "Edu NSW ACT Cursive", cursive !important;
+}
+
+@layer components {
+  .white-dropdown {
+    @apply bg-white rounded-md shadow-lg p-2 text-gray-800 absolute z-50;
+  }
+
+  .white-dropdown li {
+    @apply border-b border-gray-100 last:border-0;
+  }
+
+  .white-dropdown a {
+    @apply text-gray-700 hover:text-[#e8a355] py-2 px-3 block transition-colors duration-200 !important;
+  }
+}

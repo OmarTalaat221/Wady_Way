@@ -1,0 +1,30 @@
+[
+  {
+    "id": "1",
+    "img": "https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912040/thomas-habr-6NmnrAJPq7M-unsplash_habaiu.jpg",
+    "tour_palce": "5",
+    "tour_type": "Travel To",
+    "place": " New York"
+  },
+  {
+    "id": "2",
+    "img": "https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912137/tron-le-aAn-_iTks4E-unsplash_vijiov.jpg",
+    "tour_palce": "8",
+    "tour_type": "Travel To",
+    "place": " Switzerland"
+  },
+  {
+    "id": "3",
+    "img": "https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912174/mohammed-alzubidi-fpl6kOWBA8Y-unsplash_es6ffq.jpg",
+    "tour_palce": "8",
+    "tour_type": "Travel To",
+    "place": "   Saudi Arab"
+  },
+  {
+    "id": "4",
+    "img": "https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912235/atik-sulianami-gJegRRpCm1g-unsplash_eh0qfz.jpg",
+    "tour_palce": "5",
+    "tour_type": "Travel To",
+    "place": "  Indonesia"
+  }
+]

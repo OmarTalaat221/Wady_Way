@@ -1,0 +1,9 @@
+.fileBox {
+  border-width: 2px;
+  border-style: dashed;
+  color: var(
+    --primary-color2
+  ); /* Replace with actual color if not using CSS variables */
+  font-size: 3.75rem; /* text-6xl in Tailwind is 3.75rem by default */
+  padding: 1rem; /* p-4 is 1rem padding */
+}

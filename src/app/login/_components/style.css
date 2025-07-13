@@ -1,0 +1,12 @@
+
+
+.login-page{
+
+}
+
+.login-page .modal{
+  display: block !important;
+  position: relative !important;
+  z-index: 0;
+  margin-block: 30px;
+}

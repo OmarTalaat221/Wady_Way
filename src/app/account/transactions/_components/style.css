@@ -1,0 +1,24 @@
+.TransactionHeader_container{
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 30px;
+  padding: 20px;
+  border: 1px solid #d8d8d8;
+  box-shadow: 0 0 10px #d8d8d8 ;
+  border-radius: 20px;
+}
+
+.TransactionHeader_container .transactoin_title{
+  font-size: 15px;
+  color: var(--primary-color2);
+  font-weight: bold;
+}
+
+
+.TransactionHeader_container .transactoin_value{
+  font-size: 30px;
+  /* color: ; */
+  font-family: monospace;
+  font-weight: bold;
+}
