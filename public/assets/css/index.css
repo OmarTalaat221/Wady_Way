@@ -886,3 +886,9 @@ h3 {
   color: #666;
   line-height: 1.6;
 }
+
+@media (max-width: 790px) {
+  .itinerary-grid {
+    grid-template-columns: 1fr;
+  }
+}

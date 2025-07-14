@@ -397,26 +397,30 @@ const Header = ({ currentLocale }) => {
                                   {favoritesCount}
                                 </span>
                               )}
+
+                              {subItem.icon && subItem.icon ? (
+                                <>
+                                  <i
+                                    className="d-lg-flex  p-0 !text-black d-none bi bi-chevron-right dropdown-icon"
+                                    style={{
+                                      color: "black",
+                                      position: "static",
+                                    }}
+                                  />
+                                  <i
+                                    onClick={() => toggleSubMenu(subItem.label)}
+                                    className={`d-lg-none p-0 d-flex !text-black bi bi-chevron-${
+                                      state.activeSubMenu === subItem.label
+                                        ? "up"
+                                        : "down"
+                                    } dropdown-icon `}
+                                  />
+                                </>
+                              ) : (
+                                ""
+                              )}
                             </div>
                           </Link>
-                          {subItem.icon && subItem.icon ? (
-                            <>
-                              <i
-                                className="d-lg-flex d-none bi bi-chevron-right dropdown-icon"
-                                style={{ color: "white" }}
-                              />
-                              <i
-                                onClick={() => toggleSubMenu(subItem.label)}
-                                className={`d-lg-none d-flex bi bi-chevron-${
-                                  state.activeSubMenu === subItem.label
-                                    ? "up"
-                                    : "down"
-                                } dropdown-icon `}
-                              />
-                            </>
-                          ) : (
-                            ""
-                          )}
                           {subItem.subMenu && (
                             <ul
                               className={`sub-menu dropdown-menu  ${
@@ -424,7 +428,7 @@ const Header = ({ currentLocale }) => {
                                   ? "white-dropdown ml-2"
                                   : ""
                               } ${
-                                state.activeSubMenu === subItem.label
+                                state.activeSubMenu == subItem.label
                                   ? "active"
                                   : ""
                               }`}

@@ -7,8 +7,6 @@ import React from "react";
 const Not_found = () => {
   return (
     <>
-      <Topbar />
-      <Header />
       <div className="error-section">
         <div className="container">
           <div className="row justify-content-center align-items-center">
@@ -38,7 +36,6 @@ const Not_found = () => {
           </div>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

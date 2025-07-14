@@ -176,10 +176,6 @@ const Account = () => {
     });
   };
 
-  useEffect(() => {
-    console.log(currentDay);
-  }, [currentDay]);
-
   const formattedDate = (date) => {
     if (!(date instanceof Date) || isNaN(date)) return "Invalid Date"; // Handle invalid date
     return date.toLocaleDateString("en-US", {
@@ -261,14 +257,14 @@ const Account = () => {
     },
   ];
 
-   const trips = [
+  const trips = [
     {
       id: 1,
-      status:"started",
+      status: "started",
       title: "Wahiba Sands & Coastal Beauty",
       duration: "5 Days / 6 Nights",
       mainLocations: ["Wahiba Sands"],
-      progress:"",
+      progress: "",
       additionalLocations: [
         "Sur ",
         "Wadi Bani Khalid ",
@@ -313,14 +309,14 @@ const Account = () => {
           description: "Relax by the beach where the desert touches the sea.",
         },
       ],
-  
+
       intro: `
       📌 Introduction to Wahiba Sands
   Wahiba Sands, also known as the Sharqiya Sands, is one of the most stunning deserts in Oman, stretching across vast golden dunes that reach up to 100 meters high. It is known for its diverse ecosystem, hosting authentic Bedouin culture and breathtaking landscapes.\n\n
   
   🌟 A trip to Wahiba Sands offers an exciting adventure across the dunes, moments of relaxation under a clear sky, and a rich cultural experience that reflects the true essence of Omani Bedouin life, making it an unforgettable destination for nature and adventure lovers! 🚙🏜✨
   `,
-  
+
       inclusions: [
         "Transportation in 4x4 vehicles to and from the destination.",
         "Exciting dune bashing experience with a professional driver.",
@@ -338,7 +334,7 @@ const Account = () => {
         "Additional activities not mentioned in the itinerary, such as sandboarding or private tours.",
         "Soft drinks and snacks not included in the package.",
       ],
-  
+
       tourHighlights: [
         "🏝 Sur City – Explore this historic coastal town, visit the traditional dhow shipyard and the iconic Sur Lighthouse.",
         "🌊 Wadi Bani Khalid – A breathtaking oasis with turquoise water pools surrounded by mountains, perfect for swimming and relaxation.",
@@ -347,13 +343,11 @@ const Account = () => {
         "🌅 Stunning Sunrises & Sunsets – Watch the desert transform as the sunlight paints the dunes in golden hues, creating an incredible photography opportunity.",
         "🏖 Al Ashkharah Beach – Relax on this serene beach where the desert meets the sea, enjoying the refreshing ocean breeze.",
       ],
-      map: (
-        "https://www.google.com/maps/d/embed?mid=1M8hb-2EIdr0JJmpyqTpn1-VqVgerymI&ehbc=2E312F"
-      ),
+      map: "https://www.google.com/maps/d/embed?mid=1M8hb-2EIdr0JJmpyqTpn1-VqVgerymI&ehbc=2E312F",
     },
     {
       id: 2,
-      status:"noStarted",
+      status: "noStarted",
       title: "Empty Quarter (Rub' al Khali) Exploration",
       duration: "7 Days / 6 Nights",
       mainLocations: ["Empty Quarter", "Salalah", "Shisr (Ubar)"],
@@ -421,14 +415,12 @@ const Account = () => {
         "🔭 Stargazing in the clearest night sky – Enjoy one of the best night skies in the world, with an unmatched view of the stars and galaxies.",
         "📸 Incredible photography opportunities – Capture the unique and mesmerizing terrain of the Empty Quarter.",
       ],
-      map: (
-       "https://www.google.com/maps/d/embed?mid=14qTW1zFuYGfccE7tNcRmf8qbjrpRmjo&ehbc=2E312F" 
-      ),
+      map: "https://www.google.com/maps/d/embed?mid=14qTW1zFuYGfccE7tNcRmf8qbjrpRmjo&ehbc=2E312F",
     },
     {
       id: 3,
       title: "Nizwa to Wahiba through the Highlands",
-      status:"finished",
+      status: "finished",
       duration: "6 Days / 5 Nights",
       mainLocations: ["Nizwa", "Wahiba Sands", "Birkat Al Mouz"],
       additionalLocations: ["Ibra", "Jebel Shams", "Jebel Akhdar"],
@@ -492,14 +484,12 @@ const Account = () => {
         "🐪 Authentic Bedouin Experience – Stay in a desert camp, ride camels, and enjoy Omani hospitality.",
         "🌅 Stunning Sunrise & Sunset Views – Watch the dramatic landscape shift as the sun rises and sets over the mountains and desert.",
       ],
-      map: (
-        "https://www.google.com/maps/d/embed?mid=1ormbApL7zvVhZi1K8J-b7GIdXUubYro&ehbc=2E312F"
-      ),
+      map: "https://www.google.com/maps/d/embed?mid=1ormbApL7zvVhZi1K8J-b7GIdXUubYro&ehbc=2E312F",
     },
     {
       id: 4,
       title: "UAE Desert Trip: Dubai to Liwa Desert Expedition",
-      status:"finished",
+      status: "finished",
       duration: "5 Days / 4 Nights",
       mainLocations: ["Dubai", "Liwa Desert", "Al Ain"],
       additionalLocations: [
@@ -537,7 +527,8 @@ const Account = () => {
         {
           id: 3,
           name: "Al Ain",
-          description: "Explore the oasis city, camel market, and Jebel Hafeet.",
+          description:
+            "Explore the oasis city, camel market, and Jebel Hafeet.",
         },
         {
           id: 4,
@@ -577,12 +568,9 @@ const Account = () => {
         "✨ Stargazing in the Desert – Experience the clearest night sky, filled with countless stars and celestial wonders.",
         "📸 Amazing Photography Opportunities – Capture the dramatic desert landscapes.",
       ],
-      map: (
-        "https://www.google.com/maps/d/embed?mid=1HNROZh6cmMwMqFicYlPYu1oR0LupaWI&ehbc=2E312F"
-      ),
+      map: "https://www.google.com/maps/d/embed?mid=1HNROZh6cmMwMqFicYlPYu1oR0LupaWI&ehbc=2E312F",
     },
   ];
-  
 
   const items = [
     {
@@ -619,18 +607,18 @@ const Account = () => {
 
   return (
     <div className="row g-4">
-
-      {
-        trips.map((trip, index)=>{
-          return(
-      <div className="col-lg-6 col-md-6">
-        <TravelCard data={trip} progress={75} status="started" type={"profile"} />
-      </div>
-            
-          )
-        })
-      }
-
+      {trips.map((trip, index) => {
+        return (
+          <div className="col-lg-6 col-md-6">
+            <TravelCard
+              data={trip}
+              progress={75}
+              status="started"
+              type={"profile"}
+            />
+          </div>
+        );
+      })}
 
       {/* <div className="col-lg-6 col-md-6">
         <TravelCard progress={75} status="started" type={"profile"} />
@@ -644,13 +632,6 @@ const Account = () => {
       <div className="col-lg-6 col-md-6">
         <TravelCard progress={100} status="finished" type={"profile"} />
       </div> */}
-
-
-
-  
-
-
-
     </div>
   );
 };

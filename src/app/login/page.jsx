@@ -29,8 +29,6 @@ const Login = () => {
 
   return (
     <>
-      <Topbar />
-      <Header />
       <div className="login-page">
         <div
           className="modal login-modal "
@@ -89,7 +87,6 @@ const Login = () => {
           </div>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

@@ -16,7 +16,6 @@ import Header from "@/components/header/Header";
 import Topbar from "@/components/topbar/Topbar";
 SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
-
 const Page = () => {
   const settings = useMemo(() => {
     return {
@@ -60,8 +59,8 @@ const Page = () => {
   }, []);
   return (
     <>
-      <Topbar />
-      <Header />
+      {/* <Topbar /> */}
+      {/* <Header /> */}
       <Breadcrumb pagename="Package Category" pagetitle="Package Category" />
       <div className="package-category-nav-section">
         <div className="container">
@@ -6518,8 +6517,8 @@ const Page = () => {
           </div>
         </div>
       </div>
-      <Newslatter />
-      <Footer />
+      {/* <Newslatter /> */}
+      {/* <Footer /> */}
     </>
   );
 };

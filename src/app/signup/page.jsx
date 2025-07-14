@@ -10,8 +10,8 @@ import Link from "../../components/link";
 const Signup = () => {
   return (
     <>
-      <Topbar />
-      <Header />
+      {/* <Topbar /> */}
+      {/* <Header /> */}
       <div className="login-page my-4">
         <div
           className="modal login-modal "
@@ -70,7 +70,7 @@ const Signup = () => {
         </div>
       </div>
 
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 };

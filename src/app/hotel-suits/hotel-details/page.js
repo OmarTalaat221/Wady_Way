@@ -17,27 +17,33 @@ const Page = () => {
   const images = [
     {
       id: 1,
-      imageBig: "https://travelami.templaza.net/wp-content/uploads/2024/03/garrett-parker-DlkF4-dbCOU-unsplash.jpg",
+      imageBig:
+        "https://travelami.templaza.net/wp-content/uploads/2024/03/garrett-parker-DlkF4-dbCOU-unsplash.jpg",
     },
     {
       id: 2,
-      imageBig: "https://travelami.templaza.net/wp-content/uploads/2024/04/evangelos-mpikakis-t029Goq_7xE-unsplash-500x500.jpg",
+      imageBig:
+        "https://travelami.templaza.net/wp-content/uploads/2024/04/evangelos-mpikakis-t029Goq_7xE-unsplash-500x500.jpg",
     },
     {
       id: 3,
-      imageBig: "https://travelami.templaza.net/wp-content/uploads/2024/04/fynn-schmidt-IYKL2uhgsnU-unsplash-500x500.jpg",
+      imageBig:
+        "https://travelami.templaza.net/wp-content/uploads/2024/04/fynn-schmidt-IYKL2uhgsnU-unsplash-500x500.jpg",
     },
     {
       id: 4,
-      imageBig: "https://travelami.templaza.net/wp-content/uploads/2024/04/kit-suman-5mcnzeSHFvE-unsplash-500x500.jpg",
+      imageBig:
+        "https://travelami.templaza.net/wp-content/uploads/2024/04/kit-suman-5mcnzeSHFvE-unsplash-500x500.jpg",
     },
     {
       id: 5,
-      imageBig: "https://travelami.templaza.net/wp-content/uploads/2024/04/caleb-miller-0Bs3et8FYyg-unsplash-e1712501886990-500x500.jpg",
+      imageBig:
+        "https://travelami.templaza.net/wp-content/uploads/2024/04/caleb-miller-0Bs3et8FYyg-unsplash-e1712501886990-500x500.jpg",
     },
     {
       id: 6,
-      imageBig: "https://travelami.templaza.net/wp-content/uploads/2024/04/leonardo-ramos-CJ4mbwSK3EY-unsplash-500x500.jpg",
+      imageBig:
+        "https://travelami.templaza.net/wp-content/uploads/2024/04/leonardo-ramos-CJ4mbwSK3EY-unsplash-500x500.jpg",
     },
   ];
   return (
@@ -51,7 +57,10 @@ const Page = () => {
                 <div className="row g-3">
                   <div className="col-lg-6">
                     <div className="gallery-img-wrap">
-                      <img src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912137/tron-le-aAn-_iTks4E-unsplash_vijiov.jpg" alt="" />
+                      <img
+                        src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912137/tron-le-aAn-_iTks4E-unsplash_vijiov.jpg"
+                        alt=""
+                      />
                       <a data-fancybox="gallery-01">
                         <i
                           className="bi bi-eye"
@@ -67,7 +76,10 @@ const Page = () => {
                     <div className="row g-3">
                       <div className="col-6">
                         <div className="gallery-img-wrap">
-                          <img src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740903308/martijn-vonk-jxZ-gTYPf4g-unsplash_zwv8bx.jpg" alt="" />
+                          <img
+                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740903308/martijn-vonk-jxZ-gTYPf4g-unsplash_zwv8bx.jpg"
+                            alt=""
+                          />
                           <a>
                             <i
                               className="bi bi-eye"
@@ -84,7 +96,10 @@ const Page = () => {
                       </div>
                       <div className="col-6">
                         <div className="gallery-img-wrap">
-                          <img src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740903193/chris-karidis-nnzkZNYWHaU-unsplash_iqwgll.jpg" alt="" />
+                          <img
+                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740903193/chris-karidis-nnzkZNYWHaU-unsplash_iqwgll.jpg"
+                            alt=""
+                          />
                           <a>
                             <i
                               className="bi bi-eye"
@@ -101,7 +116,10 @@ const Page = () => {
                       </div>
                       <div className="col-6">
                         <div className="gallery-img-wrap active">
-                          <img src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740914485/jack-ward-rknrvCrfS1k-unsplash_wlpbz5.jpg" alt="" />
+                          <img
+                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740914485/jack-ward-rknrvCrfS1k-unsplash_wlpbz5.jpg"
+                            alt=""
+                          />
                           <button className="StartSlideShowFirstImage">
                             <i
                               className="bi bi-plus-lg"
@@ -118,7 +136,10 @@ const Page = () => {
                       </div>
                       <div className="col-6">
                         <div className="gallery-img-wrap active">
-                          <img src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912040/thomas-habr-6NmnrAJPq7M-unsplash_habaiu.jpg" alt="" />
+                          <img
+                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912040/thomas-habr-6NmnrAJPq7M-unsplash_habaiu.jpg"
+                            alt=""
+                          />
                           <a
                             data-fancybox="gallery-01"
                             style={{ cursor: "pointer" }}
@@ -1106,7 +1127,7 @@ const Page = () => {
                   Reserve your ideal Room early for a hassle-free trip; secure
                   comfort and convenience!
                 </p>
-                <div className="nav nav-pills mb-10" role="tablist">
+                {/* <div className="nav nav-pills mb-10" role="tablist">
                   <button
                     className="nav-link show active"
                     id="v-pills-booking-tab"
@@ -1131,7 +1152,7 @@ const Page = () => {
                   >
                     Inquiry Form
                   </button>
-                </div>
+                </div> */}
                 <div className="tab-content" id="v-pills-tabContent2">
                   <div
                     className="tab-pane fade active show"
@@ -1419,7 +1440,10 @@ const Page = () => {
                 </div>
               </div>
               <div className="banner2-card">
-                <img src="https://travelami.templaza.net/wp-content/uploads/2024/04/evangelos-mpikakis-t029Goq_7xE-unsplash-500x500.jpg" alt="" />
+                <img
+                  src="https://travelami.templaza.net/wp-content/uploads/2024/04/evangelos-mpikakis-t029Goq_7xE-unsplash-500x500.jpg"
+                  alt=""
+                />
                 <div className="banner2-content-wrap">
                   <div className="banner2-content">
                     <div className="hotline-area">

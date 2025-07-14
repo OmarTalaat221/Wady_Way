@@ -18,8 +18,6 @@ export const metadata = {
 const page = () => {
   return (
     <>
-      <Topbar />
-      <Header />
       <Breadcrumb pagename="Blog Standard" pagetitle="Blog Standard" />
       <div className="blog-standard-section pt-120 mb-120">
         <div className="container">
@@ -163,8 +161,6 @@ const page = () => {
           </div>
         </div>
       </div>
-      <Newslatter />
-      <Footer />
     </>
   );
 };

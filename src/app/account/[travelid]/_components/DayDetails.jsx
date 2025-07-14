@@ -78,9 +78,9 @@ const DayDetails = ({
       ))} */}
 
       <>
-        <div className="d-flex justify-content-between align-items-center">
+        {/* <div className="d-flex  justify-content-between align-items-center">
           <p className="summary-description">{day.description[lang]}</p>
-        </div>
+        </div> */}
 
         <div className="d-flex flex-column gap-2">
           {day.accommodation.map((accommodation) => (
@@ -140,46 +140,6 @@ const DayDetails = ({
               </div>
             </div>
           ))}
-          <div className="d-flex justify-content-between align-items-center w-100">
-            <div className="d-flex gap-3 items-center">
-              <div className="needing_">{t("needing_guide")}</div>
-              <label className="check_contain">
-                <input
-                  type="checkbox"
-                  onChange={() => handleCheckboxChange(day.day)}
-                  checked={day.tour_gide}
-                />
-                <div className="checkmark"></div>
-              </label>
-            </div>
-            <div className="d-flex gap-3 items-center">
-              <div className="needing_">{t("needing_driver")}</div>
-              <label className="check_contain">
-                <input
-                  type="checkbox"
-                  onChange={() =>
-                    setDays((prevDays) =>
-                      prevDays.map((d) =>
-                        d.day === day.day ? { ...d, driver: !d.driver } : d
-                      )
-                    )
-                  }
-                  checked={day.driver}
-                />
-                <div className="checkmark"></div>
-              </label>
-            </div>
-          </div>
-          {!day.driver && (
-            <div className="w-100 d-flex mt-3">
-              <button
-                className="primary-btn2 m-auto"
-                onClick={() => setSelfDriveModal(true)}
-              >
-                Your car papers
-              </button>
-            </div>
-          )}
         </div>
       </>
       <Modal

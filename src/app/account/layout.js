@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 import { IoAirplane } from "react-icons/io5";
 import { IoMdSettings } from "react-icons/io";
-import { FaEarthAsia, FaHeadset, FaHeart } from "react-icons/fa6";
+import { FaEarthAsia, FaHeadset, FaHeart, FaBell } from "react-icons/fa6";
 
 import { BsFillCaretRightFill } from "react-icons/bs";
 
@@ -113,14 +113,7 @@ const Layout = ({ children }) => {
         <div className="package-details-area mb-120 position-relative mx-auto">
           <div className="">
             <div className="row g-xl-4 gy-5 ">
-              <div
-                className="col-xl-3 "
-                style={{
-                  position: "sticky",
-                  top: "100px",
-                  height: "200px",
-                }}
-              >
+              <div className="col-xl-3 xl:min-h-[200px] xl:top-[100px]  xl:sticky relative  ">
                 <div
                   className="booking-form-wrap "
                   style={{
@@ -153,17 +146,20 @@ const Layout = ({ children }) => {
                                 },
 
                                 {
+                                  href: "/account/notifications",
+                                  label: "Notifications",
+                                  icon: <FaBell />,
+                                },
+                                {
                                   href: "/wishlist",
                                   label: "Wishlist",
                                   icon: <FaHeart />,
                                 },
-
                                 {
                                   href: "/account/support",
                                   label: "Support",
                                   icon: <FaHeadset />,
                                 },
-
                                 {
                                   href: "/account/transactions",
                                   label: "Wallet",
@@ -194,7 +190,7 @@ const Layout = ({ children }) => {
                   </div>
                 </div>
               </div>
-              <div className="col-xl-9 mt-5">{children}</div>
+              <div className="col-xl-9 !px-0 mt-5">{children}</div>
             </div>
           </div>
         </div>

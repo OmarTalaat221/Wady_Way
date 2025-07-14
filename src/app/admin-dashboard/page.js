@@ -56,7 +56,6 @@ const Page = () => {
 
   return (
     <>
-      <Header />
       <div className="dashboard-wrapper">
         <div className="dashboard-sidebar-wrapper">
           <div className="dashboard-sidebar-menu">
@@ -858,8 +857,6 @@ const Page = () => {
           </ul>
         </div>
       </div>
-
-      <Footer />
     </>
   );
 };

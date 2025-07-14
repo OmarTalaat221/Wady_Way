@@ -1,4 +1,3 @@
-
 import React from "react";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import QuantityCounter from "@/uitils/QuantityCounter";
@@ -18,8 +17,8 @@ export const metadata = {
 const page = () => {
   return (
     <>
-      <Topbar />
-      <Header />
+      {/* <Topbar /> */}
+      {/* <Header /> */}
       <Breadcrumb pagename="Visa" pagetitle="Visa" />
       <div className="package-search-filter-wrapper">
         <div className="container">
@@ -373,7 +372,10 @@ const page = () => {
                               <strong>$</strong>3860 <span>Per Person</span>
                             </h6>
                           </div>
-                          <Link href="/visas/visas-details" className="apply-btn">
+                          <Link
+                            href="/visas/visas-details"
+                            className="apply-btn"
+                          >
                             Apply Now
                             <div className="arrow">
                               <i className="bi bi-arrow-right" />
@@ -422,7 +424,10 @@ const page = () => {
                               <strong>$</strong>3500 <span>Per Person</span>
                             </h6>
                           </div>
-                          <Link href="/visas/visas-details" className="apply-btn">
+                          <Link
+                            href="/visas/visas-details"
+                            className="apply-btn"
+                          >
                             Apply Now
                             <div className="arrow">
                               <i className="bi bi-arrow-right" />
@@ -473,7 +478,10 @@ const page = () => {
                               <strong>$</strong>4500 <span>Per Person</span>
                             </h6>
                           </div>
-                          <Link href="/visas/visas-details" className="apply-btn">
+                          <Link
+                            href="/visas/visas-details"
+                            className="apply-btn"
+                          >
                             Apply Now
                             <div className="arrow">
                               <i className="bi bi-arrow-right" />
@@ -522,7 +530,10 @@ const page = () => {
                               <strong>$</strong>2500 <span>Per Person</span>
                             </h6>
                           </div>
-                          <Link href="/visas/visas-details" className="apply-btn">
+                          <Link
+                            href="/visas/visas-details"
+                            className="apply-btn"
+                          >
                             Apply Now
                             <div className="arrow">
                               <i className="bi bi-arrow-right" />
@@ -573,7 +584,10 @@ const page = () => {
                               <strong>$</strong>4200 <span>Per Person</span>
                             </h6>
                           </div>
-                          <Link href="/visas/visas-details" className="apply-btn">
+                          <Link
+                            href="/visas/visas-details"
+                            className="apply-btn"
+                          >
                             Apply Now
                             <div className="arrow">
                               <i className="bi bi-arrow-right" />
@@ -625,7 +639,10 @@ const page = () => {
                               <strong>$</strong>2500 <span>Per Person</span>
                             </h6>
                           </div>
-                          <Link href="/visas/visas-details" className="apply-btn">
+                          <Link
+                            href="/visas/visas-details"
+                            className="apply-btn"
+                          >
                             Apply Now
                             <div className="arrow">
                               <i className="bi bi-arrow-right" />
@@ -943,8 +960,8 @@ const page = () => {
           </div>
         </div>
       </div>
-      <Newslatter />
-      <Footer />
+      {/* <Newslatter /> */}
+      {/* <Footer /> */}
     </>
   );
 };

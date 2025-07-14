@@ -1,4 +1,3 @@
-
 import Breadcrumb from "@/components/common/Breadcrumb";
 import Newslatter from "@/components/common/Newslatter";
 import Footer from "@/components/footer/Footer";
@@ -16,8 +15,8 @@ export const metadata = {
 const page = () => {
   return (
     <>
-      <Topbar />
-      <Header />
+      {/* <Topbar /> */}
+      {/* <Header /> */}
       <Breadcrumb pagename="Visa Details" pagetitle="Visa Details" />
       <div className="visa-details-pages pt-120 mb-120">
         <div className="container">
@@ -464,8 +463,8 @@ const page = () => {
           </div>
         </div>
       </div>
-      <Newslatter />
-      <Footer />
+      {/* <Newslatter /> */}
+      {/* <Footer /> */}
     </>
   );
 };

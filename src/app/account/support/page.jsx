@@ -112,7 +112,7 @@ const Support = () => {
       </div>
 
       {/* Additional Assets */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+      {/* <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
         <h3 className="text-xl font-semibold mb-4 text-[#295557]">
           Additional Assets
         </h3>
@@ -143,7 +143,7 @@ const Support = () => {
             </a>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

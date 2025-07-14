@@ -18,8 +18,8 @@ const layout = ({ children }) => {
       {/* <Topbar />
       <Header /> */}
       {children}
-      <Newslatter />
-      <Footer />
+      {/* <Newslatter />
+      <Footer /> */}
     </>
   );
 };

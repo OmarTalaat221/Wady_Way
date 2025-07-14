@@ -23,6 +23,42 @@ const page = () => {
       <Breadcrumb pagename="Blog Grid" pagetitle="Blog Grid" />
       <div className="blod-grid-section pt-120 mb-120">
         <div className="container">
+          <div className="flex flex-wrap justify-center gap-3 mb-16">
+            {["Adventure", "Locan Stany", "Wildlife"]?.map((filter, index) => (
+              <button
+                key={filter}
+                className={`group/filter relative px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 overflow-hidden ${
+                  index === 0
+                    ? "text-white shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                    : "bg-gray-50 hover:bg-gray-100 text-gray-700 shadow-sm hover:shadow-md border border-gray-200 hover:border-gray-300 transform hover:scale-105 active:scale-95"
+                }`}
+                style={
+                  index === 0
+                    ? {
+                        background:
+                          "linear-gradient(135deg, #295557 0%, #e8a355 100%)",
+                      }
+                    : {}
+                }
+              >
+                <span className="relative z-10">{filter}</span>
+
+                {/* Active button hover effects */}
+                {index === 0 && (
+                  <>
+                    <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/filter:scale-x-100 transition-transform duration-300 origin-left" />
+                    <div className="absolute inset-0 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/15 to-transparent transform -skew-x-12 -translate-x-full group-hover/filter:translate-x-full" />
+                  </>
+                )}
+
+                {/* Inactive button hover effect */}
+                {index !== 0 && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300" />
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="row g-md-4 gy-5 mb-70">
             {blogData.map((data) => {
               const {

@@ -12334,7 +12334,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   margin-bottom: 0;
 }
 .footer-section .footer-top .footer-widget .widget-list li a {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.8);
   font-family: var(--font-jost);
   font-size: 16px;
   font-weight: 400;
@@ -12349,7 +12349,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   margin-bottom: 15px;
 }
 .footer-section .footer-top .footer-widget .single-contact a {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.8);
   font-family: var(--font-jost);
   font-size: 16px;
   font-weight: 400;
@@ -12361,7 +12361,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   color: var(--primary-color2);
 }
 .footer-section .footer-top .footer-widget p {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.75);
   font-family: var(--font-jost);
   font-size: 16px;
   font-weight: 400;

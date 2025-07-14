@@ -142,20 +142,6 @@ const About1 = () => {
                   <Link href="/about" className="primary-btn1">
                     More About
                   </Link>
-                  <div className="counter-area">
-                    <div className="customer-img-grp">
-                      <img src="/assets/img/home1/customer-img-grp.png" alt="" />
-                    </div>
-                    <div className="content">
-                      <div className="number">
-                        <h6 className="counter">
-                          <CountUp delay={2} end={500} />
-                        </h6>
-                        <span>+</span>
-                      </div>
-                      <p>Customer</p>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -167,7 +153,7 @@ const About1 = () => {
                   alt=""
                   className="vector"
                 /> */}
-                <img src="https://travelami.templaza.net/wp-content/uploads/2024/03/giuseppe-mondi-OIbcmFyMDbo-unsplash.jpg"/>
+                <img src="https://travelami.templaza.net/wp-content/uploads/2024/03/giuseppe-mondi-OIbcmFyMDbo-unsplash.jpg" />
               </div>
             </div>
           </div>

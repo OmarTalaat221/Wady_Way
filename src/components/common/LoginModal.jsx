@@ -19,7 +19,7 @@ const LoginModal = () => {
             <div className="modal-body">
               <div className="login-registration-form">
                 <div className="form-title">
-                  <h2>Sign in to continue</h2>
+                  <h2>Sign in to continue</h2>0
                   <p>Enter your email address for Login.</p>
                 </div>
                 <form>
@@ -34,7 +34,10 @@ const LoginModal = () => {
                   </div>
                   <a href="#" className="google-login-btn">
                     <div className="icon">
-                      <img src="/assets/img/home1/icon/google-icon.svg" alt="" />
+                      <img
+                        src="/assets/img/home1/icon/google-icon.svg"
+                        alt=""
+                      />
                     </div>
                     Sign in with Google
                   </a>

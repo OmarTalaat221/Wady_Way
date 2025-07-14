@@ -102,8 +102,6 @@ const Page = () => {
 
   return (
     <>
-      {/* <Topbar/> */}
-      <Header />
       <Breadcrumb pagename="Activitis Details" pagetitle="Activitis Details" />
       <div className="package-details-area pt-120 mb-120">
         <div className="container">
@@ -1267,14 +1265,14 @@ const Page = () => {
               </div>
             </div>
             <div className="col-xl-4">
-              <div className="booking-form-wrap mb-30">
+              <div className="booking-form-wrap">
                 <h4>Reserve Your Activity</h4>
                 <p>
                   Secure your spot for an unforgettable nature adventure now!
                 </p>
                 <div className="nav nav-pills mb-10" role="tablist">
-                  <button
-                    className="nav-link show active"
+                  {/* <button
+                    className="nav-link show active w-full"
                     id="v-pills-booking-tab"
                     data-bs-toggle="pill"
                     data-bs-target="#v-pills-booking"
@@ -1284,8 +1282,8 @@ const Page = () => {
                     aria-selected="true"
                   >
                     Online Booking
-                  </button>
-                  <button
+                  </button> */}
+                  {/* <button
                     className="nav-link"
                     id="v-pills-contact-tab"
                     data-bs-toggle="pill"
@@ -1296,7 +1294,7 @@ const Page = () => {
                     aria-selected="false"
                   >
                     Inquiry Form
-                  </button>
+                  </button> */}
                 </div>
                 <div className="tab-content" id="v-pills-tabContent2">
                   <div
@@ -1569,8 +1567,6 @@ const Page = () => {
           })}
         />
       </div>
-      <Newslatter />
-      <Footer />
     </>
   );
 };

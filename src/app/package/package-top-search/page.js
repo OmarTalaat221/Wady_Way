@@ -13,8 +13,8 @@ import Topbar from "@/components/topbar/Topbar";
 const page = () => {
   return (
     <>
-      <Topbar />
-      <Header />
+      {/* <Topbar /> */}
+      {/* <Header /> */}
       <Breadcrumb
         pagename="Package Top Search"
         pagetitle="Package Top Search"
@@ -930,8 +930,8 @@ const page = () => {
           </div>
         </div>
       </div>
-      <Newslatter />
-      <Footer />
+      {/* <Newslatter /> */}
+      {/* <Footer /> */}
     </>
   );
 };
