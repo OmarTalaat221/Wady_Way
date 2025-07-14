@@ -10,6 +10,7 @@ module.exports = {
     "./app/**/*.{ts,tsx,js,jsx}",
     "./src/**/*.{ts,tsx,js,jsx}",
   ],
+  
   theme: {
     // container: {
     //   screens: {
