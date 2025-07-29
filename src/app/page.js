@@ -27,22 +27,17 @@ export const metadata = {
 export default function Home() {
   return (
     <>
-      {/* <Topbar2 /> */}
-
       <Banner1 />
-      {/* <Banner1Bottom /> */}
       <About1 />
-      <Destination1 />
+      {/* <Destination1 /> */}
       <Home1Fecilities2 />
       <Home1FacilitySlide />
       <Home1TourPackage />
       <Home1WhyChoose />
-      {/* <Home1popularTour /> */}
       <Home1Activities />
       <Home1Banner2 />
       <Home1Testimonail />
       <Home1Blog />
-      {/* <Home1Vise /> */}
       <Newslatter />
       <Footer />
     </>

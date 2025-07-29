@@ -5,10 +5,10 @@ import React from "react";
 const page = () => {
   return (
     <>
-      <Breadcrumb pagename="destination" pagetitle="Destination" />
+      {/* <Breadcrumb pagename="destination" pagetitle="Destination" />
       <div className="destination-gallery-section pt-120 mb-120">
         <div className="container">
-          <div className="row g-lg-4 gy-5 mb-70">
+          <div className="row g-lg-4 gy-5 mb-[70px]">
             <div className="col-lg-3 col-sm-6">
               <div className="destination-card">
                 <img src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740914407/agustin-diaz-gargiulo-7F65HDP0-E0-unsplash_fxx9vc.jpg" alt="" />
@@ -209,7 +209,7 @@ const page = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </>
   );
 };

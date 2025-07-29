@@ -5333,7 +5333,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   }
 }
 .login-modal .modal-dialog .modal-content .modal-body {
-  padding: 45px 40px;
+  padding: 30px 20px;
 }
 @media (max-width: 576px) {
   .login-modal .modal-dialog .modal-content .modal-body {
@@ -5786,7 +5786,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center center;
-  border-radius: 30px 30px 0 0;
+  /* border-radius: 30px 30px 0 0; */
   position: relative;
 }
 .home1-banner-area .home1-banner-wrapper .home1-banner-content {
@@ -12554,7 +12554,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   background-image: url(../img/footer-bg2.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   margin: 0 50px;
-  border-radius: 30px 30px 0 0;
+  /* border-radius: 30px 30px 0 0; */
 }
 @media (min-width: 1400px) and (max-width: 1599px) {
   .footer-section.style-4 {
@@ -30800,6 +30800,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   );
   border-radius: 5px;
   padding: 25px 25px;
+  margin-bottom: 15px ;
 }
 .booking-form-wrap h6 {
   color: var(--title-color);

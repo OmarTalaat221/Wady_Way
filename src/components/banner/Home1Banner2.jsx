@@ -8,7 +8,7 @@ const Home1Banner2 = () => {
         <div className="container">
           <div className="row">
             <div className="col-lg-12">
-              <div className="section-title text-center mb-60">
+              <div className="section-title text-center mb-[60px]">
                 <span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -43,7 +43,12 @@ const Home1Banner2 = () => {
           <div className="row g-lg-4 gy-5">
             <div className="col-lg-3">
               <div className="banner2-card">
-                <img height={536} style={{objectFit:"cover" , height:"536px"}}  src="https://travelami.templaza.net/wp-content/uploads/2024/03/hanson-lu-_8EFj6ISA08-unsplash.jpg" alt="" />
+                <img
+                  height={536}
+                  style={{ objectFit: "cover", height: "536px" }}
+                  src="https://travelami.templaza.net/wp-content/uploads/2024/03/hanson-lu-_8EFj6ISA08-unsplash.jpg"
+                  alt=""
+                />
                 <div className="banner2-content-wrap">
                   <div className="banner2-content">
                     <span>Savings worldwide</span>
@@ -57,7 +62,10 @@ const Home1Banner2 = () => {
               <div className="row">
                 <div className="col-lg-12">
                   <div className="banner2-card two mb-30">
-                    <img src="https://travelami.templaza.net/wp-content/uploads/2024/03/blog2.jpg" alt="" />
+                    <img
+                      src="https://travelami.templaza.net/wp-content/uploads/2024/03/blog2.jpg"
+                      alt=""
+                    />
                     <div className="banner2-content-wrap">
                       <div className="banner2-content">
                         <span>Couple Tour</span>
@@ -74,7 +82,10 @@ const Home1Banner2 = () => {
                 </div>
                 <div className="col-lg-12">
                   <div className="banner2-card three">
-                    <img src="https://travelami.templaza.net/wp-content/uploads/2024/03/Group-3.jpg" alt="" />
+                    <img
+                      src="https://travelami.templaza.net/wp-content/uploads/2024/03/Group-3.jpg"
+                      alt=""
+                    />
                     <div className="banner2-content-wrap d-flex align-items-center">
                       <div className="w-100">
                         <div className="banner2-content">
@@ -95,7 +106,11 @@ const Home1Banner2 = () => {
             </div>
             <div className="col-lg-4">
               <div className="banner2-card four">
-                <img style={{height:"531px"}} src="https://travelami.templaza.net/wp-content/uploads/2024/03/tj-holowaychuk-1EYMue_AwDw-unsplash1380-1024x669.jpg" alt="" />
+                <img
+                  style={{ height: "531px" }}
+                  src="https://travelami.templaza.net/wp-content/uploads/2024/03/tj-holowaychuk-1EYMue_AwDw-unsplash1380-1024x669.jpg"
+                  alt=""
+                />
                 <div className="banner2-content-wrap">
                   <div className="banner2-content">
                     <span>Savings worldwide</span>

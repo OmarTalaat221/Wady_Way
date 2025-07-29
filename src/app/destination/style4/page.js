@@ -8,7 +8,7 @@ const page = () => {
       <Breadcrumb pagename="Destination" pagetitle="Destination" />
       <div className="destination-section pt-120 mb-120">
         <div className="container">
-          <div className="row g-lg-4 gy-5 mb-70">
+          <div className="row g-lg-4 gy-5 mb-[70px]">
             <div className="col-lg-4 col-sm-6">
               <div className="destination-card2 style-2">
                 <Link

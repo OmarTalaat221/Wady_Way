@@ -131,19 +131,19 @@ const page = () => {
                 <h3>Reach Us Anytime</h3>
                 <form>
                   <div className="row">
-                    <div className="col-lg-12 mb-20">
+                    <div className="col-lg-12 mb-[20px]">
                       <div className="form-inner">
                         <label>Name*</label>
                         <input type="text" placeholder="Daniel Scoot" />
                       </div>
                     </div>
-                    <div className="col-lg-6 mb-20">
+                    <div className="col-lg-6 mb-[20px]">
                       <div className="form-inner">
                         <label>Phone</label>
                         <input type="text" placeholder="Phone Number..." />
                       </div>
                     </div>
-                    <div className="col-lg-6 mb-20">
+                    <div className="col-lg-6 mb-[20px]">
                       <div className="form-inner">
                         <label>Email</label>
                         <input type="email" placeholder="Email Us...." />

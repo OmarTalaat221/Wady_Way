@@ -64,7 +64,10 @@ const Support = () => {
                   For immediate response in case of emergency only. If this
                   number is used in normal mode, you will be blocked from using
                   this number permanently and the number will disappear from
-                  your profile.
+                  your profile.{" "}
+                  <span className="text-red-500">
+                    (Tax will be added to your wallet)
+                  </span>
                 </p>
 
                 <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-red-200">

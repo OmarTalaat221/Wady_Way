@@ -35,7 +35,7 @@ const Home6Feature = () => {
                     services.
                   </p>
                 </div>
-                <div className="row gy-sm-5 gy-4 mb-60">
+                <div className="row gy-sm-5 gy-4 mb-[60px]">
                   <div className="col-sm-6">
                     <div className="single-feature">
                       <div className="icon">

@@ -396,7 +396,7 @@ const Page = () => {
               aria-labelledby="adventure-tab"
             >
               <div className="package-grid">
-                <div className="row gy-5 mb-70">
+                <div className="row gy-5 mb-[70px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card">
                       <div className="package-card-img-wrap">
@@ -1271,7 +1271,7 @@ const Page = () => {
               aria-labelledby="cultural-tour-tab"
             >
               <div className="package-grid">
-                <div className="row gy-5 mb-70">
+                <div className="row gy-5 mb-[70px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card">
                       <div className="package-card-img-wrap">
@@ -2146,7 +2146,7 @@ const Page = () => {
               aria-labelledby="wildlife-tab"
             >
               <div className="package-grid">
-                <div className="row gy-5 mb-70">
+                <div className="row gy-5 mb-[70px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card">
                       <div className="package-card-img-wrap">
@@ -3021,7 +3021,7 @@ const Page = () => {
               aria-labelledby="historical-tab"
             >
               <div className="package-grid">
-                <div className="row gy-5 mb-70">
+                <div className="row gy-5 mb-[70px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card">
                       <div className="package-card-img-wrap">
@@ -3896,7 +3896,7 @@ const Page = () => {
               aria-labelledby="private-tab"
             >
               <div className="package-grid">
-                <div className="row gy-5 mb-70">
+                <div className="row gy-5 mb-[70px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card">
                       <div className="package-card-img-wrap">
@@ -4771,7 +4771,7 @@ const Page = () => {
               aria-labelledby="road-trip-tab"
             >
               <div className="package-grid">
-                <div className="row gy-5 mb-70">
+                <div className="row gy-5 mb-[70px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card">
                       <div className="package-card-img-wrap">
@@ -5646,7 +5646,7 @@ const Page = () => {
               aria-labelledby="city-tour-tab"
             >
               <div className="package-grid">
-                <div className="row gy-5 mb-70">
+                <div className="row gy-5 mb-[70px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card">
                       <div className="package-card-img-wrap">

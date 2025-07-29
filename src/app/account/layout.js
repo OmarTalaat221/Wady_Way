@@ -113,7 +113,13 @@ const Layout = ({ children }) => {
         <div className="package-details-area mb-120 position-relative mx-auto">
           <div className="">
             <div className="row g-xl-4 gy-5 ">
-              <div className="col-xl-3 xl:min-h-[200px] xl:top-[100px]  xl:sticky relative  ">
+              <div
+                className="col-xl-3 xl:min-h-[200px] pt-[25px]   "
+                style={{
+                  position: "sticky",
+                  top: "100px",
+                }}
+              >
                 <div
                   className="booking-form-wrap "
                   style={{

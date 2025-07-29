@@ -7,8 +7,8 @@
   },
   {
     "id": "2",
-    "label": "Tours",
-    "link": "/package",
+    "label": "About",
+    "link": "/about",
     "icon": false
   },
 
@@ -18,16 +18,11 @@
     "link": "/Team",
     "icon": false
   },
-  {
-    "id": "3",
-    "label": "Destination",
-    "link": "/destination",
-    "icon": false
-  },
+
   {
     "id": "4",
-    "label": "About",
-    "link": "/about",
+    "label": "Tours",
+    "link": "/package",
     "icon": false
   },
 

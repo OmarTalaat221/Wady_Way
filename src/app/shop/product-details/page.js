@@ -17,40 +17,40 @@ const Page = () => {
   const settings = useMemo(() => {
     return {
       slidesPerView: "auto",
-		speed: 1500,
-		spaceBetween: 25,
-		navigation: {
-			nextEl: ".package-card2-next",
-			prevEl: ".package-card2-prev",
-		},
+      speed: 1500,
+      spaceBetween: 25,
+      navigation: {
+        nextEl: ".package-card2-next",
+        prevEl: ".package-card2-prev",
+      },
 
-		breakpoints: {
-			280: {
-				slidesPerView: 1,
-			},
-			386: {
-				slidesPerView: 1,
-			},
-			576: {
-				slidesPerView: 1,
-				spaceBetween: 15,
-			},
-			768: {
-				slidesPerView: 2,
-				spaceBetween: 15,
-			},
-			992: {
-				slidesPerView: 3,
-				spaceBetween: 15,
-			},
-			1200: {
-				slidesPerView: 3,
-				spaceBetween: 15,
-			},
-			1400: {
-				slidesPerView: 3,
-			},
-		}
+      breakpoints: {
+        280: {
+          slidesPerView: 1,
+        },
+        386: {
+          slidesPerView: 1,
+        },
+        576: {
+          slidesPerView: 1,
+          spaceBetween: 15,
+        },
+        768: {
+          slidesPerView: 2,
+          spaceBetween: 15,
+        },
+        992: {
+          slidesPerView: 3,
+          spaceBetween: 15,
+        },
+        1200: {
+          slidesPerView: 3,
+          spaceBetween: 15,
+        },
+        1400: {
+          slidesPerView: 3,
+        },
+      },
     };
   }, []);
   return (
@@ -770,7 +770,7 @@ const Page = () => {
                                   </div>
                                 </div>
                                 <div className="col-lg-12">
-                                  <div className="form-inner mb-20">
+                                  <div className="form-inner mb-[20px]">
                                     <input
                                       type="text"
                                       placeholder="Name*"
@@ -779,7 +779,7 @@ const Page = () => {
                                   </div>
                                 </div>
                                 <div className="col-lg-12">
-                                  <div className="form-inner mb-20">
+                                  <div className="form-inner mb-[20px]">
                                     <input
                                       type="email"
                                       placeholder="Email*"
@@ -821,7 +821,7 @@ const Page = () => {
       <div className="related-product-section mb-120">
         <div className="container">
           <div className="row">
-            <div className="col-lg-12 d-flex align-items-center justify-content-between flex-wrap gap-3 mb-60">
+            <div className="col-lg-12 d-flex align-items-center justify-content-between flex-wrap gap-3 mb-[60px]">
               <div className="section-title3">
                 <h2>Related Product</h2>
               </div>

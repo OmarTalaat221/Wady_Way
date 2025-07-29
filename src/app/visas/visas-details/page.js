@@ -373,13 +373,13 @@ const page = () => {
                     </p>
                   </div>
                   <form>
-                    <div className="form-inner mb-20">
+                    <div className="form-inner mb-[20px]">
                       <label>
                         Full Name <span>*</span>
                       </label>
                       <input type="text" placeholder="Enter your full name" />
                     </div>
-                    <div className="form-inner mb-20">
+                    <div className="form-inner mb-[20px]">
                       <label>
                         Email Address <span>*</span>
                       </label>
@@ -388,7 +388,7 @@ const page = () => {
                         placeholder="Enter your email address"
                       />
                     </div>
-                    <div className="form-inner mb-20">
+                    <div className="form-inner mb-[20px]">
                       <label>
                         Phone Number <span>*</span>
                       </label>
@@ -397,7 +397,7 @@ const page = () => {
                         placeholder="Enter your phone number"
                       />
                     </div>
-                    <div className="form-inner mb-70">
+                    <div className="form-inner mb-[70px]">
                       <label>
                         Visa Type <span>*</span>
                       </label>
@@ -406,7 +406,7 @@ const page = () => {
                         placeholder={["Select Visa"]}
                       />
                     </div>
-                    <div className="form-inner mb-70">
+                    <div className="form-inner mb-[70px]">
                       <label>
                         Country <span>*</span>
                       </label>

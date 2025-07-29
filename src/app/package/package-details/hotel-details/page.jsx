@@ -52,15 +52,14 @@ const HotelDetails = () => {
     },
   ];
 
-
-  const [mapModal , setMapModal] = useState(false)
-
-
-
+  const [mapModal, setMapModal] = useState(false);
 
   return (
     <>
-      <Breadcrumb pagename="Accommodation Details" pagetitle="Accommodation Details" />
+      <Breadcrumb
+        pagename="Accommodation Details"
+        pagetitle="Accommodation Details"
+      />
       <div className="room-details-area pt-120 mb-120">
         <div className="container">
           <div className="others-image-wrap d-none">
@@ -194,7 +193,7 @@ const HotelDetails = () => {
                   <p>
                     <i className="bi bi-geo-alt" /> House 168/170, Road 02,
                     Avenue 01, Mirpur DOHS, Dhaka, Bangladesh -{" "}
-                    <a onClick={()=> setMapModal(true) }>See Map</a>
+                    <a onClick={() => setMapModal(true)}>See Map</a>
                   </p>
                 </div>
                 <div className="review-area">
@@ -221,7 +220,7 @@ const HotelDetails = () => {
                 </div>
               </div>
               <h2>Golden Tulip The Grandmark Dhaka</h2>
-              
+
               <p>
                 Welcome to the best five-star luxury hotel in New York. Hotel is
                 veryes elementum sesue the aucan vestibulum aliquam justo in
@@ -394,9 +393,9 @@ const HotelDetails = () => {
                   Laundry
                 </li>
               </ul>
-            
+
               <h4>Facilities</h4>
-              <ul className="extra-service mb-20">
+              <ul className="extra-service mb-[20px]">
                 <li>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -550,7 +549,7 @@ const HotelDetails = () => {
                                 <h4>Write Your Review</h4>
                                 <form>
                                   <div className="row">
-                                    <div className="col-md-6 mb-20">
+                                    <div className="col-md-6 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Name</label>
                                         <input
@@ -559,7 +558,7 @@ const HotelDetails = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="col-md-6 mb-20">
+                                    <div className="col-md-6 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Email</label>
                                         <input
@@ -568,7 +567,7 @@ const HotelDetails = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="col-lg-12 mb-20">
+                                    <div className="col-lg-12 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Review*</label>
                                         <textarea
@@ -1150,7 +1149,7 @@ const HotelDetails = () => {
         })}
       />
 
-<Modal
+      <Modal
         scrollable
         centered
         isOpen={mapModal}
@@ -1160,8 +1159,7 @@ const HotelDetails = () => {
         <ModalHeader
           toggle={() => setMapModal(false)}
           className=""
-        >
-        </ModalHeader>
+        ></ModalHeader>
 
         <ModalBody>
           <iframe
@@ -1170,18 +1168,14 @@ const HotelDetails = () => {
             height="600"
             frameborder="0"
             style={{
-              border:0
+              border: 0,
             }}
             allowfullscreen=""
             aria-hidden="false"
             tabindex="0"
           ></iframe>
         </ModalBody>
-
-      
       </Modal>
-
-
     </>
   );
 };

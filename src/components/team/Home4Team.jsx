@@ -98,7 +98,7 @@ const Home4Team = () => {
             </div>
           </div>
           <div className="teams-slider-area">
-            <div className="row mb-60">
+            <div className="row mb-[60px]">
               <div className="col-lg-12">
                 <Swiper {...settings} className="swiper teams-card-slider">
                   <div className="swiper-wrapper">

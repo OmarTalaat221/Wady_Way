@@ -7,12 +7,12 @@ const Home2About = () => {
   const [isOpen, setOpen] = useState(false);
   return (
     <>
-      <div className="home2-about-section pt-120 mb-120">
+      <div className="home2-about-section pt-[50px] mb-[60px]">
         <div className="container">
-          <div className="row mb-90">
+          <div className="row mb-[90px]">
             <div className="col-lg-6">
               <div className="about-content">
-                <div className="section-title2 mb-30">
+                <div className="section-title2 mb-[30px]">
                   <div className="eg-section-tag">
                     <span>About Us</span>
                   </div>
@@ -24,7 +24,7 @@ const Home2About = () => {
                     Suspendisse ullamcorper.
                   </p>
                 </div>
-                <div className="row g-4 mb-50">
+                <div className="row g-4 mb-[50px]">
                   <div className="col-md-6">
                     <div className="facility-card">
                       <div className="icon">
@@ -267,23 +267,6 @@ const Home2About = () => {
                     <p>Travel Guide</p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-lg-12 d-flex justify-content-center">
-              <div className="tripadvisor-review">
-                <strong>Excellent!</strong>
-                <img src="/assets/img/home2/icon/tripadvisor-star.svg" alt="" />
-                <p>
-                  <strong>5.0</strong> Rating out of <strong>5.0</strong> based
-                  on{" "}
-                  <a href="https://www.tripadvisor.com/">
-                    <strong>245354</strong>
-                    reviews
-                  </a>
-                </p>
-                <img src="/assets/img/home2/icon/tripadvisor-logo.svg" alt="" />
               </div>
             </div>
           </div>

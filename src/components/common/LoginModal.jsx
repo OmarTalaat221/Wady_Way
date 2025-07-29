@@ -23,10 +23,10 @@ const LoginModal = () => {
                   <p>Enter your email address for Login.</p>
                 </div>
                 <form>
-                  <div className="form-inner mb-20">
+                  <div className="form-inner mb-[20px]">
                     <input type="text" placeholder="User name or Email *" />
                   </div>
-                  <a href="#" className="login-btn mb-25">
+                  <a href="#" className="login-btn mb-[25px]">
                     Sign In
                   </a>
                   <div className="divider">

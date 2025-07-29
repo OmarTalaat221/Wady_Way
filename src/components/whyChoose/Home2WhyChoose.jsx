@@ -21,13 +21,13 @@ const Home2WhyChoose = () => {
       allowTouchMove: false,
       effect: "fade",
       fadeEffect: {
-        crossFade: true, 
+        crossFade: true,
       },
     };
   }, []);
   return (
     <>
-      <div className="feature-card-section mb-120">
+      <div className="feature-card-section mb-[120px]">
         <div className="container">
           <div className="row mb-50">
             <div className="col-lg-12">
@@ -39,7 +39,7 @@ const Home2WhyChoose = () => {
               </div>
             </div>
           </div>
-          <div className="row gy-5 mb-80">
+          <div className="row gy-5 mb-[80px]">
             <div className="col-xl-4 col-md-6">
               <div className="feature-card style-2">
                 <div className="feature-card-icon">
@@ -183,7 +183,6 @@ const Home2WhyChoose = () => {
               </div>
             </div>
           </div>
-         
         </div>
       </div>
     </>

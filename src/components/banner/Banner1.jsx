@@ -32,8 +32,8 @@ const Banner1 = () => {
   }, []);
   return (
     <>
-      <div className="home1-banner-area">
-        <div className="container-fluid">
+      <div className="home1-banner-area !p-0">
+        <div className="container-fluid !p-0">
           <Swiper {...settings} className="swiper home1-banner-slider">
             <div className="swiper-wrapper">
               <SwiperSlide className="swiper-slide">

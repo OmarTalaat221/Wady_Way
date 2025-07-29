@@ -47,7 +47,6 @@ import {
 // Flip card styles
 
 const Page = () => {
-
   const [isSticky, setIsSticky] = useState(false);
 
   window.onscroll = function () {
@@ -1062,7 +1061,7 @@ const Page = () => {
     //           </p>
     //           <h4>Included and Excluded</h4>
 
-    //           <div className="includ-and-exclud-area mb-20">
+    //           <div className="includ-and-exclud-area mb-[20px]">
     //             <ul>
     //               <li>
     //                 <i className="bi bi-check-lg" /> Meal as per hotel Plan and
@@ -1104,7 +1103,7 @@ const Page = () => {
     //             </ul>
     //           </div>
 
-    //           <div className="highlight-tour mb-20">
+    //           <div className="highlight-tour mb-[20px]">
     //             <h4>Highlights of the Tour</h4>
     //             <ul>
     //               <li>
@@ -1918,7 +1917,7 @@ const Page = () => {
     //             </div>
     //           </div>
     //           <div className="faq-content-wrap mb-80">
-    //             <div className="faq-content-title mb-20">
+    //             <div className="faq-content-title mb-[20px]">
     //               <h4>Frequently Asked &amp; Question</h4>
     //             </div>
     //             <div className="faq-content">
@@ -1998,7 +1997,7 @@ const Page = () => {
     //                             <h4>Write Your Review</h4>
     //                             <form>
     //                               <div className="row">
-    //                                 <div className="col-md-6 mb-20">
+    //                                 <div className="col-md-6 mb-[20px]">
     //                                   <div className="form-inner">
     //                                     <label>Name</label>
     //                                     <input
@@ -2007,7 +2006,7 @@ const Page = () => {
     //                                     />
     //                                   </div>
     //                                 </div>
-    //                                 <div className="col-md-6 mb-20">
+    //                                 <div className="col-md-6 mb-[20px]">
     //                                   <div className="form-inner">
     //                                     <label>Email</label>
     //                                     <input
@@ -2016,7 +2015,7 @@ const Page = () => {
     //                                     />
     //                                   </div>
     //                                 </div>
-    //                                 <div className="col-lg-12 mb-20">
+    //                                 <div className="col-lg-12 mb-[20px]">
     //                                   <div className="form-inner">
     //                                     <label>Review*</label>
     //                                     <textarea

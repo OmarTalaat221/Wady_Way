@@ -36,7 +36,7 @@ const Home1Fecilities2 = () => {
       <div className="tour-facilites-section mb-120">
         <div className="container">
           <div className="row">
-            <div className="col-lg-12 d-flex flex-column align-items-center justify-content-between flex-wrap gap-4 mb-60">
+            <div className="col-lg-12 d-flex flex-column align-items-center justify-content-between flex-wrap gap-4 mb-[60px]">
               <div className="section-title text-center">
                 <span>
                   <svg

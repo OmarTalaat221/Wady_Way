@@ -119,7 +119,7 @@ const page = () => {
 
       <div className="package-top-search-section pt-120 mb-120">
         <div className="container">
-          <div className="row gy-5 mb-70">
+          <div className="row gy-5 mb-[70px]">
             <div className="col-lg-4 col-md-6">
               <div className="package-card">
                 <div className="package-card-img-wrap">

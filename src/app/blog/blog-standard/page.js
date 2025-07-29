@@ -35,7 +35,7 @@ const page = () => {
                 comment,
               } = data;
               return (
-                <div key={id} className="col-lg-10 mb-70">
+                <div key={id} className="col-lg-10 mb-[70px]">
                   <div className="blog-st-card two">
                     <div className="blog-img-wrap">
                       <Link href="/blog-details/blog" className="card-img">

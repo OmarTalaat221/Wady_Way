@@ -393,7 +393,7 @@ const Page = () => {
                 10 per day.
               </p>
               <h4>Facilities</h4>
-              <ul className="extra-service mb-20">
+              <ul className="extra-service mb-[20px]">
                 <li>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -547,7 +547,7 @@ const Page = () => {
                                 <h4>Write Your Review</h4>
                                 <form>
                                   <div className="row">
-                                    <div className="col-md-6 mb-20">
+                                    <div className="col-md-6 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Name</label>
                                         <input
@@ -556,7 +556,7 @@ const Page = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="col-md-6 mb-20">
+                                    <div className="col-md-6 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Email</label>
                                         <input
@@ -565,7 +565,7 @@ const Page = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="col-lg-12 mb-20">
+                                    <div className="col-lg-12 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Review*</label>
                                         <textarea
@@ -1164,7 +1164,7 @@ const Page = () => {
                       <form>
                         <div className="tour-date-wrap mb-50">
                           <h6>Select Your Booking Date:</h6>
-                          <div className="form-check mb-25">
+                          <div className="form-check mb-[25px]">
                             <input
                               className="form-check-input"
                               type="radio"
@@ -1190,7 +1190,7 @@ const Page = () => {
                               </span>
                             </label>
                           </div>
-                          <div className="form-check mb-25">
+                          <div className="form-check mb-[25px]">
                             <input
                               className="form-check-input"
                               type="radio"
@@ -1393,7 +1393,7 @@ const Page = () => {
                   >
                     <div className="sidebar-booking-form">
                       <form>
-                        <div className="form-inner mb-20">
+                        <div className="form-inner mb-[20px]">
                           <label>
                             Full Name <span>*</span>
                           </label>
@@ -1402,7 +1402,7 @@ const Page = () => {
                             placeholder="Enter your full name"
                           />
                         </div>
-                        <div className="form-inner mb-20">
+                        <div className="form-inner mb-[20px]">
                           <label>
                             Email Address <span>*</span>
                           </label>
@@ -1411,7 +1411,7 @@ const Page = () => {
                             placeholder="Enter your email address"
                           />
                         </div>
-                        <div className="form-inner mb-20">
+                        <div className="form-inner mb-[20px]">
                           <label>
                             Phone Number <span>*</span>
                           </label>

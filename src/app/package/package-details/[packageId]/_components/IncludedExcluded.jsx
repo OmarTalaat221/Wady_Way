@@ -9,7 +9,7 @@ const IncludedExcluded = () => {
     <div>
       <h4>{t("Included and Excluded")}</h4>
 
-      <div className="includ-and-exclud-area mb-20">
+      <div className="includ-and-exclud-area mb-[20px]">
         <ul>
           <li>
             <i className="bi bi-check-lg" /> {t("included1")}

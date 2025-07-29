@@ -4,7 +4,7 @@ import React from "react";
 const Home1Blog = () => {
   return (
     <>
-      <div className="blog-section pt-120 mb-120">
+      <div className="blog-section pt-[60px] mb-[60px]">
         <img
           src="/assets/img/home1/section-vector1.png"
           alt=""
@@ -13,7 +13,7 @@ const Home1Blog = () => {
         <div className="container">
           <div className="row">
             <div className="col-lg-12">
-              <div className="section-title text-center mb-60">
+              <div className="section-title text-center mb-[60px]">
                 <span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -50,7 +50,11 @@ const Home1Blog = () => {
               <div className="blog-card">
                 <div className="blog-card-img-wrap">
                   <Link href="/blog/blog-details" className="card-img">
-                    <img style={{width:"531px", height:"511px"}} src="https://travelami.templaza.net/wp-content/uploads/2024/08/slider4-1.jpg" alt="" />
+                    <img
+                      style={{ width: "531px", height: "511px" }}
+                      src="https://travelami.templaza.net/wp-content/uploads/2024/08/slider4-1.jpg"
+                      alt=""
+                    />
                   </Link>
                 </div>
                 <div className="blog-card-content">
@@ -131,7 +135,11 @@ const Home1Blog = () => {
               <div className="blog-card two mb-30">
                 <div className="blog-card-img-wrap">
                   <Link href="/blog/blog-details" className="card-img">
-                    <img style={{width:"300px",height:"215px"}} src="https://travelami.templaza.net/wp-content/uploads/2024/04/ivan-bertona-mEecKkkJbIE-unsplash.jpg" alt="" />
+                    <img
+                      style={{ width: "300px", height: "215px" }}
+                      src="https://travelami.templaza.net/wp-content/uploads/2024/04/ivan-bertona-mEecKkkJbIE-unsplash.jpg"
+                      alt=""
+                    />
                   </Link>
                   <Link href="/blog" className="date">
                     <span>
@@ -194,7 +202,11 @@ const Home1Blog = () => {
               <div className="blog-card two mb-30">
                 <div className="blog-card-img-wrap">
                   <Link href="/blog/blog-details" className="card-img">
-                    <img  style={{width:"300px",height:"215px"}} src="https://travelami.templaza.net/wp-content/uploads/2024/04/spencer-davis-ONVA6s03hg8-unsplash.jpg" alt="" />
+                    <img
+                      style={{ width: "300px", height: "215px" }}
+                      src="https://travelami.templaza.net/wp-content/uploads/2024/04/spencer-davis-ONVA6s03hg8-unsplash.jpg"
+                      alt=""
+                    />
                   </Link>
                   <Link href="/blog" className="date">
                     <span>
@@ -257,7 +269,11 @@ const Home1Blog = () => {
               <div className="blog-card two">
                 <div className="blog-card-img-wrap">
                   <Link href="/blog/blog-details" className="card-img">
-                    <img style={{width:"300px",height:"215px"}} src="https://travelami.templaza.net/wp-content/uploads/2024/04/kit-suman-5mcnzeSHFvE-unsplash.jpg" alt="" />
+                    <img
+                      style={{ width: "300px", height: "215px" }}
+                      src="https://travelami.templaza.net/wp-content/uploads/2024/04/kit-suman-5mcnzeSHFvE-unsplash.jpg"
+                      alt=""
+                    />
                   </Link>
                   <Link href="/blog" className="date">
                     <span>

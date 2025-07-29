@@ -12,7 +12,7 @@ const Signup = () => {
     <>
       {/* <Topbar /> */}
       {/* <Header /> */}
-      <div className="login-page my-4">
+      <div className="login-page">
         <div
           className="modal login-modal "
           id="user-login"
@@ -29,26 +29,26 @@ const Signup = () => {
                     <p>Enter your email address for regesteration.</p>
                   </div>
                   <form>
-                    <div className="form-inner mb-20">
+                    <div className="form-inner mb-[20px]">
                       <input type="text" name="name" placeholder="Name *" />
                     </div>
-                    <div className="form-inner mb-20">
+                    <div className="form-inner mb-[20px]">
                       <input type="text" name="email" placeholder="Email *" />
                     </div>
-                    <div className="form-inner mb-20">
+                    <div className="form-inner mb-[20px]">
                       <input type="password" placeholder="Password *" />
                     </div>
-                    <div className="form-inner mb-20">
+                    <div className="form-inner mb-[20px]">
                       <input type="password" placeholder="Confirm Password *" />
                     </div>
-                    <a href="#" className="login-btn mb-25 text-white">
+                    <a href="#" className="login-btn mb-[25px] text-white">
                       Sign Up
                     </a>
 
                     <div className="d-flex gap-2">
                       <div>Already have an account? </div>
 
-                      <Link href={"/login"}>Log in here</Link>
+                      <Link href={"/login"}>Login here</Link>
                     </div>
                     {/* <div className="divider">
                     <span>or</span>

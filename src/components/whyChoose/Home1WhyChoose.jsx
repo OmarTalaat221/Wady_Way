@@ -3,7 +3,7 @@ import React from "react";
 const Home1WhyChoose = () => {
   return (
     <>
-      <div className="feature-card-section mb-120">
+      <div className="feature-card-section mb-[120px]">
         <img
           src="/assets/img/home1/section-vector4.png"
           alt=""
@@ -12,7 +12,7 @@ const Home1WhyChoose = () => {
         <div className="container">
           <div className="row">
             <div className="col-lg-12">
-              <div className="section-title text-center mb-60">
+              <div className="section-title text-center mb-[60px]">
                 <span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

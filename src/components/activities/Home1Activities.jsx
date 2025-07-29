@@ -2,12 +2,12 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import ModalVideo from "react-modal-video";
-import { LazyLoadImage } from 'react-lazy-load-image-component';
+import { LazyLoadImage } from "react-lazy-load-image-component";
 
 const Home1Activities = () => {
   const [isOpen, setOpen] = useState(false);
   return (
-    <div className="verticle-tab-section pt-120 mb-120">
+    <div className="verticle-tab-section pt-[50px] mb-[60px]">
       <LazyLoadImage
         src="/assets/img/home1/section-vector1.png"
         alt=""
@@ -16,7 +16,7 @@ const Home1Activities = () => {
       <div className="container">
         <div className="row">
           <div className="col-lg-12">
-            <div className="section-title text-center mb-60">
+            <div className="section-title text-center mb-[60px]">
               <span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -337,11 +337,19 @@ const Home1Activities = () => {
                       </div>
                     </div>
                     <div className="verticle-tab-img">
-                      <div className="verticle-tab-img1 mb-25">
-                        <LazyLoadImage width="246" src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740662904/danka-peter-tvicgTdh7Fg-unsplash_vuza6m.jpg" alt="" />
+                      <div className="verticle-tab-img1 mb-[25px]">
+                        <LazyLoadImage
+                          width="246"
+                          src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740662904/danka-peter-tvicgTdh7Fg-unsplash_vuza6m.jpg"
+                          alt=""
+                        />
                       </div>
-                      <div className="verticle-tab-img2" >
-                        <LazyLoadImage width="246" src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740662904/fabio-comparelli-uq2E2V4LhCY-unsplash_ae15ei.jpg" alt="" />
+                      <div className="verticle-tab-img2">
+                        <LazyLoadImage
+                          width="246"
+                          src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740662904/fabio-comparelli-uq2E2V4LhCY-unsplash_ae15ei.jpg"
+                          alt=""
+                        />
                       </div>
                     </div>
                   </div>
@@ -412,7 +420,6 @@ const Home1Activities = () => {
                           Check Availability
                         </Link>
                         <a
-                         
                           style={{ cursor: "pointer" }}
                           onClick={() => setOpen(true)}
                           className="video-area video1"
@@ -456,11 +463,17 @@ const Home1Activities = () => {
                       </div>
                     </div>
                     <div className="verticle-tab-img">
-                      <div className="verticle-tab-img1 mb-25">
-                        <LazyLoadImage src="/assets/img/home1/bungee-jump-01.jpg" alt="" />
+                      <div className="verticle-tab-img1 mb-[25px]">
+                        <LazyLoadImage
+                          src="/assets/img/home1/bungee-jump-01.jpg"
+                          alt=""
+                        />
                       </div>
                       <div className="verticle-tab-img2">
-                        <LazyLoadImage src="/assets/img/home1/bungee-jump-02.jpg" alt="" />
+                        <LazyLoadImage
+                          src="/assets/img/home1/bungee-jump-02.jpg"
+                          alt=""
+                        />
                       </div>
                     </div>
                   </div>
@@ -579,11 +592,17 @@ const Home1Activities = () => {
                       </div>
                     </div>
                     <div className="verticle-tab-img">
-                      <div className="verticle-tab-img1 mb-25">
-                        <LazyLoadImage src="/assets/img/home1/rafting-01.jpg" alt="" />
+                      <div className="verticle-tab-img1 mb-[25px]">
+                        <LazyLoadImage
+                          src="/assets/img/home1/rafting-01.jpg"
+                          alt=""
+                        />
                       </div>
                       <div className="verticle-tab-img2">
-                        <LazyLoadImage src="/assets/img/home1/rafting-02.jpg" alt="" />
+                        <LazyLoadImage
+                          src="/assets/img/home1/rafting-02.jpg"
+                          alt=""
+                        />
                       </div>
                     </div>
                   </div>
@@ -704,11 +723,17 @@ const Home1Activities = () => {
                       </div>
                     </div>
                     <div className="verticle-tab-img">
-                      <div className="verticle-tab-img1 mb-25">
-                        <LazyLoadImage src="/assets/img/home1/ski-touring-01.jpg" alt="" />
+                      <div className="verticle-tab-img1 mb-[25px]">
+                        <LazyLoadImage
+                          src="/assets/img/home1/ski-touring-01.jpg"
+                          alt=""
+                        />
                       </div>
                       <div className="verticle-tab-img2">
-                        <LazyLoadImage src="/assets/img/home1/ski-touring-02.jpg" alt="" />
+                        <LazyLoadImage
+                          src="/assets/img/home1/ski-touring-02.jpg"
+                          alt=""
+                        />
                       </div>
                     </div>
                   </div>
@@ -828,11 +853,17 @@ const Home1Activities = () => {
                       </div>
                     </div>
                     <div className="verticle-tab-img">
-                      <div className="verticle-tab-img1 mb-25">
-                        <LazyLoadImage src="/assets/img/home1/paragliding-01.jpg" alt="" />
+                      <div className="verticle-tab-img1 mb-[25px]">
+                        <LazyLoadImage
+                          src="/assets/img/home1/paragliding-01.jpg"
+                          alt=""
+                        />
                       </div>
                       <div className="verticle-tab-img2">
-                        <LazyLoadImage src="/assets/img/home1/paragliding-02.jpg" alt="" />
+                        <LazyLoadImage
+                          src="/assets/img/home1/paragliding-02.jpg"
+                          alt=""
+                        />
                       </div>
                     </div>
                   </div>
@@ -953,7 +984,7 @@ const Home1Activities = () => {
                       </div>
                     </div>
                     <div className="verticle-tab-img">
-                      <div className="verticle-tab-img1 mb-25">
+                      <div className="verticle-tab-img1 mb-[25px]">
                         <img src="/assets/img/home1/surfing-01.jpg" alt="" />
                       </div>
                       <div className="verticle-tab-img2">

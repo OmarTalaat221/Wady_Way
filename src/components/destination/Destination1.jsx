@@ -1,7 +1,10 @@
+"use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React from "react";
 
 const Destination1 = () => {
+  const router = useRouter();
   return (
     <>
       <div className="home1-destination-section mb-120">
@@ -13,7 +16,7 @@ const Destination1 = () => {
         <div className="container">
           <div className="row">
             <div className="col-lg-12">
-              <div className="section-title text-center mb-10">
+              <div className="section-title text-center mb-[20px]">
                 <span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -47,7 +50,10 @@ const Destination1 = () => {
           </div>
           <div className="row g-4">
             <div className="col-lg-3 col-sm-6">
-              <div className="destination-card">
+              <div
+                onClick={() => router.push("/destination/destination-details")}
+                className="destination-card cursor-pointer"
+              >
                 <img
                   src="https://res.cloudinary.com/dhgp9dzdt/image/upload/v1742899986/anfal-shamsudeen-dZd4XWMiM9g-unsplash_g7lk4s.jpg"
                   className="h-full"
@@ -68,7 +74,10 @@ const Destination1 = () => {
               </div>
             </div>
             <div className="col-lg-5 col-sm-6">
-              <div className="destination-card">
+              <div
+                onClick={() => router.push("/destination/destination-details")}
+                className="destination-card cursor-pointer"
+              >
                 <img
                   src="https://res.cloudinary.com/dhgp9dzdt/image/upload/v1742899989/kifayat-ullah-KJe279orqE4-unsplash_mjorfj.jpg"
                   alt=""

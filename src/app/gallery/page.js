@@ -70,7 +70,7 @@ const Page = () => {
       {/* <Header /> */}
       <div className="destination-gallery pt-120 mb-120">
         <div className="container">
-          <div className="row g-4 mb-70">
+          <div className="row g-4 mb-[70px]">
             <div className="col-lg-4 col-sm-6">
               <div className="gallery-img-wrap">
                 <img

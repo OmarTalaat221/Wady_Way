@@ -54,7 +54,7 @@ const Home4DestinationSlide = () => {
     <>
       <div className="home4-destination-card-slider-section pt-120 mb-120">
         <div className="container">
-          <div className="row mb-60">
+          <div className="row mb-[60px]">
             <div className="col-lg-12 d-flex align-items-center justify-content-between flex-wrap gap-3">
               <div className="section-title3">
                 <h2>Find Top Destinations</h2>

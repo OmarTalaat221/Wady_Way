@@ -55,7 +55,7 @@ const Home3Facilities = () => {
       <div className="tour-facilites-section mb-120">
         <div className="container">
           <div className="row">
-            <div className="col-lg-12 d-flex flex-column align-items-center justify-content-between flex-wrap gap-4 mb-60">
+            <div className="col-lg-12 d-flex flex-column align-items-center justify-content-between flex-wrap gap-4 mb-[60px]">
               <div className="section-title2 two text-center">
                 <h2>Ultimate Travel Experience</h2>
                 <p>
@@ -223,7 +223,7 @@ const Home3Facilities = () => {
                   role="tabpanel"
                   aria-labelledby="Tour-tab"
                 >
-                  <div className="package-card-slider-wrap mb-60">
+                  <div className="package-card-slider-wrap mb-[60px]">
                     <div className="row">
                       <div className="col-lg-12">
                         <Swiper
@@ -1052,7 +1052,7 @@ const Home3Facilities = () => {
                   role="tabpanel"
                   aria-labelledby="Hotel-tab"
                 >
-                  <div className="package-card-slider-wrap mb-60">
+                  <div className="package-card-slider-wrap mb-[60px]">
                     <div className="row">
                       <div className="col-lg-12">
                         <Swiper
@@ -2232,7 +2232,7 @@ const Home3Facilities = () => {
                   role="tabpanel"
                   aria-labelledby="Transport-tab"
                 >
-                  <div className="package-card-slider-wrap mb-60">
+                  <div className="package-card-slider-wrap mb-[60px]">
                     <div className="row">
                       <div className="col-lg-12">
                         <Swiper

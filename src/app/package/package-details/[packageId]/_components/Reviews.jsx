@@ -203,19 +203,19 @@ const Reviews = () => {
                     <h4>{t("writeReview")}</h4>
                     <form>
                       <div className="row">
-                        <div className="col-md-6 mb-20">
+                        <div className="col-md-6 mb-[20px]">
                           <div className="form-inner">
                             <label>{t("name")}</label>
                             <input type="text" placeholder={t("enterName")} />
                           </div>
                         </div>
-                        <div className="col-md-6 mb-20">
+                        <div className="col-md-6 mb-[20px]">
                           <div className="form-inner">
                             <label>{t("email")}</label>
                             <input type="email" placeholder={t("enterEmail")} />
                           </div>
                         </div>
-                        <div className="col-lg-12 mb-20">
+                        <div className="col-lg-12 mb-[20px]">
                           <div className="form-inner">
                             <label>{t("review")}*</label>
                             <textarea

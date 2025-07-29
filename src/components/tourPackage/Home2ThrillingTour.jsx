@@ -69,7 +69,7 @@ const Home2ThrillingTour = () => {
               <div className="col-lg-12">
                 <Swiper
                   {...settings}
-                  className="swiper package-card-slider mb-60"
+                  className="swiper package-card-slider mb-[60px]"
                 >
                   <div className="swiper-wrapper">
                     <SwiperSlide className="swiper-slide">

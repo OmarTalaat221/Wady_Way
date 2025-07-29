@@ -212,7 +212,7 @@ const Page = () => {
               <h4 className="text-xl font-semibold mt-5 mb-3">
                 {t("includedExcluded")}
               </h4>
-              <div className="includ-and-exclud-area mb-20">
+              <div className="includ-and-exclud-area mb-[20px]">
                 <div className="bg-[#f8f8f8] p-4 rounded-lg mb-4">
                   <h5 className="text-lg font-semibold mb-3 text-[#e8a355]">
                     {t("included.title")}
@@ -328,7 +328,7 @@ const Page = () => {
                                 <h4>Write Your Review</h4>
                                 <form>
                                   <div className="row">
-                                    <div className="col-md-6 mb-20">
+                                    <div className="col-md-6 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Name</label>
                                         <input
@@ -337,7 +337,7 @@ const Page = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="col-md-6 mb-20">
+                                    <div className="col-md-6 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Email</label>
                                         <input
@@ -346,7 +346,7 @@ const Page = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="col-lg-12 mb-20">
+                                    <div className="col-lg-12 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Review*</label>
                                         <textarea
@@ -1036,7 +1036,7 @@ const Page = () => {
                     >
                       <div className="sidebar-booking-form">
                         <form>
-                          <div className="form-inner mb-20">
+                          <div className="form-inner mb-[20px]">
                             <label>
                               Full Name <span>*</span>
                             </label>
@@ -1045,7 +1045,7 @@ const Page = () => {
                               placeholder="Enter your full name"
                             />
                           </div>
-                          <div className="form-inner mb-20">
+                          <div className="form-inner mb-[20px]">
                             <label>
                               Email Address <span>*</span>
                             </label>
@@ -1054,7 +1054,7 @@ const Page = () => {
                               placeholder="Enter your email address"
                             />
                           </div>
-                          <div className="form-inner mb-20">
+                          <div className="form-inner mb-[20px]">
                             <label>
                               Phone Number <span>*</span>
                             </label>

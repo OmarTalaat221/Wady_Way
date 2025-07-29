@@ -122,7 +122,7 @@ const WishlistPage = () => {
         Link copied to clipboard!
       </div>
 
-      <div className="wishlist-section pt-10  mb-60">
+      <div className="wishlist-section pt-10  mb-[60px]">
         <div className="container">
           {isLoading ? (
             <div className="loading-spinner">

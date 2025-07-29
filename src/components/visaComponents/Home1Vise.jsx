@@ -60,7 +60,7 @@ const Home1Vise = () => {
         />
         <div className="container">
           <div className="row">
-            <div className="col-lg-12 d-flex align-items-center justify-content-between flex-wrap gap-3 mb-60">
+            <div className="col-lg-12 d-flex align-items-center justify-content-between flex-wrap gap-3 mb-[60px]">
               <div className="section-title">
                 <span>
                   <svg

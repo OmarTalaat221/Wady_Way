@@ -37,7 +37,7 @@ const Home1FacilitySlide = () => {
                   <div className="swiper-wrapper">
                     <SwiperSlide className="swiper-slide">
                       <div className="slider-content">
-                        <div className="section-title mb-20">
+                        <div className="section-title mb-[20px]">
                           <span>
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -147,7 +147,7 @@ const Home1FacilitySlide = () => {
                     </SwiperSlide>
                     <SwiperSlide className="swiper-slide">
                       <div className="slider-content">
-                        <div className="section-title mb-20">
+                        <div className="section-title mb-[20px]">
                           <span>
                             <svg
                               xmlns="http://www.w3.org/2000/svg"

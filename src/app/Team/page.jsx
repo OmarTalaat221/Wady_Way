@@ -1,7 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TiSocialLinkedin } from "react-icons/ti";
 import { FaXTwitter } from "react-icons/fa6";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Modal } from "antd";
 import Footer from "@/components/footer/Footer";
 import Breadcrumb from "../../components/common/Breadcrumb";
@@ -86,6 +87,47 @@ const page = () => {
   ];
 
   const [MemberData, setMemberData] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  useEffect(() => {
+    if (MemberData) {
+      const index = OurTeamMembers.findIndex(
+        (member) => member.id === MemberData.id
+      );
+      if (index !== -1) setCurrentIndex(index);
+    }
+  }, [MemberData]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!MemberData) return;
+
+      if (e.key === "ArrowRight" || e.key === "d") {
+        handleNext();
+      } else if (e.key === "ArrowLeft" || e.key === "a") {
+        handlePrev();
+      } else if (e.key === "Escape") {
+        setMemberData(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [MemberData, currentIndex]);
+
+  const handleNext = () => {
+    if (!MemberData) return;
+    const nextIndex = (currentIndex + 1) % OurTeamMembers.length;
+    setCurrentIndex(nextIndex);
+    setMemberData(OurTeamMembers[nextIndex]);
+  };
+
+  const handlePrev = () => {
+    if (!MemberData) return;
+    const prevIndex =
+      (currentIndex - 1 + OurTeamMembers.length) % OurTeamMembers.length;
+    setCurrentIndex(prevIndex);
+    setMemberData(OurTeamMembers[prevIndex]);
+  };
 
   return (
     <>
@@ -148,7 +190,7 @@ const page = () => {
           title={``}
           width={"70%"}
         >
-          <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex flex-col md:flex-row gap-6 relative">
             <div className="w-full md:w-1/3">
               <img
                 src={MemberData?.image}
@@ -209,6 +251,32 @@ const page = () => {
                   ))}
                 </div>
               </div>
+            </div>
+
+            <div className="absolute top-1/2 -left-4 transform -translate-y-1/2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrev();
+                }}
+                className="bg-[#295557] text-white p-2 rounded-full hover:bg-[#1e3e3f] transition-colors shadow-md"
+                aria-label="Previous team member"
+              >
+                <FaChevronLeft />
+              </button>
+            </div>
+
+            <div className="absolute top-1/2 -right-4 transform -translate-y-1/2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNext();
+                }}
+                className="bg-[#295557] text-white p-2 rounded-full hover:bg-[#1e3e3f] transition-colors shadow-md"
+                aria-label="Next team member"
+              >
+                <FaChevronRight />
+              </button>
             </div>
           </div>
         </Modal>

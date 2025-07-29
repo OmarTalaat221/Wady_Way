@@ -59,7 +59,7 @@ const page = () => {
             ))}
           </div>
 
-          <div className="row g-md-4 gy-5 mb-70">
+          <div className="row g-md-4 gy-5 mb-[70px]">
             {blogData.map((data) => {
               const {
                 id,

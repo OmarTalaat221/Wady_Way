@@ -570,7 +570,7 @@ const page = () => {
                 </div>
                 <div className="single-widget mb-30">
                   <h5 className="widget-title">Recent Post</h5>
-                  <div className="recent-post-widget mb-20">
+                  <div className="recent-post-widget mb-[20px]">
                     <div className="recent-post-img">
                       <Link href="/blog/blog-details">
                         <img
@@ -588,7 +588,7 @@ const page = () => {
                       </h6>
                     </div>
                   </div>
-                  <div className="recent-post-widget mb-20">
+                  <div className="recent-post-widget mb-[20px]">
                     <div className="recent-post-img">
                       <Link href="/blog/blog-details">
                         <img
@@ -606,7 +606,7 @@ const page = () => {
                       </h6>
                     </div>
                   </div>
-                  <div className="recent-post-widget mb-20">
+                  <div className="recent-post-widget mb-[20px]">
                     <div className="recent-post-img">
                       <Link href="/blog/blog-details">
                         <img

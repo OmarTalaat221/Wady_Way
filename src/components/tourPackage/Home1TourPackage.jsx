@@ -4,7 +4,7 @@ import React from "react";
 const Home1TourPackage = () => {
   return (
     <>
-      <div className="package-card-section pt-120 mb-120">
+      <div className="package-card-section pt-[50px] mb-[60px]">
         <img
           src="/assets/img/home1/section-vector1.png"
           alt=""
@@ -18,7 +18,7 @@ const Home1TourPackage = () => {
         <div className="container">
           <div className="row">
             <div className="col-lg-12">
-              <div className="section-title text-center mb-10">
+              <div className="section-title text-center mb-[20px]">
                 <span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -50,7 +50,7 @@ const Home1TourPackage = () => {
               </div>
             </div>
           </div>
-          <div className="row g-lg-4 gy-5 mb-70">
+          <div className="row g-lg-4 gy-5 mb-[70px]">
             <div className="col-lg-4 col-md-6">
               <div className="package-card">
                 <div className="package-card-img-wrap">

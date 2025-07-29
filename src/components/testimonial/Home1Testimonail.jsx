@@ -17,7 +17,7 @@ const Home1Testimonail = () => {
       spaceBetween: 25,
       loop: true,
       autoplay: {
-        delay: 2500, 
+        delay: 2500,
         disableOnInteraction: false,
       },
       navigation: {
@@ -59,7 +59,7 @@ const Home1Testimonail = () => {
       <div className="container">
         <div className="row">
           <div className="col-lg-12">
-            <div className="section-title text-center mb-60">
+            <div className="section-title text-center mb-[60px]">
               <span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -139,7 +139,10 @@ const Home1Testimonail = () => {
                   aria-selected="false"
                 >
                   <div className="icon">
-                    <img src="/assets/img/home1/icon/facebook-logo.svg" alt="" />
+                    <img
+                      src="/assets/img/home1/icon/facebook-logo.svg"
+                      alt=""
+                    />
                   </div>
                   Facebook
                 </div>

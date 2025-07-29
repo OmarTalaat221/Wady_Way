@@ -9,6 +9,7 @@ import Topbar from "@/components/topbar/Topbar";
 import Header from "@/components/header/Header";
 import Footer from "@/components/footer/Footer";
 import Newslatter from "@/components/common/Newslatter";
+import FAQ from "../../package/package-details/[packageId]/_components/FAQ";
 const Page = () => {
   const [isOpenModalVideo, setOpenModalVideo] = useState(false);
   const [isOpenimg, setOpenimg] = useState({
@@ -302,7 +303,7 @@ const Page = () => {
                 backcountry environments.
               </p>
               <h4>Included and Excluded</h4>
-              <div className="includ-and-exclud-area mb-20">
+              <div className="includ-and-exclud-area mb-[20px]">
                 <ul>
                   <li>
                     <i className="bi bi-check-lg" /> Ski touring involves
@@ -352,7 +353,7 @@ const Page = () => {
                   </li>
                 </ul>
               </div>
-              <div className="highlight-tour mb-20">
+              <div className="highlight-tour mb-[20px]">
                 <h4>Highlights of the Tour</h4>
                 <ul>
                   <li>
@@ -406,8 +407,8 @@ const Page = () => {
                   </li>
                 </ul>
               </div>
-              <h4>Activities Plan</h4>
-              <div className="accordion tour-plan" id="tourPlan">
+              {/* <h4>Activities Plan</h4> */}
+              {/* <div className="accordion tour-plan" id="tourPlan">
                 <div className="accordion-item">
                   <h2 className="accordion-header" id="headingOne">
                     <button
@@ -590,7 +591,7 @@ const Page = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+              </div> */}
               <div className="tour-location">
                 <h4>Location Map</h4>
                 <div className="map-area mb-30">
@@ -606,7 +607,7 @@ const Page = () => {
                 </div>
               </div>
               <div className="faq-content-wrap mb-80">
-                <div className="faq-content-title mb-20">
+                {/* <div className="faq-content-title mb-[20px]">
                   <h4>Frequently Asked &amp; Question</h4>
                 </div>
                 <div className="faq-content">
@@ -639,7 +640,9 @@ const Page = () => {
                       </div>
                     ))}
                   </div>
-                </div>
+                </div> */}
+
+                <FAQ faqData={faqData} text={true} />
               </div>
               <div className="review-wrapper">
                 <h4>Customer Review</h4>
@@ -691,7 +694,7 @@ const Page = () => {
                                 <h4>Write Your Review</h4>
                                 <form>
                                   <div className="row">
-                                    <div className="col-md-6 mb-20">
+                                    <div className="col-md-6 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Name</label>
                                         <input
@@ -700,7 +703,7 @@ const Page = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="col-md-6 mb-20">
+                                    <div className="col-md-6 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Email</label>
                                         <input
@@ -709,7 +712,7 @@ const Page = () => {
                                         />
                                       </div>
                                     </div>
-                                    <div className="col-lg-12 mb-20">
+                                    <div className="col-lg-12 mb-[20px]">
                                       <div className="form-inner">
                                         <label>Review*</label>
                                         <textarea
@@ -1307,7 +1310,7 @@ const Page = () => {
                       <form>
                         <div className="tour-date-wrap mb-50">
                           <h6>Select Your Booking Date:</h6>
-                          <div className="form-inner mb-20">
+                          <div className="form-inner mb-[20px]">
                             <div className="form-group">
                               <input
                                 type="date"
@@ -1465,7 +1468,7 @@ const Page = () => {
                   >
                     <div className="sidebar-booking-form">
                       <form>
-                        <div className="form-inner mb-20">
+                        <div className="form-inner mb-[20px]">
                           <label>
                             Full Name <span>*</span>
                           </label>
@@ -1474,7 +1477,7 @@ const Page = () => {
                             placeholder="Enter your full name"
                           />
                         </div>
-                        <div className="form-inner mb-20">
+                        <div className="form-inner mb-[20px]">
                           <label>
                             Email Address <span>*</span>
                           </label>
@@ -1483,7 +1486,7 @@ const Page = () => {
                             placeholder="Enter your email address"
                           />
                         </div>
-                        <div className="form-inner mb-20">
+                        <div className="form-inner mb-[20px]">
                           <label>
                             Phone Number <span>*</span>
                           </label>

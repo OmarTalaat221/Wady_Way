@@ -329,7 +329,7 @@ const page = () => {
                   </ul>
                 </div>
               </div>
-              <div className="list-grid-product-wrap mb-70">
+              <div className="list-grid-product-wrap mb-[70px]">
                 <div className="row gy-4">
                   <div className="col-md-12 item">
                     <div className="package-card4 four">

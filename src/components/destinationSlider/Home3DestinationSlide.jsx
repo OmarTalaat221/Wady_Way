@@ -405,7 +405,7 @@ const Home3DestinationSlide = () => {
                 role="tabpanel"
                 aria-labelledby="adventure-tab"
               >
-                <div className="row g-4 mb-60">
+                <div className="row g-4 mb-[60px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card3 style-3">
                       <Link
@@ -810,7 +810,7 @@ const Home3DestinationSlide = () => {
                 role="tabpanel"
                 aria-labelledby="cultural-tour-tab"
               >
-                <div className="row g-4 mb-60">
+                <div className="row g-4 mb-[60px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card3 style-3">
                       <Link
@@ -1215,7 +1215,7 @@ const Home3DestinationSlide = () => {
                 role="tabpanel"
                 aria-labelledby="wildlife-tab"
               >
-                <div className="row g-4 mb-60">
+                <div className="row g-4 mb-[60px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card3 style-3">
                       <Link
@@ -1620,7 +1620,7 @@ const Home3DestinationSlide = () => {
                 role="tabpanel"
                 aria-labelledby="historical-tab"
               >
-                <div className="row g-4 mb-60">
+                <div className="row g-4 mb-[60px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card3 style-3">
                       <Link
@@ -2025,7 +2025,7 @@ const Home3DestinationSlide = () => {
                 role="tabpanel"
                 aria-labelledby="private-tab"
               >
-                <div className="row g-4 mb-60">
+                <div className="row g-4 mb-[60px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card3 style-3">
                       <Link
@@ -2430,7 +2430,7 @@ const Home3DestinationSlide = () => {
                 role="tabpanel"
                 aria-labelledby="road-trip-tab"
               >
-                <div className="row g-4 mb-60">
+                <div className="row g-4 mb-[60px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card3 style-3">
                       <Link
@@ -2835,7 +2835,7 @@ const Home3DestinationSlide = () => {
                 role="tabpanel"
                 aria-labelledby="citytour-tab"
               >
-                <div className="row g-4 mb-60">
+                <div className="row g-4 mb-[60px]">
                   <div className="col-lg-4 col-md-6">
                     <div className="package-card3 style-3">
                       <Link

@@ -6,7 +6,7 @@ const TourHighlights = () => {
   const t = useTranslations("packageDetails");
 
   return (
-    <div className="highlight-tour mb-20">
+    <div className="highlight-tour mb-[20px]">
       <h4>{t("highlightsTitle")}</h4>
       <ul>
         <li>

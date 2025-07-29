@@ -11,7 +11,7 @@ const page = () => {
       <Breadcrumb pagename="Destination" pagetitle="Destination" />
       <div className="destination-section pt-120 mb-120">
         <div className="container">
-          <div className="row g-lg-4 gy-5 mb-70">
+          <div className="row g-lg-4 gy-5 mb-[70px]">
             <div className="col-lg-6 destination-column">
               <DropdownCard
                 img={"/assets/img/home3/destination-dropdown-card-img1.png"}
