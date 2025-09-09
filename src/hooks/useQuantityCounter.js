@@ -10,7 +10,7 @@ const useQuantityCounter = (initialValue = 1) => {
     const inputQuantity = parseInt(event.target.value, 10);
     if (!isNaN(inputQuantity)) {
       if (inputQuantity > MAX_QUANTITY) {
-        alert("Maximum quantity is 10.");
+        // alert("Maximum quantity is 10.");
         setQuantity(MAX_QUANTITY);
       } else if (inputQuantity < 1) {
         alert("Minimum quantity is 1.");

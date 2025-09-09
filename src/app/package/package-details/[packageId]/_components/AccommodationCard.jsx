@@ -15,8 +15,9 @@ const AccommodationCard = ({
   item,
   index,
   activeAccommodations,
-  messi,
+
   isFlipped,
+
   selectedAccommodation,
   selectedTours,
   setSelectedTours,
