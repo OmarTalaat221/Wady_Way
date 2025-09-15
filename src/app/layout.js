@@ -26,6 +26,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
 import Header from "../components/header/Header";
+import { Toaster } from "react-hot-toast";
 
 export default async function RootLayout({ children }) {
   const locale = await getLocale();
@@ -42,6 +43,7 @@ export default async function RootLayout({ children }) {
 
           {children}
         </NextIntlClientProvider>
+        <Toaster />
       </body>
     </html>
   );

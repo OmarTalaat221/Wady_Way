@@ -1,65 +1,415 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import ModalVideo from "react-modal-video";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import ReactDatePicker from "react-datepicker";
 import QuantityCounter from "@/uitils/QuantityCounter";
 import Lightbox from "yet-another-react-lightbox";
 import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
+import { useSearchParams } from "next/navigation";
+import axios from "axios";
+import { base_url } from "../../../uitils/base_url";
+import { message } from "antd";
+import moment from "moment";
+
 const Page = () => {
-  const [dateRange, setDateRange] = useState([null, null]);
+  // Initialize with proper dates
+  const [dateRange, setDateRange] = useState([
+    new Date(),
+    moment().add(1, "day").toDate(),
+  ]);
   const [startDate, endDate] = dateRange;
+
   const [isOpenModalVideo, setOpenModalVideo] = useState(false);
   const [isOpenimg, setOpenimg] = useState({
     openingState: false,
     openingIndex: 0,
   });
-  const images = [
-    {
-      id: 1,
-      imageBig:
-        "https://travelami.templaza.net/wp-content/uploads/2024/03/garrett-parker-DlkF4-dbCOU-unsplash.jpg",
-    },
-    {
-      id: 2,
-      imageBig:
-        "https://travelami.templaza.net/wp-content/uploads/2024/04/evangelos-mpikakis-t029Goq_7xE-unsplash-500x500.jpg",
-    },
-    {
-      id: 3,
-      imageBig:
-        "https://travelami.templaza.net/wp-content/uploads/2024/04/fynn-schmidt-IYKL2uhgsnU-unsplash-500x500.jpg",
-    },
-    {
-      id: 4,
-      imageBig:
-        "https://travelami.templaza.net/wp-content/uploads/2024/04/kit-suman-5mcnzeSHFvE-unsplash-500x500.jpg",
-    },
-    {
-      id: 5,
-      imageBig:
-        "https://travelami.templaza.net/wp-content/uploads/2024/04/caleb-miller-0Bs3et8FYyg-unsplash-e1712501886990-500x500.jpg",
-    },
-    {
-      id: 6,
-      imageBig:
-        "https://travelami.templaza.net/wp-content/uploads/2024/04/leonardo-ramos-CJ4mbwSK3EY-unsplash-500x500.jpg",
-    },
-  ];
+
+  // Hotel data state
+  const [hotelData, setHotelData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Booking state
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
+  const [bookingLoading, setBookingLoading] = useState(false);
+
+  // Modal states
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingError, setBookingError] = useState(null);
+
+  // User state
+  const [user, setUser] = useState(null);
+
+  // Modal refs
+  const confirmModalRef = useRef(null);
+  const bookingModalRef = useRef(null);
+
+  const searchParams = useSearchParams();
+  const hotelID = searchParams.get("hotel");
+
+  // Modal handler functions
+  const openConfirmModal = () => setIsConfirmModalOpen(true);
+  const closeConfirmModal = () => setIsConfirmModalOpen(false);
+  const openBookingModal = () => setIsBookingModalOpen(true);
+  const closeBookingModal = () => {
+    setIsBookingModalOpen(false);
+    setBookingSuccess(false);
+    setBookingError(null);
+    setBookingLoading(false);
+  };
+
+  // Handle modal outside clicks
+  const handleModalOutsideClick = (e, modalRef, closeFunction) => {
+    if (modalRef.current && !modalRef.current.contains(e.target)) {
+      closeFunction();
+    }
+  };
+
+  // Get user data on component mount
+  useEffect(() => {
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+  }, []);
+
+  // Fetch hotel data
+  useEffect(() => {
+    if (hotelID) {
+      fetchHotelData();
+    }
+  }, [hotelID]);
+
+  const fetchHotelData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await axios.post(
+        `${base_url}/user/hotels/hotel_by_id.php`,
+        {
+          hotel_id: hotelID,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("Full API Response:", response.data?.message);
+
+      if (response.data.status === "success") {
+        setHotelData(response.data.message[0]);
+      } else {
+        const errorMsg = response.data.message || "Failed to fetch hotel data";
+        setError(errorMsg);
+        message.error(errorMsg);
+      }
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.message || "Network error occurred";
+      setError(errorMessage);
+      message.error(errorMessage);
+      console.error("Error fetching hotel data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Memoized calculations for better performance - FIXED PRICING
+  const { adultPrice, childPrice, totalDays } = useMemo(() => {
+    if (!startDate || !endDate) {
+      return {
+        adultPrice: parseFloat(hotelData?.adult_price) || 0,
+        childPrice: parseFloat(hotelData?.child_price) || 0,
+        totalDays: 0,
+      };
+    }
+
+    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+    // FIXED: Prioritize adult_price and child_price from API
+    const adultRate = parseFloat(hotelData?.adult_price) || 0;
+    const childRate = parseFloat(hotelData?.child_price) || 0;
+
+    console.log("Calculated rates:", { adultRate, childRate, days });
+
+    return {
+      adultPrice: isNaN(adultRate) ? 0 : adultRate,
+      childPrice: isNaN(childRate) ? 0 : childRate,
+      totalDays: Math.max(0, days),
+    };
+  }, [startDate, endDate, hotelData?.adult_price, hotelData?.child_price]);
+
+  // Calculate total price
+  const calculateTotal = useMemo(() => {
+    if (
+      !hotelData ||
+      totalDays <= 0 ||
+      isNaN(adultPrice) ||
+      isNaN(childPrice)
+    ) {
+      return 0;
+    }
+    const total =
+      adultPrice * adults * totalDays + childPrice * children * totalDays;
+    console.log("Total calculation:", {
+      adultPrice,
+      childPrice,
+      adults,
+      children,
+      totalDays,
+      total,
+    });
+    return Math.max(0, total);
+  }, [hotelData, adultPrice, childPrice, adults, children, totalDays]);
+
+  // Handle date change with validation
+  const handleDateChange = (update) => {
+    if (update && update[0] && update[1]) {
+      // Ensure checkout is after checkin
+      if (update[1] <= update[0]) {
+        const nextDay = moment(update[0]).add(1, "day").toDate();
+        setDateRange([update[0], nextDay]);
+        message.warning(
+          "Check-out date has been adjusted to be after check-in date"
+        );
+        return;
+      }
+    }
+    setDateRange(update);
+  };
+
+  // Handle booking with improved validation - now opens confirmation modal
+  const handleBooking = async (e) => {
+    e.preventDefault();
+
+    // Comprehensive validation
+    const validationErrors = [];
+
+    if (!user || !user.isLoggedIn) {
+      message.error("Please login to make a booking");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1500);
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      validationErrors.push("Please select check-in and check-out dates");
+    }
+
+    if (startDate && endDate && startDate >= endDate) {
+      validationErrors.push("Check-out date must be after check-in date");
+    }
+
+    if (!hotelData || !hotelID) {
+      validationErrors.push("Hotel information not available");
+    }
+
+    const today = moment().startOf("day");
+    if (startDate && moment(startDate).isBefore(today)) {
+      validationErrors.push("Check-in date cannot be in the past");
+    }
+
+    if (totalDays <= 0) {
+      validationErrors.push("Invalid date range selected");
+    }
+
+    if (adults <= 0) {
+      validationErrors.push("At least one adult is required");
+    }
+
+    if (validationErrors.length > 0) {
+      validationErrors.forEach((error) => message.error(error));
+      return;
+    }
+
+    // If validation passes, open confirmation modal
+    openConfirmModal();
+  };
+
+  // Handle the actual booking confirmation
+  const handleConfirmBooking = async () => {
+    try {
+      closeConfirmModal();
+      openBookingModal();
+      setBookingLoading(true);
+      setBookingSuccess(false);
+      setBookingError(null);
+
+      const bookingData = {
+        user_id: user.user_id || user.id || "1",
+        hotel_id: hotelID,
+        aditional_services: "null",
+        total_amount: calculateTotal.toString(),
+        start_date: moment(startDate).format("YYYY-MM-DD"),
+        end_date: moment(endDate).format("YYYY-MM-DD"),
+        adults: adults,
+        children: children,
+        days: totalDays,
+      };
+
+      console.log("Booking data being sent:", bookingData);
+
+      const response = await axios.post(
+        `${base_url}/user/hotels/reserve_hotel.php`,
+        bookingData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("Booking response:", response.data);
+
+      if (response.data.success === "success") {
+        setBookingSuccess(true);
+        setBookingError(null);
+
+        // Reset form to initial state
+        setTimeout(() => {
+          const tomorrow = moment().add(1, "day").toDate();
+          setDateRange([new Date(), tomorrow]);
+          setAdults(1);
+          setChildren(0);
+        }, 2000);
+      } else {
+        setBookingSuccess(false);
+        setBookingError(
+          response.data.message || "Booking failed. Please try again."
+        );
+      }
+    } catch (err) {
+      console.error("Error booking hotel:", err);
+      const errorMessage =
+        err.response?.data?.message || "Network error occurred during booking";
+      setBookingSuccess(false);
+      setBookingError(errorMessage);
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log(hotelData, "hotelData");
+  }, [hotelData]);
+
+  const images = useMemo(() => {
+    if (hotelData?.image && hotelData.image.split("//CAMP//")?.length > 0) {
+      return hotelData.image.split("//CAMP//").map((image, index) => ({
+        id: index + 1,
+        imageBig: image,
+      }));
+    }
+    return [
+      {
+        id: 1,
+        imageBig: "/path/to/default-hotel-image.jpg",
+      },
+    ];
+  }, [hotelData?.image]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <>
+        <Breadcrumb pagename="Hotel Details" pagetitle="Hotel Details" />
+        <div className="loading-container text-center py-5">
+          <div
+            className="spinner-border"
+            style={{ color: "#295557" }}
+            role="status"
+          >
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3">Loading hotel details...</p>
+        </div>
+      </>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <>
+        <Breadcrumb pagename="Hotel Details" pagetitle="Hotel Details" />
+        <div className="error-container text-center py-5">
+          <div className="alert alert-danger" role="alert">
+            <h4>Error Loading Hotel Details</h4>
+            <p>{error}</p>
+            <button
+              className="btn btn-primary mt-3"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // No hotel data
+  if (!hotelData) {
+    return (
+      <>
+        <Breadcrumb pagename="Hotel Details" pagetitle="Hotel Details" />
+        <div className="error-container text-center py-5">
+          <div className="alert alert-warning" role="alert">
+            <h4>Hotel Not Found</h4>
+            <p>The requested hotel could not be found.</p>
+            <button
+              className="btn btn-primary mt-3"
+              onClick={() => window.history.back()}
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    const currency = hotelData.price_currency || "$";
+    return `${currency}${parseFloat(amount || 0).toFixed(0)}`;
+  };
+
   return (
     <>
-      <Breadcrumb pagename="Room Details" pagetitle="Room Details" />
+      <Breadcrumb pagename="Hotel Details" pagetitle="Hotel Details" />
       <div className="room-details-area pt-120 mb-120">
         <div className="container">
           <div className="row">
-            <div className="co-lg-12">
+            <div className="col-lg-12">
               <div className="room-img-group mb-50">
                 <div className="row g-3">
                   <div className="col-lg-6">
                     <div className="gallery-img-wrap">
                       <img
-                        src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912137/tron-le-aAn-_iTks4E-unsplash_vijiov.jpg"
-                        alt=""
+                        src={
+                          images && images.length > 0
+                            ? images[0]?.imageBig
+                            : "/path/to/default-image.jpg"
+                        }
+                        alt={hotelData?.name || "Hotel Image"}
+                        onError={(e) => {
+                          e.target.src = "/path/to/fallback-image.jpg";
+                        }}
                       />
                       <a data-fancybox="gallery-01">
                         <i
@@ -74,153 +424,126 @@ const Page = () => {
                   </div>
                   <div className="col-lg-6">
                     <div className="row g-3">
-                      <div className="col-6">
-                        <div className="gallery-img-wrap">
-                          <img
-                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740903308/martijn-vonk-jxZ-gTYPf4g-unsplash_zwv8bx.jpg"
-                            alt=""
-                          />
-                          <a>
-                            <i
-                              className="bi bi-eye"
-                              onClick={() =>
-                                setOpenimg({
-                                  openingState: true,
-                                  openingIndex: 1,
-                                })
-                              }
-                            />{" "}
-                            View Room
-                          </a>
-                        </div>
-                      </div>
-                      <div className="col-6">
-                        <div className="gallery-img-wrap">
-                          <img
-                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740903193/chris-karidis-nnzkZNYWHaU-unsplash_iqwgll.jpg"
-                            alt=""
-                          />
-                          <a>
-                            <i
-                              className="bi bi-eye"
-                              onClick={() =>
-                                setOpenimg({
-                                  openingState: true,
-                                  openingIndex: 2,
-                                })
-                              }
-                            />{" "}
-                            View Room
-                          </a>
-                        </div>
-                      </div>
-                      <div className="col-6">
-                        <div className="gallery-img-wrap active">
-                          <img
-                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740914485/jack-ward-rknrvCrfS1k-unsplash_wlpbz5.jpg"
-                            alt=""
-                          />
-                          <button className="StartSlideShowFirstImage">
-                            <i
-                              className="bi bi-plus-lg"
-                              onClick={() =>
-                                setOpenimg({
-                                  openingState: true,
-                                  openingIndex: 3,
-                                })
-                              }
-                            />
-                            View More Images
-                          </button>
-                        </div>
-                      </div>
-                      <div className="col-6">
-                        <div className="gallery-img-wrap active">
-                          <img
-                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740912040/thomas-habr-6NmnrAJPq7M-unsplash_habaiu.jpg"
-                            alt=""
-                          />
-                          <a
-                            data-fancybox="gallery-01"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => setOpenModalVideo(true)}
-                          >
-                            <i className="bi bi-play-circle" /> Watch Video
-                          </a>
-                        </div>
-                      </div>
+                      {images &&
+                        images.length > 1 &&
+                        images.slice(1, 5).map((image, index) => (
+                          <div key={image.id} className="col-6">
+                            <div
+                              className={`gallery-img-wrap ${
+                                index >= 2 ? "active" : ""
+                              }`}
+                            >
+                              <img
+                                src={image.imageBig}
+                                alt={`${hotelData?.name || "Hotel"} Image ${
+                                  index + 2
+                                }`}
+                                onError={(e) => {
+                                  e.target.src = "/path/to/fallback-image.jpg";
+                                }}
+                              />
+                              {index === 2 ? (
+                                <button className="StartSlideShowFirstImage">
+                                  <i
+                                    className="bi bi-plus-lg"
+                                    onClick={() =>
+                                      setOpenimg({
+                                        openingState: true,
+                                        openingIndex: index + 1,
+                                      })
+                                    }
+                                  />
+                                  View More Images
+                                </button>
+                              ) : index === 3 ? (
+                                <a
+                                  data-fancybox="gallery-01"
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => setOpenModalVideo(true)}
+                                >
+                                  <i className="bi bi-play-circle" /> Watch
+                                  Video
+                                </a>
+                              ) : (
+                                <a>
+                                  <i
+                                    className="bi bi-eye"
+                                    onClick={() =>
+                                      setOpenimg({
+                                        openingState: true,
+                                        openingIndex: index + 1,
+                                      })
+                                    }
+                                  />{" "}
+                                  View Room
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div className="others-image-wrap d-none">
-            <a href="assets/img/innerpage/room-01.jpg" data-fancybox="images">
-              <img src="/assets/img/innerpage/blog-grid-img3.jpg" alt="" />
-            </a>
-            <a href="assets/img/innerpage/room-02.jpg" data-fancybox="images">
-              <img src="/assets/img/innerpage/blog-grid-img3.jpg" alt="" />
-            </a>
-            <a href="assets/img/innerpage/room-03.jpg" data-fancybox="images">
-              <img src="/assets/img/innerpage/blog-grid-img3.jpg" alt="" />
-            </a>
-            <a href="assets/img/innerpage/room-04.jpg" data-fancybox="images">
-              <img src="/assets/img/innerpage/blog-grid-img3.jpg" alt="" />
-            </a>
-            <a href="assets/img/innerpage/room-05.jpg" data-fancybox="images">
-              <img src="/assets/img/innerpage/blog-grid-img3.jpg" alt="" />
-            </a>
-          </div>
+
           <div className="row g-xl-4 gy-5">
             <div className="col-xl-8">
               <div className="location-and-review">
                 <div className="location">
                   <p>
-                    <i className="bi bi-geo-alt" /> House 168/170, Road 02,
-                    Avenue 01, Mirpur DOHS, Dhaka, Bangladesh -{" "}
-                    <a href="#">See Map</a>
+                    <i className="bi bi-geo-alt" />{" "}
+                    {hotelData?.location ||
+                      hotelData?.address ||
+                      "House 168/170, Road 02, Avenue 01, Mirpur DOHS, Dhaka, Bangladesh"}{" "}
+                    - <a href="#map-section">See Map</a>
                   </p>
                 </div>
                 <div className="review-area">
                   <ul>
-                    <li>
-                      <i className="bi bi-star-fill" />
-                    </li>
-                    <li>
-                      <i className="bi bi-star-fill" />
-                    </li>
-                    <li>
-                      <i className="bi bi-star-fill" />
-                    </li>
-                    <li>
-                      <i className="bi bi-star-fill" />
-                    </li>
-                    <li>
-                      <i className="bi bi-star-fill" />
-                    </li>
+                    {[...Array(5)].map((_, i) => (
+                      <li key={i}>
+                        <i className="bi bi-star-fill" />
+                      </li>
+                    ))}
                   </ul>
                   <span>
-                    <strong>8.1 Excellent</strong> 94 reviews
+                    <strong>{hotelData?.rating || "8.1"} Excellent</strong>{" "}
+                    {hotelData?.review_count || "94"} reviews
                   </span>
                 </div>
               </div>
-              <h2>Golden Tulip The Grandmark Dhaka</h2>
+
+              <h2>{hotelData?.name || "Golden Tulip The Grandmark Dhaka"}</h2>
+
+              {/* FIXED: Display actual adult_price and child_price from API */}
               <div className="price-area">
-                <h6>
-                  $280/<span>per night</span>
-                </h6>
+                <div className="flex items-center gap-3">
+                  <div className="tour-price">
+                    <h3>{formatCurrency(adultPrice)}/</h3>
+                    <span>adult</span>
+                  </div>
+                  <div className="tour-price">
+                    <h3 className="!text-[rgb(226,155,75)]">&</h3>
+                  </div>
+                  <div className="tour-price">
+                    <h3>{formatCurrency(childPrice)}/</h3>
+                    <span>child</span>
+                  </div>
+                </div>
+                {/* Debug display - remove in production */}
+                <div className="text-muted small mt-2">
+                  Debug: Adult Price: {hotelData?.adult_price}, Child Price:{" "}
+                  {hotelData?.child_price}
+                </div>
               </div>
+
               <p>
-                Welcome to the best five-star luxury hotel in New York. Hotel is
-                veryes elementum sesue the aucan vestibulum aliquam justo in
-                sapien on thi rutrum volutpat. Donec in quis the pellentesque
-                velit. Donec id velitel ac arcu posuere blane. Hotel ut nisl
-                quam nestibulum ac quam nec odio elementum sceisuen the aucan
-                ligula. Orcive varius natoque penatibus et magnis discustent
-                parturient monte nascete ridiculus mus nellentesque habitant
-                forminy morbine.
+                {hotelData?.description ||
+                  "Welcome to the best five-star luxury hotel. Enjoy exceptional service, comfortable accommodations, and world-class amenities for an unforgettable stay."}
               </p>
+
               <h4>Highlights</h4>
               <ul className="room-features">
                 <li>
@@ -383,293 +706,54 @@ const Page = () => {
                   Laundry
                 </li>
               </ul>
-              <h4>Pets.</h4>
-              <p>Pets not allowed</p>
-              <h4>Children and extra beds.</h4>
+
+              <h4>Pets</h4>
+              <p>{hotelData?.pet_policy || "Pets not allowed"}</p>
+
+              <h4>Children and extra beds</h4>
               <p>
-                Children are welcome Kids stay free! Children stay free when
-                using existing bedding; children may not be eligible for
-                complimentary breakfast Rollaway/extra beds are available for $
-                10 per day.
+                {hotelData?.children_policy ||
+                  "Children are welcome! Kids stay free when using existing bedding. Additional bed charges may apply."}
               </p>
-              <h4>Facilities</h4>
-              <ul className="extra-service mb-[20px]">
-                <li>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={14}
-                    height={12}
-                    viewBox="0 0 18 16"
-                  >
-                    <path d="M8.21008 15.9998C8.15563 15.9998 8.10177 15.9885 8.05188 15.9664C8.002 15.9444 7.95717 15.9122 7.92022 15.8719L0.104874 7.34121C0.0527746 7.28433 0.0182361 7.21337 0.00548549 7.137C-0.00726514 7.06063 0.00232503 6.98216 0.0330824 6.9112C0.0638398 6.84025 0.11443 6.77988 0.178662 6.73748C0.242893 6.69509 0.31798 6.67251 0.394731 6.6725H4.15661C4.21309 6.67251 4.26891 6.68474 4.32031 6.70837C4.37171 6.73201 4.41749 6.76648 4.45456 6.80949L7.06647 9.84167C7.34875 9.2328 7.89519 8.21899 8.85409 6.98363C10.2717 5.15733 12.9085 2.47141 17.4197 0.0467428C17.5069 -0.000110955 17.6084 -0.0122714 17.704 0.0126629C17.7996 0.0375972 17.8825 0.0978135 17.9363 0.181422C17.9901 0.26503 18.0109 0.365952 17.9946 0.46426C17.9782 0.562568 17.9259 0.651115 17.848 0.712418C17.8308 0.726001 16.0914 2.10818 14.0896 4.63987C12.2473 6.96965 9.79823 10.7792 8.59313 15.6973C8.57196 15.7837 8.52272 15.8604 8.45327 15.9153C8.38382 15.9702 8.29816 16 8.20996 16L8.21008 15.9998Z" />
-                  </svg>
-                  Airport transfer
-                </li>
-                <li>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={14}
-                    height={12}
-                    viewBox="0 0 18 16"
-                  >
-                    <path d="M8.21008 15.9998C8.15563 15.9998 8.10177 15.9885 8.05188 15.9664C8.002 15.9444 7.95717 15.9122 7.92022 15.8719L0.104874 7.34121C0.0527746 7.28433 0.0182361 7.21337 0.00548549 7.137C-0.00726514 7.06063 0.00232503 6.98216 0.0330824 6.9112C0.0638398 6.84025 0.11443 6.77988 0.178662 6.73748C0.242893 6.69509 0.31798 6.67251 0.394731 6.6725H4.15661C4.21309 6.67251 4.26891 6.68474 4.32031 6.70837C4.37171 6.73201 4.41749 6.76648 4.45456 6.80949L7.06647 9.84167C7.34875 9.2328 7.89519 8.21899 8.85409 6.98363C10.2717 5.15733 12.9085 2.47141 17.4197 0.0467428C17.5069 -0.000110955 17.6084 -0.0122714 17.704 0.0126629C17.7996 0.0375972 17.8825 0.0978135 17.9363 0.181422C17.9901 0.26503 18.0109 0.365952 17.9946 0.46426C17.9782 0.562568 17.9259 0.651115 17.848 0.712418C17.8308 0.726001 16.0914 2.10818 14.0896 4.63987C12.2473 6.96965 9.79823 10.7792 8.59313 15.6973C8.57196 15.7837 8.52272 15.8604 8.45327 15.9153C8.38382 15.9702 8.29816 16 8.20996 16L8.21008 15.9998Z" />
-                  </svg>
-                  Car park
-                </li>
-                <li>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={14}
-                    height={12}
-                    viewBox="0 0 18 16"
-                  >
-                    <path d="M8.21008 15.9998C8.15563 15.9998 8.10177 15.9885 8.05188 15.9664C8.002 15.9444 7.95717 15.9122 7.92022 15.8719L0.104874 7.34121C0.0527746 7.28433 0.0182361 7.21337 0.00548549 7.137C-0.00726514 7.06063 0.00232503 6.98216 0.0330824 6.9112C0.0638398 6.84025 0.11443 6.77988 0.178662 6.73748C0.242893 6.69509 0.31798 6.67251 0.394731 6.6725H4.15661C4.21309 6.67251 4.26891 6.68474 4.32031 6.70837C4.37171 6.73201 4.41749 6.76648 4.45456 6.80949L7.06647 9.84167C7.34875 9.2328 7.89519 8.21899 8.85409 6.98363C10.2717 5.15733 12.9085 2.47141 17.4197 0.0467428C17.5069 -0.000110955 17.6084 -0.0122714 17.704 0.0126629C17.7996 0.0375972 17.8825 0.0978135 17.9363 0.181422C17.9901 0.26503 18.0109 0.365952 17.9946 0.46426C17.9782 0.562568 17.9259 0.651115 17.848 0.712418C17.8308 0.726001 16.0914 2.10818 14.0896 4.63987C12.2473 6.96965 9.79823 10.7792 8.59313 15.6973C8.57196 15.7837 8.52272 15.8604 8.45327 15.9153C8.38382 15.9702 8.29816 16 8.20996 16L8.21008 15.9998Z" />
-                  </svg>
-                  Free Wi-Fi in all rooms!
-                </li>
-                <li>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={14}
-                    height={12}
-                    viewBox="0 0 18 16"
-                  >
-                    <path d="M8.21008 15.9998C8.15563 15.9998 8.10177 15.9885 8.05188 15.9664C8.002 15.9444 7.95717 15.9122 7.92022 15.8719L0.104874 7.34121C0.0527746 7.28433 0.0182361 7.21337 0.00548549 7.137C-0.00726514 7.06063 0.00232503 6.98216 0.0330824 6.9112C0.0638398 6.84025 0.11443 6.77988 0.178662 6.73748C0.242893 6.69509 0.31798 6.67251 0.394731 6.6725H4.15661C4.21309 6.67251 4.26891 6.68474 4.32031 6.70837C4.37171 6.73201 4.41749 6.76648 4.45456 6.80949L7.06647 9.84167C7.34875 9.2328 7.89519 8.21899 8.85409 6.98363C10.2717 5.15733 12.9085 2.47141 17.4197 0.0467428C17.5069 -0.000110955 17.6084 -0.0122714 17.704 0.0126629C17.7996 0.0375972 17.8825 0.0978135 17.9363 0.181422C17.9901 0.26503 18.0109 0.365952 17.9946 0.46426C17.9782 0.562568 17.9259 0.651115 17.848 0.712418C17.8308 0.726001 16.0914 2.10818 14.0896 4.63987C12.2473 6.96965 9.79823 10.7792 8.59313 15.6973C8.57196 15.7837 8.52272 15.8604 8.45327 15.9153C8.38382 15.9702 8.29816 16 8.20996 16L8.21008 15.9998Z" />
-                  </svg>
-                  Front desk [24-hour]
-                </li>
-                <li>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={14}
-                    height={12}
-                    viewBox="0 0 18 16"
-                  >
-                    <path d="M8.21008 15.9998C8.15563 15.9998 8.10177 15.9885 8.05188 15.9664C8.002 15.9444 7.95717 15.9122 7.92022 15.8719L0.104874 7.34121C0.0527746 7.28433 0.0182361 7.21337 0.00548549 7.137C-0.00726514 7.06063 0.00232503 6.98216 0.0330824 6.9112C0.0638398 6.84025 0.11443 6.77988 0.178662 6.73748C0.242893 6.69509 0.31798 6.67251 0.394731 6.6725H4.15661C4.21309 6.67251 4.26891 6.68474 4.32031 6.70837C4.37171 6.73201 4.41749 6.76648 4.45456 6.80949L7.06647 9.84167C7.34875 9.2328 7.89519 8.21899 8.85409 6.98363C10.2717 5.15733 12.9085 2.47141 17.4197 0.0467428C17.5069 -0.000110955 17.6084 -0.0122714 17.704 0.0126629C17.7996 0.0375972 17.8825 0.0978135 17.9363 0.181422C17.9901 0.26503 18.0109 0.365952 17.9946 0.46426C17.9782 0.562568 17.9259 0.651115 17.848 0.712418C17.8308 0.726001 16.0914 2.10818 14.0896 4.63987C12.2473 6.96965 9.79823 10.7792 8.59313 15.6973C8.57196 15.7837 8.52272 15.8604 8.45327 15.9153C8.38382 15.9702 8.29816 16 8.20996 16L8.21008 15.9998Z" />
-                  </svg>
-                  Fitness center
-                </li>
-                <li>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={14}
-                    height={12}
-                    viewBox="0 0 18 16"
-                  >
-                    <path d="M8.21008 15.9998C8.15563 15.9998 8.10177 15.9885 8.05188 15.9664C8.002 15.9444 7.95717 15.9122 7.92022 15.8719L0.104874 7.34121C0.0527746 7.28433 0.0182361 7.21337 0.00548549 7.137C-0.00726514 7.06063 0.00232503 6.98216 0.0330824 6.9112C0.0638398 6.84025 0.11443 6.77988 0.178662 6.73748C0.242893 6.69509 0.31798 6.67251 0.394731 6.6725H4.15661C4.21309 6.67251 4.26891 6.68474 4.32031 6.70837C4.37171 6.73201 4.41749 6.76648 4.45456 6.80949L7.06647 9.84167C7.34875 9.2328 7.89519 8.21899 8.85409 6.98363C10.2717 5.15733 12.9085 2.47141 17.4197 0.0467428C17.5069 -0.000110955 17.6084 -0.0122714 17.704 0.0126629C17.7996 0.0375972 17.8825 0.0978135 17.9363 0.181422C17.9901 0.26503 18.0109 0.365952 17.9946 0.46426C17.9782 0.562568 17.9259 0.651115 17.848 0.712418C17.8308 0.726001 16.0914 2.10818 14.0896 4.63987C12.2473 6.96965 9.79823 10.7792 8.59313 15.6973C8.57196 15.7837 8.52272 15.8604 8.45327 15.9153C8.38382 15.9702 8.29816 16 8.20996 16L8.21008 15.9998Z" />
-                  </svg>
-                  Sauna
-                </li>
-                <li>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={14}
-                    height={12}
-                    viewBox="0 0 18 16"
-                  >
-                    <path d="M8.21008 15.9998C8.15563 15.9998 8.10177 15.9885 8.05188 15.9664C8.002 15.9444 7.95717 15.9122 7.92022 15.8719L0.104874 7.34121C0.0527746 7.28433 0.0182361 7.21337 0.00548549 7.137C-0.00726514 7.06063 0.00232503 6.98216 0.0330824 6.9112C0.0638398 6.84025 0.11443 6.77988 0.178662 6.73748C0.242893 6.69509 0.31798 6.67251 0.394731 6.6725H4.15661C4.21309 6.67251 4.26891 6.68474 4.32031 6.70837C4.37171 6.73201 4.41749 6.76648 4.45456 6.80949L7.06647 9.84167C7.34875 9.2328 7.89519 8.21899 8.85409 6.98363C10.2717 5.15733 12.9085 2.47141 17.4197 0.0467428C17.5069 -0.000110955 17.6084 -0.0122714 17.704 0.0126629C17.7996 0.0375972 17.8825 0.0978135 17.9363 0.181422C17.9901 0.26503 18.0109 0.365952 17.9946 0.46426C17.9782 0.562568 17.9259 0.651115 17.848 0.712418C17.8308 0.726001 16.0914 2.10818 14.0896 4.63987C12.2473 6.96965 9.79823 10.7792 8.59313 15.6973C8.57196 15.7837 8.52272 15.8604 8.45327 15.9153C8.38382 15.9702 8.29816 16 8.20996 16L8.21008 15.9998Z" />
-                  </svg>
-                  Luggage storage
-                </li>
-                <li>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={14}
-                    height={12}
-                    viewBox="0 0 18 16"
-                  >
-                    <path d="M8.21008 15.9998C8.15563 15.9998 8.10177 15.9885 8.05188 15.9664C8.002 15.9444 7.95717 15.9122 7.92022 15.8719L0.104874 7.34121C0.0527746 7.28433 0.0182361 7.21337 0.00548549 7.137C-0.00726514 7.06063 0.00232503 6.98216 0.0330824 6.9112C0.0638398 6.84025 0.11443 6.77988 0.178662 6.73748C0.242893 6.69509 0.31798 6.67251 0.394731 6.6725H4.15661C4.21309 6.67251 4.26891 6.68474 4.32031 6.70837C4.37171 6.73201 4.41749 6.76648 4.45456 6.80949L7.06647 9.84167C7.34875 9.2328 7.89519 8.21899 8.85409 6.98363C10.2717 5.15733 12.9085 2.47141 17.4197 0.0467428C17.5069 -0.000110955 17.6084 -0.0122714 17.704 0.0126629C17.7996 0.0375972 17.8825 0.0978135 17.9363 0.181422C17.9901 0.26503 18.0109 0.365952 17.9946 0.46426C17.9782 0.562568 17.9259 0.651115 17.848 0.712418C17.8308 0.726001 16.0914 2.10818 14.0896 4.63987C12.2473 6.96965 9.79823 10.7792 8.59313 15.6973C8.57196 15.7837 8.52272 15.8604 8.45327 15.9153C8.38382 15.9702 8.29816 16 8.20996 16L8.21008 15.9998Z" />
-                  </svg>
-                  Breakfast [free]
-                </li>
-              </ul>
-              <div className="tour-location">
+
+              <div className="tour-location" id="map-section">
                 <h4>Location Map</h4>
                 <div className="map-area mb-30">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d193325.0481540361!2d-74.06757856146028!3d40.79052383652264!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c24fa5d33f083b%3A0xc80b8f06e177fe62!2sNew%20York%2C%20NY%2C%20USA!5e0!3m2!1sen!2sbd!4v1660366711448!5m2!1sen!2sbd"
-                    width={600}
+                    src={
+                      hotelData?.map_url ||
+                      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d193325.0481540361!2d-74.06757856146028!3d40.79052383652264!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c24fa5d33f083b%3A0xc80b8f06e177fe62!2sNew%20York%2C%20NY%2C%20USA!5e0!3m2!1sen!2sbd!4v1660366711448!5m2!1sen!2sbd"
+                    }
+                    width="100%"
                     height={450}
                     style={{ border: 0 }}
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
+                    title="Hotel Location"
                   />
                 </div>
               </div>
+
+              {/* Reviews section */}
               <div className="review-wrapper mt-70">
                 <h4>Customer Review</h4>
                 <div className="review-box">
                   <div className="total-review">
-                    <h2>9.5</h2>
+                    <h2>{hotelData?.overall_rating || "9.5"}</h2>
                     <div className="review-wrap">
                       <ul className="star-list">
-                        <li>
-                          <i className="bi bi-star-fill" />
-                        </li>
-                        <li>
-                          <i className="bi bi-star-fill" />
-                        </li>
-                        <li>
-                          <i className="bi bi-star-fill" />
-                        </li>
-                        <li>
-                          <i className="bi bi-star-fill" />
-                        </li>
-                        <li>
-                          <i className="bi bi-star-half" />
-                        </li>
+                        {[...Array(5)].map((_, i) => (
+                          <li key={i}>
+                            <i
+                              className={
+                                i < 4 ? "bi bi-star-fill" : "bi bi-star-half"
+                              }
+                            />
+                          </li>
+                        ))}
                       </ul>
-                      <span>2590 Reviews</span>
-                    </div>
-                  </div>
-                  {/* modal for review */}
-                  <div
-                    className="modal fade"
-                    id="exampleModalToggle"
-                    aria-hidden="true"
-                    tabIndex={-1}
-                  >
-                    <div className="modal-dialog modal-dialog-centered">
-                      <div className="modal-content">
-                        <div className="modal-body">
-                          <button
-                            type="button"
-                            className="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                          >
-                            <i className="bi bi-x-lg" />
-                          </button>
-                          <div className="row g-2">
-                            <div className="col-lg-8">
-                              <div className="review-from-wrapper">
-                                <h4>Write Your Review</h4>
-                                <form>
-                                  <div className="row">
-                                    <div className="col-md-6 mb-[20px]">
-                                      <div className="form-inner">
-                                        <label>Name</label>
-                                        <input
-                                          type="text"
-                                          placeholder="Enter Your Name:"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="col-md-6 mb-[20px]">
-                                      <div className="form-inner">
-                                        <label>Email</label>
-                                        <input
-                                          type="email"
-                                          placeholder="Enter Your Email:"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="col-lg-12 mb-[20px]">
-                                      <div className="form-inner">
-                                        <label>Review*</label>
-                                        <textarea
-                                          name="message"
-                                          placeholder="Enter Your Review..."
-                                          defaultValue={""}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="col-lg-12 mb-10">
-                                      <div className="star-rating-wrapper">
-                                        <ul className="star-rating-list">
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Cleanliness</span>
-                                          </li>
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Location</span>
-                                          </li>
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Service</span>
-                                          </li>
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Facilities</span>
-                                          </li>
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Value for money</span>
-                                          </li>
-                                        </ul>
-                                      </div>
-                                    </div>
-                                    <div className="col-lg-12">
-                                      <button
-                                        type="submit"
-                                        className="primary-btn1"
-                                      >
-                                        Submit Now
-                                      </button>
-                                    </div>
-                                  </div>
-                                </form>
-                              </div>
-                            </div>
-                            <div className="col-lg-4 d-lg-flex d-none">
-                              <div className="modal-form-image">
-                                <img
-                                  src="/assets/img/innerpage/form-image.jpg"
-                                  alt="image"
-                                  className="img-fluid"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <span>{hotelData?.total_reviews || "2590"} Reviews</span>
                     </div>
                   </div>
                   <a
@@ -681,478 +765,17 @@ const Page = () => {
                     GIVE A RATING
                   </a>
                 </div>
-                <div className="review-area">
-                  <ul className="comment">
-                    <li>
-                      <div className="single-comment-area">
-                        <div className="author-img">
-                          <img
-                            src="https://travelami.templaza.net/wp-content/uploads/2025/02/co-founder2.jpg"
-                            alt=""
-                          />
-                        </div>
-                        <div className="comment-content">
-                          <div className="author-name-deg">
-                            <h6>Mr. Bowmik Haldar,</h6>
-                            <span>05 June, 2023</span>
-                          </div>
-                          <ul className="review-item-list">
-                            <li>
-                              <span>Cleanliness</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Location</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Service</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Facilities</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Value for money</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                          </ul>
-                          <p>
-                            A solution that we came up with is to think of
-                            sanitary pads packaging as you would tea. Tea comes
-                            individually packaged{" "}
-                          </p>
-                          <div className="replay-btn">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width={14}
-                              height={11}
-                              viewBox="0 0 14 11"
-                            >
-                              <path d="M8.55126 1.11188C8.52766 1.10118 8.50182 1.09676 8.47612 1.09903C8.45042 1.1013 8.42569 1.11018 8.40419 1.12486C8.3827 1.13954 8.36513 1.15954 8.35311 1.18304C8.34109 1.20653 8.335 1.23276 8.33539 1.25932V2.52797C8.33539 2.67388 8.2791 2.81381 8.17889 2.91698C8.07868 3.02016 7.94277 3.07812 7.80106 3.07812C7.08826 3.07812 5.64984 3.08362 4.27447 3.98257C3.2229 4.66916 2.14783 5.9191 1.50129 8.24735C2.59132 7.16575 3.83632 6.57929 4.92635 6.2679C5.59636 6.07737 6.28492 5.96444 6.97926 5.93121C7.26347 5.91835 7.54815 5.92129 7.83205 5.94001H7.84594L7.85129 5.94111L7.80106 6.48906L7.85449 5.94111C7.98638 5.95476 8.10864 6.01839 8.19751 6.11966C8.28638 6.22092 8.33553 6.35258 8.33539 6.48906V7.75771C8.33539 7.87654 8.45294 7.95136 8.55126 7.90515L12.8088 4.67796C12.8233 4.66692 12.8383 4.65664 12.8537 4.64715C12.8769 4.63278 12.8962 4.61245 12.9095 4.58816C12.9229 4.56386 12.9299 4.53643 12.9299 4.50851C12.9299 4.4806 12.9229 4.45316 12.9095 4.42887C12.8962 4.40458 12.8769 4.38425 12.8537 4.36988C12.8382 4.36039 12.8233 4.35011 12.8088 4.33907L8.55126 1.11188ZM7.26673 7.02381C7.19406 7.02381 7.11391 7.02711 7.02842 7.03041C6.56462 7.05242 5.92342 7.12504 5.21169 7.32859C3.79464 7.7335 2.11684 8.65116 1.00115 10.7175C0.940817 10.8291 0.844683 10.9155 0.729224 10.9621C0.613765 11.0087 0.486168 11.0124 0.368304 10.9728C0.250441 10.9331 0.149648 10.8525 0.0831985 10.7447C0.0167484 10.6369 -0.011219 10.5086 0.0040884 10.3819C0.499949 6.29981 2.01959 4.15202 3.70167 3.05391C5.03215 2.18467 6.40218 2.01743 7.26673 1.98552V1.25932C7.26663 1.03273 7.32593 0.810317 7.43839 0.615545C7.55084 0.420773 7.71227 0.260866 7.90565 0.152696C8.09902 0.0445258 8.31717 -0.00789584 8.53707 0.000962485C8.75698 0.00982081 8.97048 0.0796305 9.15506 0.203025L13.4233 3.43792C13.5998 3.55133 13.7453 3.7091 13.8462 3.8964C13.9471 4.08369 14 4.29434 14 4.50851C14 4.72269 13.9471 4.93333 13.8462 5.12063C13.7453 5.30792 13.5998 5.4657 13.4233 5.57911L9.15506 8.814C8.97048 8.9374 8.75698 9.00721 8.53707 9.01607C8.31717 9.02492 8.09902 8.9725 7.90565 8.86433C7.71227 8.75616 7.55084 8.59626 7.43839 8.40148C7.32593 8.20671 7.26663 7.9843 7.26673 7.75771V7.02381Z"></path>
-                            </svg>
-                            Reply (01)
-                          </div>
-                        </div>
-                      </div>
-                      <ul className="comment-replay">
-                        <li>
-                          <div className="single-comment-area">
-                            <div className="author-img">
-                              <img
-                                src="https://travelami.templaza.net/wp-content/uploads/2025/02/co-founder1-500x500.jpg"
-                                alt=""
-                              />
-                            </div>
-                            <div className="comment-content">
-                              <div className="author-name-deg">
-                                <h6>Author Response,</h6>
-                                <span>05 June, 2023</span>
-                              </div>
-                              <p>Thanks for your review.</p>
-                              <div className="replay-btn">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width={14}
-                                  height={11}
-                                  viewBox="0 0 14 11"
-                                >
-                                  <path d="M8.55126 1.11188C8.52766 1.10118 8.50182 1.09676 8.47612 1.09903C8.45042 1.1013 8.42569 1.11018 8.40419 1.12486C8.3827 1.13954 8.36513 1.15954 8.35311 1.18304C8.34109 1.20653 8.335 1.23276 8.33539 1.25932V2.52797C8.33539 2.67388 8.2791 2.81381 8.17889 2.91698C8.07868 3.02016 7.94277 3.07812 7.80106 3.07812C7.08826 3.07812 5.64984 3.08362 4.27447 3.98257C3.2229 4.66916 2.14783 5.9191 1.50129 8.24735C2.59132 7.16575 3.83632 6.57929 4.92635 6.2679C5.59636 6.07737 6.28492 5.96444 6.97926 5.93121C7.26347 5.91835 7.54815 5.92129 7.83205 5.94001H7.84594L7.85129 5.94111L7.80106 6.48906L7.85449 5.94111C7.98638 5.95476 8.10864 6.01839 8.19751 6.11966C8.28638 6.22092 8.33553 6.35258 8.33539 6.48906V7.75771C8.33539 7.87654 8.45294 7.95136 8.55126 7.90515L12.8088 4.67796C12.8233 4.66692 12.8383 4.65664 12.8537 4.64715C12.8769 4.63278 12.8962 4.61245 12.9095 4.58816C12.9229 4.56386 12.9299 4.53643 12.9299 4.50851C12.9299 4.4806 12.9229 4.45316 12.9095 4.42887C12.8962 4.40458 12.8769 4.38425 12.8537 4.36988C12.8382 4.36039 12.8233 4.35011 12.8088 4.33907L8.55126 1.11188ZM7.26673 7.02381C7.19406 7.02381 7.11391 7.02711 7.02842 7.03041C6.56462 7.05242 5.92342 7.12504 5.21169 7.32859C3.79464 7.7335 2.11684 8.65116 1.00115 10.7175C0.940817 10.8291 0.844683 10.9155 0.729224 10.9621C0.613765 11.0087 0.486168 11.0124 0.368304 10.9728C0.250441 10.9331 0.149648 10.8525 0.0831985 10.7447C0.0167484 10.6369 -0.011219 10.5086 0.0040884 10.3819C0.499949 6.29981 2.01959 4.15202 3.70167 3.05391C5.03215 2.18467 6.40218 2.01743 7.26673 1.98552V1.25932C7.26663 1.03273 7.32593 0.810317 7.43839 0.615545C7.55084 0.420773 7.71227 0.260866 7.90565 0.152696C8.09902 0.0445258 8.31717 -0.00789584 8.53707 0.000962485C8.75698 0.00982081 8.97048 0.0796305 9.15506 0.203025L13.4233 3.43792C13.5998 3.55133 13.7453 3.7091 13.8462 3.8964C13.9471 4.08369 14 4.29434 14 4.50851C14 4.72269 13.9471 4.93333 13.8462 5.12063C13.7453 5.30792 13.5998 5.4657 13.4233 5.57911L9.15506 8.814C8.97048 8.9374 8.75698 9.00721 8.53707 9.01607C8.31717 9.02492 8.09902 8.9725 7.90565 8.86433C7.71227 8.75616 7.55084 8.59626 7.43839 8.40148C7.32593 8.20671 7.26663 7.9843 7.26673 7.75771V7.02381Z"></path>
-                                </svg>
-                                Reply
-                              </div>
-                            </div>
-                          </div>
-                        </li>
-                      </ul>
-                    </li>
-                    <li>
-                      <div className="single-comment-area">
-                        <div className="author-img">
-                          <img
-                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740905588/erik-lucatero-d2MSDujJl2g-unsplash_bukkgc.jpg"
-                            alt=""
-                          />
-                        </div>
-                        <div className="comment-content">
-                          <div className="author-name-deg">
-                            <h6>Srileka Panday,</h6>
-                            <span>05 June, 2023</span>
-                          </div>
-                          <ul className="review-item-list">
-                            <li>
-                              <span>Cleanliness</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Location</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Service</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Facilities</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Value for money</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                          </ul>
-                          <p>
-                            A solution that we came up with is to think of
-                            sanitary pads packaging as you would tea. Tea comes
-                            individually packaged{" "}
-                          </p>
-                          <div className="replay-btn">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width={14}
-                              height={11}
-                              viewBox="0 0 14 11"
-                            >
-                              <path d="M8.55126 1.11188C8.52766 1.10118 8.50182 1.09676 8.47612 1.09903C8.45042 1.1013 8.42569 1.11018 8.40419 1.12486C8.3827 1.13954 8.36513 1.15954 8.35311 1.18304C8.34109 1.20653 8.335 1.23276 8.33539 1.25932V2.52797C8.33539 2.67388 8.2791 2.81381 8.17889 2.91698C8.07868 3.02016 7.94277 3.07812 7.80106 3.07812C7.08826 3.07812 5.64984 3.08362 4.27447 3.98257C3.2229 4.66916 2.14783 5.9191 1.50129 8.24735C2.59132 7.16575 3.83632 6.57929 4.92635 6.2679C5.59636 6.07737 6.28492 5.96444 6.97926 5.93121C7.26347 5.91835 7.54815 5.92129 7.83205 5.94001H7.84594L7.85129 5.94111L7.80106 6.48906L7.85449 5.94111C7.98638 5.95476 8.10864 6.01839 8.19751 6.11966C8.28638 6.22092 8.33553 6.35258 8.33539 6.48906V7.75771C8.33539 7.87654 8.45294 7.95136 8.55126 7.90515L12.8088 4.67796C12.8233 4.66692 12.8383 4.65664 12.8537 4.64715C12.8769 4.63278 12.8962 4.61245 12.9095 4.58816C12.9229 4.56386 12.9299 4.53643 12.9299 4.50851C12.9299 4.4806 12.9229 4.45316 12.9095 4.42887C12.8962 4.40458 12.8769 4.38425 12.8537 4.36988C12.8382 4.36039 12.8233 4.35011 12.8088 4.33907L8.55126 1.11188ZM7.26673 7.02381C7.19406 7.02381 7.11391 7.02711 7.02842 7.03041C6.56462 7.05242 5.92342 7.12504 5.21169 7.32859C3.79464 7.7335 2.11684 8.65116 1.00115 10.7175C0.940817 10.8291 0.844683 10.9155 0.729224 10.9621C0.613765 11.0087 0.486168 11.0124 0.368304 10.9728C0.250441 10.9331 0.149648 10.8525 0.0831985 10.7447C0.0167484 10.6369 -0.011219 10.5086 0.0040884 10.3819C0.499949 6.29981 2.01959 4.15202 3.70167 3.05391C5.03215 2.18467 6.40218 2.01743 7.26673 1.98552V1.25932C7.26663 1.03273 7.32593 0.810317 7.43839 0.615545C7.55084 0.420773 7.71227 0.260866 7.90565 0.152696C8.09902 0.0445258 8.31717 -0.00789584 8.53707 0.000962485C8.75698 0.00982081 8.97048 0.0796305 9.15506 0.203025L13.4233 3.43792C13.5998 3.55133 13.7453 3.7091 13.8462 3.8964C13.9471 4.08369 14 4.29434 14 4.50851C14 4.72269 13.9471 4.93333 13.8462 5.12063C13.7453 5.30792 13.5998 5.4657 13.4233 5.57911L9.15506 8.814C8.97048 8.9374 8.75698 9.00721 8.53707 9.01607C8.31717 9.02492 8.09902 8.9725 7.90565 8.86433C7.71227 8.75616 7.55084 8.59626 7.43839 8.40148C7.32593 8.20671 7.26663 7.9843 7.26673 7.75771V7.02381Z"></path>
-                            </svg>
-                            Reply
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                    <li>
-                      <div className="single-comment-area">
-                        <div className="author-img">
-                          <img
-                            src="https://res.cloudinary.com/dbz6ebekj/image/upload/v1740905832/joes-valentine-qyQJU0zKiXk-unsplash_p28qom.jpg"
-                            alt=""
-                          />
-                        </div>
-                        <div className="comment-content">
-                          <div className="author-name-deg">
-                            <h6>Mr. Bowmik Haldar,</h6>
-                            <span>05 June, 2023</span>
-                          </div>
-                          <ul className="review-item-list">
-                            <li>
-                              <span>Cleanliness</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Location</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Service</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Facilities</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                            <li>
-                              <span>Value for money</span>
-                              <ul className="star-list">
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-fill" />
-                                </li>
-                                <li>
-                                  <i className="bi bi-star-half" />
-                                </li>
-                              </ul>
-                            </li>
-                          </ul>
-                          <p>
-                            However, here are some well-regarded car dealerships
-                            known for their customer service, inventory, and
-                            overall reputation. It's always a good idea to
-                            research and read reviews specific...
-                          </p>
-                          <div className="replay-btn">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width={14}
-                              height={11}
-                              viewBox="0 0 14 11"
-                            >
-                              <path d="M8.55126 1.11188C8.52766 1.10118 8.50182 1.09676 8.47612 1.09903C8.45042 1.1013 8.42569 1.11018 8.40419 1.12486C8.3827 1.13954 8.36513 1.15954 8.35311 1.18304C8.34109 1.20653 8.335 1.23276 8.33539 1.25932V2.52797C8.33539 2.67388 8.2791 2.81381 8.17889 2.91698C8.07868 3.02016 7.94277 3.07812 7.80106 3.07812C7.08826 3.07812 5.64984 3.08362 4.27447 3.98257C3.2229 4.66916 2.14783 5.9191 1.50129 8.24735C2.59132 7.16575 3.83632 6.57929 4.92635 6.2679C5.59636 6.07737 6.28492 5.96444 6.97926 5.93121C7.26347 5.91835 7.54815 5.92129 7.83205 5.94001H7.84594L7.85129 5.94111L7.80106 6.48906L7.85449 5.94111C7.98638 5.95476 8.10864 6.01839 8.19751 6.11966C8.28638 6.22092 8.33553 6.35258 8.33539 6.48906V7.75771C8.33539 7.87654 8.45294 7.95136 8.55126 7.90515L12.8088 4.67796C12.8233 4.66692 12.8383 4.65664 12.8537 4.64715C12.8769 4.63278 12.8962 4.61245 12.9095 4.58816C12.9229 4.56386 12.9299 4.53643 12.9299 4.50851C12.9299 4.4806 12.9229 4.45316 12.9095 4.42887C12.8962 4.40458 12.8769 4.38425 12.8537 4.36988C12.8382 4.36039 12.8233 4.35011 12.8088 4.33907L8.55126 1.11188ZM7.26673 7.02381C7.19406 7.02381 7.11391 7.02711 7.02842 7.03041C6.56462 7.05242 5.92342 7.12504 5.21169 7.32859C3.79464 7.7335 2.11684 8.65116 1.00115 10.7175C0.940817 10.8291 0.844683 10.9155 0.729224 10.9621C0.613765 11.0087 0.486168 11.0124 0.368304 10.9728C0.250441 10.9331 0.149648 10.8525 0.0831985 10.7447C0.0167484 10.6369 -0.011219 10.5086 0.0040884 10.3819C0.499949 6.29981 2.01959 4.15202 3.70167 3.05391C5.03215 2.18467 6.40218 2.01743 7.26673 1.98552V1.25932C7.26663 1.03273 7.32593 0.810317 7.43839 0.615545C7.55084 0.420773 7.71227 0.260866 7.90565 0.152696C8.09902 0.0445258 8.31717 -0.00789584 8.53707 0.000962485C8.75698 0.00982081 8.97048 0.0796305 9.15506 0.203025L13.4233 3.43792C13.5998 3.55133 13.7453 3.7091 13.8462 3.8964C13.9471 4.08369 14 4.29434 14 4.50851C14 4.72269 13.9471 4.93333 13.8462 5.12063C13.7453 5.30792 13.5998 5.4657 13.4233 5.57911L9.15506 8.814C8.97048 8.9374 8.75698 9.00721 8.53707 9.01607C8.31717 9.02492 8.09902 8.9725 7.90565 8.86433C7.71227 8.75616 7.55084 8.59626 7.43839 8.40148C7.32593 8.20671 7.26663 7.9843 7.26673 7.75771V7.02381Z"></path>
-                            </svg>
-                            Reply
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
               </div>
             </div>
+
             <div className="col-xl-4">
               <div className="booking-form-wrap mb-30">
                 <h4>Book Your Room</h4>
                 <p>
-                  Reserve your ideal Room early for a hassle-free trip; secure
+                  Reserve your ideal room early for a hassle-free trip; secure
                   comfort and convenience!
                 </p>
-                {/* <div className="nav nav-pills mb-10" role="tablist">
-                  <button
-                    className="nav-link show active"
-                    id="v-pills-booking-tab"
-                    data-bs-toggle="pill"
-                    data-bs-target="#v-pills-booking"
-                    type="button"
-                    role="tab"
-                    aria-controls="v-pills-booking"
-                    aria-selected="true"
-                  >
-                    Online Booking
-                  </button>
-                  <button
-                    className="nav-link"
-                    id="v-pills-contact-tab"
-                    data-bs-toggle="pill"
-                    data-bs-target="#v-pills-contact"
-                    type="button"
-                    role="tab"
-                    aria-controls="v-pills-contact"
-                    aria-selected="false"
-                  >
-                    Inquiry Form
-                  </button>
-                </div> */}
+
                 <div className="tab-content" id="v-pills-tabContent2">
                   <div
                     className="tab-pane fade active show"
@@ -1161,82 +784,20 @@ const Page = () => {
                     aria-labelledby="v-pills-booking-tab"
                   >
                     <div className="sidebar-booking-form">
-                      <form>
-                        <div className="tour-date-wrap mb-50">
-                          <h6>Select Your Booking Date:</h6>
-                          <div className="form-check mb-[25px]">
-                            <input
-                              className="form-check-input"
-                              type="radio"
-                              name="tourDate"
-                              id="checkIn"
-                              defaultValue="option1"
-                              defaultChecked
-                            />
-                            <label
-                              className="form-check-label"
-                              htmlFor="checkIn"
-                            >
-                              <span className="tour-date">
-                                <span className="start-date">
-                                  <span>Check In</span>
-                                  <span> Jan 1, 2024 </span>
-                                </span>
-                                <i className="bi bi-arrow-right" />
-                                <span className="end-date text-end">
-                                  <span>Check Out</span>
-                                  <span>Jan 5, 2024</span>
-                                </span>
-                              </span>
-                            </label>
-                          </div>
-                          <div className="form-check mb-[25px]">
-                            <input
-                              className="form-check-input"
-                              type="radio"
-                              name="tourDate"
-                              id="checkOut"
-                              defaultValue="option2"
-                            />
-                            <label
-                              className="form-check-label"
-                              htmlFor="checkOut"
-                            >
-                              <span className="tour-date">
-                                <span className="start-date">
-                                  <span>Check In</span>
-                                  <span> Jan 10, 2024 </span>
-                                </span>
-                                <i className="bi bi-arrow-right" />
-                                <span className="end-date text-end">
-                                  <span>Check Out</span>
-                                  <span>Jan 15, 2024</span>
-                                </span>
-                              </span>
-                            </label>
-                          </div>
-                          <div className="form-check customdate">
-                            <input
-                              className="form-check-input"
-                              type="radio"
-                              name="tourDate"
-                              id="custom"
-                              defaultValue="option3"
-                            />
-                            <label
-                              class="form-check-label"
-                              for="custom"
-                            ></label>
+                      <form onSubmit={handleBooking}>
+                        <div className="tour-date-wrap mb-[30px]">
+                          <div className="form-check !pl-0 customdate">
                             <span className="form-group">
                               <ReactDatePicker
                                 selectsRange={true}
                                 startDate={startDate}
                                 endDate={endDate}
-                                placeholderText="Check In & Out Data"
-                                onChange={(update) => {
-                                  setDateRange(update);
-                                }}
+                                placeholderText="Check In & Out Date"
+                                onChange={handleDateChange}
                                 withPortal
+                                minDate={new Date()}
+                                className="form-control"
+                                isClearable={false}
                               />
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -1251,81 +812,65 @@ const Page = () => {
                             </span>
                           </div>
                         </div>
+
                         <div className="booking-form-item-type mb-45">
                           <div className="number-input-item adults">
                             <label className="number-input-lable">
                               Adult:<span></span>
                               <span>
-                                {" "}
-                                $60 <del>$80</del>
+                                {formatCurrency(adultPrice)}
+                                {hotelData?.adult_price_original && (
+                                  <del>
+                                    {" "}
+                                    {formatCurrency(
+                                      hotelData.adult_price_original
+                                    )}
+                                  </del>
+                                )}
                               </span>
                             </label>
-                            <QuantityCounter />
+                            <QuantityCounter
+                              quantity={adults}
+                              onQuantityChange={setAdults}
+                              minQuantity={1}
+                              maxQuantity={10}
+                            />
                           </div>
                           <div className="number-input-item children">
                             <label className="number-input-lable">
                               Children:<span></span>
-                              <span>$15</span>
+                              <span>{formatCurrency(childPrice)}</span>
                             </label>
-                            <QuantityCounter />
+                            <QuantityCounter
+                              quantity={children}
+                              onQuantityChange={setChildren}
+                              minQuantity={0}
+                              maxQuantity={10}
+                            />
                           </div>
                         </div>
+
+                        {/* Booking calculation breakdown */}
                         <div className="booking-form-item-type">
-                          <h5>Other Extra Services</h5>
-                          <div className="checkbox-container">
-                            <label className="check-container">
-                              Home Pickup
-                              <input
-                                type="checkbox"
-                                className="services_check"
-                                name="services_list[]"
-                                defaultValue={0}
-                              />
-                              <span className="checkmark" />
-                              <span className="price">$10 </span>
-                            </label>
-                            <label className="check-container">
-                              Night Food
-                              <input
-                                type="checkbox"
-                                className="services_check"
-                                name="services_list[]"
-                                defaultValue={1}
-                              />
-                              <span className="checkmark" />
-                              <span className="price">$15 </span>
-                            </label>
-                            <label className="check-container">
-                              Seaplane Fyling
-                              <input
-                                type="checkbox"
-                                className="services_check"
-                                name="services_list[]"
-                                defaultValue={2}
-                              />
-                              <span className="checkmark" />
-                              <span className="price">$20 </span>
-                            </label>
-                          </div>
-                        </div>
-                        <div className="booking-form-item-type">
+                          {/* Adult calculation */}
                           <div className="single-total mb-30">
                             <span>Adult</span>
                             <ul>
                               <li>
-                                <strong>$195</strong> PRICE
+                                <strong>{formatCurrency(adultPrice)}</strong>{" "}
+                                PRICE
                               </li>
                               <li>
                                 <i className="bi bi-x-lg" />
                               </li>
                               <li>
-                                <strong>02</strong> QTY
+                                <strong>{adults}</strong> QTY
                               </li>
                               <li>
                                 <i className="bi bi-x-lg" />
                               </li>
                               <li>
-                                <strong>04</strong> DAYS
+                                <strong>{totalDays}</strong> DAYS
                               </li>
                             </ul>
                             <svg
@@ -1340,109 +885,103 @@ const Page = () => {
                                 d="M23.999 5.44668L25.6991 7.4978L23.9991 9.54878H0V10.5743H23.1491L20.0135 14.3575L20.7834 14.9956L26.7334 7.81687L26.9979 7.4978L26.7334 7.17873L20.7834 0L20.0135 0.638141L23.149 4.42114H0V5.44668H23.999Z"
                               />
                             </svg>
-                            <div className="total">$390</div>
+                            <div className="total">
+                              {formatCurrency(adultPrice * adults * totalDays)}
+                            </div>
                           </div>
-                          <div className="single-total mb-30">
-                            <span>Children</span>
-                            <ul>
-                              <li>
-                                <strong>$195</strong> PRICE
-                              </li>
-                              <li>
-                                <i className="bi bi-x-lg" />
-                              </li>
-                              <li>
-                                <strong>02</strong> QTY
-                              </li>
-                              <li>
-                                <i className="bi bi-x-lg" />
-                              </li>
-                              <li>
-                                <strong>04</strong> DAYS
-                              </li>
-                            </ul>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width={27}
-                              height={15}
-                              viewBox="0 0 27 15"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                                d="M23.999 5.44668L25.6991 7.4978L23.9991 9.54878H0V10.5743H23.1491L20.0135 14.3575L20.7834 14.9956L26.7334 7.81687L26.9979 7.4978L26.7334 7.17873L20.7834 0L20.0135 0.638141L23.149 4.42114H0V5.44668H23.999Z"
-                              />
-                            </svg>
-                            <div className="total">$390</div>
-                          </div>
+
+                          {/* Children calculation - only show if children > 0 */}
+                          {children > 0 && (
+                            <div className="single-total mb-30">
+                              <span>Children</span>
+                              <ul>
+                                <li>
+                                  <strong>{formatCurrency(childPrice)}</strong>{" "}
+                                  PRICE
+                                </li>
+                                <li>
+                                  <i className="bi bi-x-lg" />
+                                </li>
+                                <li>
+                                  <strong>{children}</strong> QTY
+                                </li>
+                                <li>
+                                  <i className="bi bi-x-lg" />
+                                </li>
+                                <li>
+                                  <strong>{totalDays}</strong> DAYS
+                                </li>
+                              </ul>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width={27}
+                                height={15}
+                                viewBox="0 0 27 15"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  clipRule="evenodd"
+                                  d="M23.999 5.44668L25.6991 7.4978L23.9991 9.54878H0V10.5743H23.1491L20.0135 14.3575L20.7834 14.9956L26.7334 7.81687L26.9979 7.4978L26.7334 7.17873L20.7834 0L20.0135 0.638141L23.149 4.42114H0V5.44668H23.999Z"
+                                />
+                              </svg>
+                              <div className="total">
+                                {formatCurrency(
+                                  childPrice * children * totalDays
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
+
+                        {/* Total price display */}
                         <div className="total-price">
-                          <span>Total Price:</span> $470
+                          <span>Total Price:</span>{" "}
+                          {formatCurrency(calculateTotal)}
+                          {totalDays > 0 && (
+                            <small className="d-block text-muted">
+                              for {totalDays}{" "}
+                              {totalDays === 1 ? "night" : "nights"}
+                            </small>
+                          )}
                         </div>
-                        <button type="submit" className="primary-btn1 two">
-                          Book Now
+
+                        <button
+                          type="submit"
+                          className="primary-btn1 two"
+                          disabled={
+                            bookingLoading ||
+                            !startDate ||
+                            !endDate ||
+                            !user?.isLoggedIn ||
+                            totalDays <= 0
+                          }
+                        >
+                          {bookingLoading ? (
+                            <>
+                              <span
+                                className="spinner-border spinner-border-sm me-2"
+                                role="status"
+                                aria-hidden="true"
+                              ></span>
+                              Booking...
+                            </>
+                          ) : !user?.isLoggedIn ? (
+                            "Login to Book"
+                          ) : (
+                            "Book Now"
+                          )}
                         </button>
-                      </form>
-                    </div>
-                  </div>
-                  <div
-                    className="tab-pane fade"
-                    id="v-pills-contact"
-                    role="tabpanel"
-                    aria-labelledby="v-pills-contact-tab"
-                  >
-                    <div className="sidebar-booking-form">
-                      <form>
-                        <div className="form-inner mb-[20px]">
-                          <label>
-                            Full Name <span>*</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Enter your full name"
-                          />
-                        </div>
-                        <div className="form-inner mb-[20px]">
-                          <label>
-                            Email Address <span>*</span>
-                          </label>
-                          <input
-                            type="email"
-                            placeholder="Enter your email address"
-                          />
-                        </div>
-                        <div className="form-inner mb-[20px]">
-                          <label>
-                            Phone Number <span>*</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Enter your phone number"
-                          />
-                        </div>
-                        <div className="form-inner mb-30">
-                          <label>
-                            Write Your Massage <span>*</span>
-                          </label>
-                          <textarea
-                            placeholder="Write your quiry"
-                            defaultValue={""}
-                          />
-                        </div>
-                        <div className="form-inner">
-                          <button type="submit" className="primary-btn1 two">
-                            Submit Now
-                          </button>
-                        </div>
                       </form>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Contact card */}
               <div className="banner2-card">
                 <img
                   src="https://travelami.templaza.net/wp-content/uploads/2024/04/evangelos-mpikakis-t029Goq_7xE-unsplash-500x500.jpg"
-                  alt=""
+                  alt="Contact Banner"
                 />
                 <div className="banner2-content-wrap">
                   <div className="banner2-content">
@@ -1454,15 +993,17 @@ const Page = () => {
                           height={28}
                           viewBox="0 0 28 28"
                         >
-                          <path d="M27.2653 21.5995L21.598 17.8201C20.8788 17.3443 19.9147 17.5009 19.383 18.1798L17.7322 20.3024C17.6296 20.4377 17.4816 20.5314 17.3154 20.5664C17.1492 20.6014 16.9759 20.5752 16.8275 20.4928L16.5134 20.3196C15.4725 19.7522 14.1772 19.0458 11.5675 16.4352C8.95784 13.8246 8.25001 12.5284 7.6826 11.4893L7.51042 11.1753C7.42683 11.0269 7.39968 10.8532 7.43398 10.6864C7.46827 10.5195 7.56169 10.3707 7.69704 10.2673L9.81816 8.61693C10.4968 8.08517 10.6536 7.1214 10.1784 6.40198L6.39895 0.734676C5.91192 0.00208106 4.9348 -0.21784 4.18082 0.235398L1.81096 1.65898C1.06634 2.09672 0.520053 2.80571 0.286612 3.63733C-0.56677 6.74673 0.0752209 12.1131 7.98033 20.0191C14.2687 26.307 18.9501 27.9979 22.1677 27.9979C22.9083 28.0011 23.6459 27.9048 24.3608 27.7115C25.1925 27.4783 25.9016 26.932 26.3391 26.1871L27.7641 23.8187C28.218 23.0645 27.9982 22.0868 27.2653 21.5995ZM26.9601 23.3399L25.5384 25.7098C25.2242 26.2474 24.7142 26.6427 24.1152 26.8128C21.2447 27.6009 16.2298 26.9482 8.64053 19.3589C1.0513 11.7697 0.398595 6.75515 1.18669 3.88421C1.35709 3.28446 1.75283 2.77385 2.2911 2.45921L4.66096 1.03749C4.98811 0.840645 5.41221 0.93606 5.62354 1.25397L7.67659 4.3363L9.39976 6.92078C9.60612 7.23283 9.53831 7.65108 9.24392 7.88199L7.1223 9.53232C6.47665 10.026 6.29227 10.9193 6.68979 11.6283L6.85826 11.9344C7.45459 13.0281 8.19599 14.3887 10.9027 17.095C13.6095 19.8012 14.9696 20.5427 16.0628 21.139L16.3694 21.3079C17.0783 21.7053 17.9716 21.521 18.4653 20.8753L20.1157 18.7537C20.3466 18.4595 20.7647 18.3918 21.0769 18.5979L26.7437 22.3773C27.0618 22.5885 27.1572 23.0128 26.9601 23.3399ZM15.8658 4.66809C20.2446 4.67296 23.7931 8.22149 23.798 12.6003C23.798 12.858 24.0069 13.0669 24.2646 13.0669C24.5223 13.0669 24.7312 12.858 24.7312 12.6003C24.7257 7.7063 20.7598 3.74029 15.8658 3.73494C15.6081 3.73494 15.3992 3.94381 15.3992 4.20151C15.3992 4.45922 15.6081 4.66809 15.8658 4.66809Z" />
-                          <path d="M15.865 7.46746C18.6983 7.4708 20.9943 9.76678 20.9976 12.6001C20.9976 12.7238 21.0468 12.8425 21.1343 12.93C21.2218 13.0175 21.3404 13.0666 21.4642 13.0666C21.5879 13.0666 21.7066 13.0175 21.7941 12.93C21.8816 12.8425 21.9308 12.7238 21.9308 12.6001C21.9269 9.2516 19.2134 6.53813 15.865 6.5343C15.6073 6.5343 15.3984 6.74318 15.3984 7.00088C15.3984 7.25859 15.6073 7.46746 15.865 7.46746Z" />
-                          <path d="M15.865 10.267C17.1528 10.2686 18.1964 11.3122 18.198 12.6C18.198 12.7238 18.2472 12.8424 18.3347 12.9299C18.4222 13.0174 18.5409 13.0666 18.6646 13.0666C18.7883 13.0666 18.907 13.0174 18.9945 12.9299C19.082 12.8424 19.1312 12.7238 19.1312 12.6C19.1291 10.797 17.668 9.33589 15.865 9.33386C15.6073 9.33386 15.3984 9.54274 15.3984 9.80044C15.3984 10.0581 15.6073 10.267 15.865 10.267Z" />
+                          <path d="M27.2653 21.5995L21.598 17.8201C20.8788 17.3443 19.9147 17.5009 19.383 18.1798L17.7322 20.3024C17.6296 20.4377 17.4816 20.5314 17.3154 20.5664C17.1492 20.6014 16.9759 20.5752 16.8275 20.4928L16.5134 20.3196C15.4725 19.7522 14.1772 19.0458 11.5675 16.4352C8.95784 13.8246 8.25001 12.5284 7.6826 11.4893L7.51042 11.1753C7.42683 11.0269 7.39968 10.8532 7.43398 10.6864C7.46827 10.5195 7.56169 10.3707 7.69704 10.2673L9.81816 8.61693C10.4968 8.08517 10.6536 7.1214 10.1784 6.40198L6.39895 0.734676C5.91192 0.00208106 4.9348 -0.21784 4.18082 0.235398L1.81096 1.65898C1.06634 2.09672 0.520053 2.80571 0.286612 3.63733C-0.56677 6.74673 0.0752209 12.1131 7.98033 20.0191C14.2687 26.307 18.9501 27.9979 22.1677 27.9979C22.9083 28.0011 23.6459 27.9048 24.3608 27.7115C25.1925 27.4783 25.9016 26.932 26.3391 26.1871L27.7641 23.8187C28.218 23.0645 27.9982 22.0868 27.2653 21.5995Z" />
                         </svg>
                       </div>
                       <div className="content">
-                        <span>To More Inquiry</span>
+                        <span>For More Inquiry</span>
                         <h6>
-                          <a href="tel:+990737621432">+968-737 621 432</a>
+                          <a
+                            href={`tel:${hotelData?.phone || "+990737621432"}`}
+                          >
+                            {hotelData?.phone || "+968-737 621 432"}
+                          </a>
                         </h6>
                       </div>
                     </div>
@@ -1474,28 +1015,269 @@ const Page = () => {
         </div>
       </div>
 
+      {/* Video Modal */}
       <React.Fragment>
         <ModalVideo
           channel="youtube"
           onClick={() => setOpenModalVideo(true)}
           isOpen={isOpenModalVideo}
           animationSpeed="350"
-          videoId="r4KpWiK08vM"
+          videoId={hotelData.video_id || "r4KpWiK08vM"}
           ratio="16:9"
           onClose={() => setOpenModalVideo(false)}
         />
       </React.Fragment>
+
+      {/* Image Lightbox */}
       <Lightbox
         className="img-fluid"
         open={isOpenimg.openingState}
         plugins={[Fullscreen]}
         index={isOpenimg.openingIndex}
-        close={() => setOpenimg(false)}
+        close={() => setOpenimg({ openingState: false, openingIndex: 0 })}
         styles={{ container: { backgroundColor: "rgba(0, 0, 0, .9)" } }}
-        slides={images.map(function (elem) {
-          return { src: elem.imageBig };
-        })}
+        slides={
+          images && images.length > 0
+            ? images.map(function (elem) {
+                return { src: elem.imageBig };
+              })
+            : []
+        }
       />
+
+      {/* Confirmation Modal */}
+      {isConfirmModalOpen && (
+        <div
+          className="modal fade show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={(e) =>
+            handleModalOutsideClick(e, confirmModalRef, closeConfirmModal)
+          }
+        >
+          <div className="modal-dialog !max-w-[800px] modal-dialog-centered">
+            <div className="modal-content" ref={confirmModalRef}>
+              <div className="modal-header border-0">
+                <h5 className="modal-title">Confirm Your Booking</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={closeConfirmModal}
+                ></button>
+              </div>
+              <div className="modal-body py-4">
+                <div className="booking-confirmation">
+                  <div className="alert alert-info mb-4">
+                    <h6 className="alert-heading mb-3">
+                      <i className="bi bi-info-circle-fill me-2"></i>
+                      Please review your booking details
+                    </h6>
+                    <p className="mb-0">
+                      Once confirmed, your booking request will be submitted for
+                      review.
+                    </p>
+                  </div>
+
+                  <div className="booking-summary">
+                    <h6 className="mb-3">Booking Summary:</h6>
+                    <div className="row">
+                      <div className="col-12">
+                        <div className="summary-item mb-3 p-3 bg-light rounded">
+                          <h6 className="text-primary mb-2">
+                            {hotelData?.name || "Hotel Booking"}
+                          </h6>
+                          <div className="summary-details">
+                            <div className="row mb-2">
+                              <div className="col-6">
+                                <strong>Check-in:</strong>
+                              </div>
+                              <div className="col-6">
+                                {moment(startDate).format("MMM DD, YYYY")}
+                              </div>
+                            </div>
+                            <div className="row mb-2">
+                              <div className="col-6">
+                                <strong>Check-out:</strong>
+                              </div>
+                              <div className="col-6">
+                                {moment(endDate).format("MMM DD, YYYY")}
+                              </div>
+                            </div>
+                            <div className="row mb-2">
+                              <div className="col-6">
+                                <strong>Duration:</strong>
+                              </div>
+                              <div className="col-6">
+                                {totalDays}{" "}
+                                {totalDays === 1 ? "night" : "nights"}
+                              </div>
+                            </div>
+                            <div className="row mb-2">
+                              <div className="col-6">
+                                <strong>Adults:</strong>
+                              </div>
+                              <div className="col-6">
+                                {adults} × {formatCurrency(adultPrice)}
+                              </div>
+                            </div>
+                            {children > 0 && (
+                              <div className="row mb-2">
+                                <div className="col-6">
+                                  <strong>Children:</strong>
+                                </div>
+                                <div className="col-6">
+                                  {children} × {formatCurrency(childPrice)}
+                                </div>
+                              </div>
+                            )}
+                            <hr />
+                            <div className="row">
+                              <div className="col-6">
+                                <strong>Total Amount:</strong>
+                              </div>
+                              <div className="col-6">
+                                <strong className="text-success">
+                                  {formatCurrency(calculateTotal)}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer border-0">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={closeConfirmModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConfirmBooking}
+                >
+                  <i className="bi bi-check-circle me-2"></i>
+                  Confirm Booking
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Status Modal */}
+      {isBookingModalOpen && (
+        <div
+          className="modal fade show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={(e) =>
+            !bookingLoading &&
+            handleModalOutsideClick(e, bookingModalRef, closeBookingModal)
+          }
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content" ref={bookingModalRef}>
+              <div className="modal-header border-0">
+                <h5 className="modal-title">
+                  {bookingLoading
+                    ? "Processing Booking..."
+                    : bookingSuccess
+                    ? "Booking Submitted!"
+                    : "Booking Error"}
+                </h5>
+                {!bookingLoading && (
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={closeBookingModal}
+                  ></button>
+                )}
+              </div>
+              <div className="modal-body text-center py-4">
+                {bookingLoading && (
+                  <>
+                    <div
+                      className="spinner-border text-primary mb-3"
+                      role="status"
+                    >
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Please wait while we process your booking...</p>
+                  </>
+                )}
+
+                {bookingSuccess && (
+                  <>
+                    <div className="text-success mb-3">
+                      <i
+                        className="bi bi-check-circle-fill"
+                        style={{ fontSize: "3rem" }}
+                      ></i>
+                    </div>
+                    <h4 className="text-success mb-3">Booking Under Review</h4>
+                    <div className="alert alert-info">
+                      <p className="mb-2">
+                        <strong>Thank you for your booking!</strong>
+                      </p>
+                      <p className="mb-2">
+                        Your booking request is currently under review. Our team
+                        will verify your information and check the required
+                        details.
+                      </p>
+                      <p className="mb-0">
+                        <strong>
+                          Once approved, we will send a payment link to your
+                          email address to complete your reservation.
+                        </strong>
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {bookingError && (
+                  <>
+                    <div className="text-danger mb-3">
+                      <i
+                        className="bi bi-exclamation-triangle-fill"
+                        style={{ fontSize: "3rem" }}
+                      ></i>
+                    </div>
+                    <h4 className="text-danger mb-3">Booking Failed</h4>
+                    <div className="alert alert-danger">{bookingError}</div>
+                  </>
+                )}
+              </div>
+              {!bookingLoading && (
+                <div className="modal-footer border-0">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={closeBookingModal}
+                  >
+                    Close
+                  </button>
+                  {bookingError && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        closeBookingModal();
+                        setIsConfirmModalOpen(true);
+                      }}
+                    >
+                      Try Again
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

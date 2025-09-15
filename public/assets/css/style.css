@@ -31811,12 +31811,12 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
     font-size: 32px;
   }
 }
-.package-details-area .tour-price {
+ .tour-price {
   display: flex;
   align-items: baseline;
   margin-bottom: 15px;
 }
-.package-details-area .tour-price h3 {
+ .tour-price h3 {
   font-size: 28px;
   font-family: var(--font-jost);
   color: var(--primary-color1);
@@ -31825,7 +31825,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   letter-spacing: 0.75px;
   margin-bottom: 0;
 }
-.package-details-area .tour-price span {
+ .tour-price span {
   font-family: var(--font-jost);
   font-size: 18px;
   line-height: 1.25;

@@ -266,7 +266,7 @@ const Page = () => {
           pagename="Transport Details"
           pagetitle="Transport Details"
         />
-        <div className="transport-details-section pt-120 mb-120">
+        <div className="transport-details-section pt-[50px] mb-[30px]">
           <div className="container">
             <div className="flex justify-center items-center min-h-[400px]">
               <div className="text-center">
@@ -293,7 +293,7 @@ const Page = () => {
           pagename="Transport Details"
           pagetitle="Transport Details"
         />
-        <div className="transport-details-section pt-120 mb-120">
+        <div className="transport-details-section pt-[50px] mb-[30px]">
           <div className="container">
             <div className="flex justify-center items-center min-h-[400px]">
               <div className="text-center">
@@ -405,7 +405,7 @@ const Page = () => {
       `}</style>
 
       <Breadcrumb pagename="Transport Details" pagetitle="Transport Details" />
-      <div className="transport-details-section pt-120 mb-120">
+      <div className="transport-details-section pt-[50px] mb-[30px]">
         <div className="container">
           <div className="row g-lg-4 gy-5">
             <div className="col-lg-8">

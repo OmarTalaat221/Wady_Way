@@ -1,7 +1,12 @@
 "use client";
 import React, { useState } from "react";
-import "./_components/style.css";
+import { motion } from "framer-motion";
+import { message } from "antd";
+import axios from "axios";
 import Link from "../../components/link";
+import { base_url } from "../../uitils/base_url";
+import "./_components/style.css";
+import toast from "react-hot-toast";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -39,130 +44,191 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields correctly");
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      // In a real app, you would call your API here
-      // For demo purposes, we'll use a timeout to simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const loginData = {
+        email: formData.email,
+        password: formData.password,
+      };
 
-      // For demo, we'll just use the demo credentials
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          email: formData.email,
-          isLoggedIn: true,
-        })
+      const response = await axios.post(
+        `${base_url}/user/auth/login.php`,
+        loginData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
 
-      // Redirect to homepage
-      window.location.href = "/";
+      if (response.data.status === "success") {
+        toast.success("Login successful!");
+
+        // Store user data
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            email: formData.email,
+            isLoggedIn: true,
+            ...response.data.message,
+          })
+        );
+
+        // Redirect to homepage
+        window.location.href = "/";
+      } else {
+        toast.error(response.data.message || "Login failed");
+      }
     } catch (error) {
       console.error("Login failed:", error);
-      setErrors({ form: "Login failed. Please try again." });
+      toast.error(
+        error.response?.data?.message || "Network error. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  const titleVariants = {
+    hidden: { opacity: 0, y: -30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.8,
+        ease: "easeOut",
+      },
+    },
+  };
+
   return (
-    <div className="login-page">
-      <div className="modal login-modal">
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content">
-            <div className="modal-body">
-              <div className="login-registration-form">
-                <div className="form-title">
-                  <h2>Welcome Back</h2>
-                  <p>Sign in to continue your journey</p>
-                </div>
+    <>
+      <div className="login-container">
+        {/* Floating Particles */}
+        <div className="floating-particle particle-1"></div>
+        <div className="floating-particle particle-2"></div>
+        <div className="floating-particle particle-3"></div>
+        <div className="floating-particle particle-4"></div>
+        <div className="floating-particle particle-5"></div>
+        <div className="floating-particle particle-6"></div>
 
-                {errors.form && (
-                  <div className="alert alert-danger" role="alert">
-                    {errors.form}
-                  </div>
-                )}
+        <div className="form-container">
+          <motion.div
+            className="modern-modal-content"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.div className="modern-title" variants={titleVariants}>
+              <h2>Welcome Back</h2>
+              <p>Sign in to continue your journey</p>
+            </motion.div>
 
-                <form onSubmit={handleSubmit}>
-                  <div className="form-inner mb-[20px]">
-                    <input
-                      type="text"
-                      name="email"
-                      placeholder="Email Address"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className={errors.email ? "error" : ""}
-                    />
-                    {errors.email && (
-                      <small className="text-danger">{errors.email}</small>
-                    )}
-                  </div>
+            <div className="p-8">
+              <motion.form
+                onSubmit={handleSubmit}
+                variants={containerVariants}
+                className="space-y-6"
+              >
+                {/* Email Input */}
+                <motion.div className="space-y-2" variants={itemVariants}>
+                  <label className="form-label">Email Address</label>
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email address"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={`modern-input ${errors.email ? "error" : ""}`}
+                  />
+                  {errors.email && (
+                    <div className="error-message">{errors.email}</div>
+                  )}
+                </motion.div>
 
-                  <div className="form-inner mb-[20px]">
-                    <input
-                      type="password"
-                      name="password"
-                      placeholder="Password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      className={errors.password ? "error" : ""}
-                    />
-                    {errors.password && (
-                      <small className="text-danger">{errors.password}</small>
-                    )}
-                  </div>
+                {/* Password Input */}
+                <motion.div className="space-y-2" variants={itemVariants}>
+                  <label className="form-label">Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className={`modern-input ${errors.password ? "error" : ""}`}
+                  />
+                  {errors.password && (
+                    <div className="error-message">{errors.password}</div>
+                  )}
+                </motion.div>
 
-                  <div className="d-flex justify-end mb-[20px]">
-                    <Link href="#" className="forgot-password">
-                      Forgot Password?
-                    </Link>
-                  </div>
+                {/* Forgot Password Link */}
+                <motion.div className="text-right" variants={itemVariants}>
+                  <Link href="#" className="modern-link">
+                    Forgot Password?
+                  </Link>
+                </motion.div>
 
+                {/* Submit Button */}
+                <motion.div variants={itemVariants}>
                   <button
                     type="submit"
-                    className="login-btn mb-[25px]"
+                    className="modern-btn"
                     disabled={isLoading}
                   >
-                    {isLoading ? (
-                      <span>
-                        <i className="bx bx-loader-alt bx-spin me-2"></i>
-                        Signing In...
-                      </span>
-                    ) : (
-                      "Sign In"
-                    )}
+                    {isLoading && <span className="loading-spinner"></span>}
+                    {isLoading ? "Signing In..." : "Sign In"}
                   </button>
+                </motion.div>
 
-                  <div className="d-flex gap-2">
-                    <div>Don't have an account? </div>
-
-                    <Link href={"/signup"}>Register here</Link>
-                  </div>
-
-                  {/* <div className="divider">
-                    <span>or continue with</span>
-                  </div>
-
-                  <div className="social-login mt-20">
-                    <button type="button" className="google-login-btn">
-                      <div className="icon">
-                        <img
-                          src="/assets/img/home1/icon/google-icon.svg"
-                          alt="Google"
-                        />
-                      </div>
-                      <span>Sign in with Google</span>
-                    </button>
-                  </div> */}
-                </form>
-              </div>
+                {/* Register Link */}
+                <motion.div
+                  className="text-center mt-6"
+                  variants={itemVariants}
+                >
+                  <span style={{ color: "#295557", fontWeight: "600" }}>
+                    Don't have an account?{" "}
+                  </span>
+                  <Link href="/signup" className="modern-link">
+                    Register here
+                  </Link>
+                </motion.div>
+              </motion.form>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

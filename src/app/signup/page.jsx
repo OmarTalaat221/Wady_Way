@@ -1,13 +1,15 @@
 "use client";
-import React, { useState } from "react";
-import { Upload, message } from "antd";
+import React, { useState, useRef } from "react";
+import { Upload, message, Modal } from "antd";
 import { InboxOutlined } from "@ant-design/icons";
 import PhoneInput, { parsePhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import axios from "axios";
 import Link from "../../components/link";
 import { base_url } from "../../uitils/base_url";
-import "../login/_components/style.css";
+import { motion } from "framer-motion";
+import "../signup/_components/style.css";
+import toast from "react-hot-toast";
 
 const { Dragger } = Upload;
 
@@ -41,6 +43,14 @@ const Signup = () => {
   // Loading and error states
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // OTP Modal states
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpInputs, setOtpInputs] = useState(["", "", "", "", "", ""]);
+  const otpRefs = useRef([]);
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -85,6 +95,62 @@ const Signup = () => {
         ...prev,
         phone: "",
       }));
+    }
+  };
+
+  // Generate 6-digit OTP code
+  const generateOtpCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  // Send OTP code
+  const sendOtpCode = async (email, code) => {
+    try {
+      const response = await axios.post(
+        `${base_url}/user/auth/send_code.php`,
+        {
+          email: email,
+          code: code,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.status === "success") {
+        return true;
+      } else {
+        throw new Error(response.data.message || "Failed to send OTP");
+      }
+    } catch (error) {
+      console.error("OTP send error:", error);
+      throw error;
+    }
+  };
+
+  // Handle OTP input change
+  const handleOtpChange = (index, value) => {
+    if (value.length <= 1 && /^\d*$/.test(value)) {
+      const newOtpInputs = [...otpInputs];
+      newOtpInputs[index] = value;
+      setOtpInputs(newOtpInputs);
+
+      // Auto-focus next input
+      if (value && index < 5) {
+        otpRefs.current[index + 1]?.focus();
+      }
+
+      // Update combined OTP code
+      setOtpCode(newOtpInputs.join(""));
+    }
+  };
+
+  // Handle OTP input key down
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !otpInputs[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
     }
   };
 
@@ -137,9 +203,9 @@ const Signup = () => {
     }
 
     if (status === "done") {
-      message.success(`${fileType} uploaded successfully`);
+      toast.success(`${fileType} uploaded successfully`);
     } else if (status === "error") {
-      message.error(`${fileType} upload failed`);
+      toast.error(`${fileType} upload failed`);
       setFiles((prev) => ({
         ...prev,
         [fileType]: null,
@@ -164,14 +230,14 @@ const Signup = () => {
     };
 
     if (!validTypes[fileType].includes(file.type)) {
-      message.error(`Please upload a valid ${fileType} file`);
+      toast.error(`Please upload a valid ${fileType} file`);
       onError("Invalid file type");
       return;
     }
 
     // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      message.error("File size must be less than 5MB");
+      toast.error("File size must be less than 5MB");
       onError("File too large");
       return;
     }
@@ -222,10 +288,6 @@ const Signup = () => {
       newErrors.age = "Age is required";
     }
 
-    if (!files.image) {
-      newErrors.image = "Profile image is required";
-    }
-
     if (!files.driving_license) {
       newErrors.driving_license = "Driving license is required";
     }
@@ -238,16 +300,52 @@ const Signup = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
+  // Handle initial form submission (send OTP)
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
-      message.error("Please fill in all required fields correctly");
+      toast.error("Please fill in all required fields correctly");
       return;
     }
 
     setLoading(true);
+
+    try {
+      // Generate OTP code
+      const code = generateOtpCode();
+      setGeneratedCode(code);
+
+      // Send OTP to email
+      await sendOtpCode(formData.email, code);
+
+      toast.success("Verification code sent to your email!");
+      setShowOtpModal(true);
+    } catch (error) {
+      console.error("OTP send error:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to send verification code"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle OTP verification and complete signup
+  const handleOtpVerification = async (e) => {
+    e.preventDefault();
+
+    //     if (otpCode !== generatedCode) {
+    //   toast.error("Invalid verification code");
+    //   return;
+    // }
+
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields correctly");
+      return;
+    }
+
+    setOtpLoading(true);
 
     try {
       // Upload files first
@@ -283,585 +381,435 @@ const Signup = () => {
       );
 
       if (response.data.status === "success") {
-        message.success("Account created successfully!");
-        // Redirect to login or dashboard
+        toast.success("Account created successfully!");
+        setShowOtpModal(false);
+        // Redirect to login
         window.location.href = "/login";
       } else {
-        message.error(response.data.message || "Signup failed");
+        toast.error(response.data.message || "Signup failed");
       }
     } catch (error) {
       console.error("Signup error:", error);
-      message.error(
+      toast.error(
         error.response?.data?.message || "Network error. Please try again."
       );
     } finally {
-      setLoading(false);
+      setOtpLoading(false);
     }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    try {
+      const code = generateOtpCode();
+      setGeneratedCode(code);
+      await sendOtpCode(formData.email, code);
+
+      // Reset OTP inputs
+      setOtpInputs(["", "", "", "", "", ""]);
+      setOtpCode("");
+
+      toast.success("New verification code sent!");
+    } catch (error) {
+      toast.error("Failed to resend verification code");
+    }
+  };
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  const titleVariants = {
+    hidden: { opacity: 0, y: -30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.8,
+        ease: "easeOut",
+      },
+    },
   };
 
   return (
     <>
-      <style jsx>{`
-        /* Body Background */
-        body {
-          background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-          min-height: 100vh;
-        }
+      <style jsx>{``}</style>
 
-        /* Phone Input Styling */
-        .phone-input-container .PhoneInputInput {
-          border: 2px solid #295557;
-          border-radius: 12px;
-          padding: 16px 20px;
-          font-size: 16px;
-          width: 100%;
-          height: 60px;
-          background: white;
-          outline: none;
-          transition: all 0.3s ease;
-          color: #295557;
-          font-weight: 500;
-        }
+      <div className="signup-container">
+        {/* Floating Particles */}
+        <div className="floating-particle particle-1"></div>
+        <div className="floating-particle particle-2"></div>
+        <div className="floating-particle particle-3"></div>
+        <div className="floating-particle particle-4"></div>
+        <div className="floating-particle particle-5"></div>
+        <div className="floating-particle particle-6"></div>
 
-        .phone-input-container .PhoneInputInput:focus {
-          border-color: #e8a355;
-          box-shadow: 0 0 0 4px rgba(232, 163, 85, 0.15);
-          transform: translateY(-2px);
-        }
-
-        .phone-input-container .PhoneInputCountrySelect {
-          border: 2px solid #295557;
-          border-radius: 12px;
-          padding: 16px;
-          margin-right: 12px;
-          height: 60px;
-          background: white;
-          outline: none;
-          transition: all 0.3s ease;
-        }
-
-        .phone-input-container .PhoneInputCountrySelect:focus {
-          border-color: #e8a355;
-          box-shadow: 0 0 0 4px rgba(232, 163, 85, 0.15);
-        }
-
-        /* Upload Sections */
-        .upload-section {
-          margin-bottom: 24px;
-        }
-
-        .upload-label {
-          display: block;
-          margin-bottom: 12px;
-          font-weight: 700;
-          color: #295557;
-          font-size: 16px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .error-message {
-          color: #ef4444;
-          font-size: 14px;
-          margin-top: 8px;
-          font-weight: 600;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .error-message::before {
-          content: "⚠";
-          color: #ef4444;
-        }
-
-        /* Custom Dragger */
-        .custom-dragger {
-          border: 3px dashed #295557 !important;
-          border-radius: 16px !important;
-          background: linear-gradient(
-            135deg,
-            #f8f9fa 0%,
-            #ffffff 100%
-          ) !important;
-          transition: all 0.3s ease !important;
-          padding: 24px !important;
-        }
-
-        .custom-dragger:hover {
-          border-color: #e8a355 !important;
-          background: linear-gradient(
-            135deg,
-            #fff7e6 0%,
-            #ffffff 100%
-          ) !important;
-          transform: translateY(-4px);
-          box-shadow: 0 8px 25px rgba(232, 163, 85, 0.2);
-        }
-
-        .custom-dragger.ant-upload-drag-hover {
-          border-color: #e8a355 !important;
-        }
-
-        .custom-dragger .ant-upload-drag-icon {
-          color: #295557 !important;
-          font-size: 48px !important;
-          margin-bottom: 16px !important;
-        }
-
-        .custom-dragger .ant-upload-text {
-          color: #295557 !important;
-          font-weight: 600 !important;
-          font-size: 16px !important;
-          margin-bottom: 8px !important;
-        }
-
-        .custom-dragger .ant-upload-hint {
-          color: #6b7280 !important;
-          font-size: 14px !important;
-        }
-
-        /* Form Inputs */
-        .modern-input {
-          height: 60px;
-          border: 2px solid #295557;
-          border-radius: 12px;
-          padding: 0 20px;
-          font-size: 16px;
-          font-weight: 500;
-          transition: all 0.3s ease;
-          background: white;
-          color: #295557;
-          width: 100%;
-        }
-
-        .modern-input::placeholder {
-          color: #9ca3af;
-          font-weight: 400;
-        }
-
-        .modern-input:focus {
-          border-color: #e8a355;
-          outline: none;
-          box-shadow: 0 0 0 4px rgba(232, 163, 85, 0.15);
-          transform: translateY(-2px);
-        }
-
-        .modern-input.error {
-          border-color: #ef4444;
-          box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
-        }
-
-        /* Login Button */
-        .modern-btn {
-          background: linear-gradient(135deg, #e8a355 0%, #d4941f 100%);
-          border: none;
-          padding: 18px 32px;
-          border-radius: 12px;
-          font-weight: 700;
-          font-size: 18px;
-          text-decoration: none;
-          display: block;
-          text-align: center;
-          transition: all 0.3s ease;
-          color: white;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          width: 100%;
-          cursor: pointer;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .modern-btn::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.2),
-            transparent
-          );
-          transition: left 0.5s;
-        }
-
-        .modern-btn:hover::before {
-          left: 100%;
-        }
-
-        .modern-btn:hover {
-          background: linear-gradient(135deg, #d4941f 0%, #e8a355 100%);
-          transform: translateY(-3px);
-          box-shadow: 0 12px 35px rgba(232, 163, 85, 0.4);
-        }
-
-        .modern-btn:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-          transform: none;
-          box-shadow: none;
-        }
-
-        .modern-btn:disabled::before {
-          display: none;
-        }
-
-        /* Modal Styling */
-        .modern-modal {
-          background: rgba(26, 26, 26, 0.95);
-          backdrop-filter: blur(20px);
-        }
-
-        .modern-modal-content {
-          background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-          border-radius: 24px;
-          border: 3px solid #295557;
-          box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
-          overflow: hidden;
-        }
-
-        /* Form Title */
-        .modern-title {
-          background: linear-gradient(135deg, #295557 0%, #1e3a3c 100%);
-          color: white;
-          padding: 32px;
-          margin: -32px -32px 32px -32px;
-          text-align: center;
-        }
-
-        .modern-title h2 {
-          color: white !important;
-          font-weight: 800;
-          font-size: 32px;
-          margin-bottom: 8px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        .modern-title p {
-          color: rgba(255, 255, 255, 0.8) !important;
-          font-size: 16px;
-          margin: 0;
-        }
-
-        /* Link Styling */
-        .modern-link {
-          color: #e8a355;
-          text-decoration: none;
-          font-weight: 700;
-          transition: all 0.3s ease;
-          position: relative;
-        }
-
-        .modern-link::after {
-          content: "";
-          position: absolute;
-          bottom: -2px;
-          left: 0;
-          width: 0;
-          height: 2px;
-          background: #e8a355;
-          transition: width 0.3s ease;
-        }
-
-        .modern-link:hover::after {
-          width: 100%;
-        }
-
-        .modern-link:hover {
-          color: #d4941f;
-          transform: translateY(-1px);
-        }
-
-        /* Success States */
-        .file-uploaded {
-          border-color: #10b981 !important;
-          background: linear-gradient(
-            135deg,
-            #ecfdf5 0%,
-            #f0fdf4 100%
-          ) !important;
-        }
-
-        .file-uploaded .ant-upload-drag-icon {
-          color: #10b981 !important;
-        }
-
-        .file-uploaded .ant-upload-text {
-          color: #10b981 !important;
-        }
-
-        /* Loading Spinner */
-        .loading-spinner {
-          display: inline-block;
-          width: 20px;
-          height: 20px;
-          border: 2px solid #ffffff;
-          border-radius: 50%;
-          border-top-color: transparent;
-          animation: spin 1s ease-in-out infinite;
-          margin-right: 8px;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
-
-      <div className="min-h-screen bg-gradient-to-br from-gray-700 via-gray-600 to-black flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl">
-          <div className="modern-modal-content p-8">
-            <div className="modern-title">
+        <div className="form-container">
+          <motion.div
+            className="modern-modal-content"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.div className="modern-title" variants={titleVariants}>
               <h2>Create Your Account</h2>
               <p>Join us and start your journey today</p>
-            </div>
+            </motion.div>
 
-            <form
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
-              onSubmit={handleSubmit}
-            >
-              {/* Full Name */}
-              <div className="space-y-2">
-                <label className="upload-label">Full Name</label>
-                <input
-                  type="text"
-                  name="full_name"
-                  placeholder="Enter your full name"
-                  value={formData.full_name}
-                  onChange={handleInputChange}
-                  className={`modern-input ${errors.full_name ? "error" : ""}`}
-                />
-                {errors.full_name && (
-                  <div className="error-message">{errors.full_name}</div>
-                )}
-              </div>
-
-              {/* Email */}
-              <div className="space-y-2">
-                <label className="upload-label">Email Address</label>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className={`modern-input ${errors.email ? "error" : ""}`}
-                />
-                {errors.email && (
-                  <div className="error-message">{errors.email}</div>
-                )}
-              </div>
-
-              {/* Phone Number */}
-              <div className="col-span-1 md:col-span-2 space-y-2">
-                <label className="upload-label">Phone Number</label>
-                <div className="phone-input-container">
-                  <PhoneInput
-                    placeholder="Enter your phone number"
-                    value={formData.phone}
-                    onChange={handlePhoneChange}
-                    defaultCountry="EG"
-                    international
-                    countryCallingCodeEditable={false}
+            <div className="p-8">
+              <motion.form
+                className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                onSubmit={handleOtpVerification}
+                variants={containerVariants}
+              >
+                {/* Full Name */}
+                <motion.div className="space-y-2" variants={itemVariants}>
+                  <label className="upload-label">Full Name</label>
+                  <input
+                    type="text"
+                    name="full_name"
+                    placeholder="Enter your full name"
+                    value={formData.full_name}
+                    onChange={handleInputChange}
+                    className={`modern-input ${
+                      errors.full_name ? "error" : ""
+                    }`}
                   />
-                </div>
-                {errors.phone && (
-                  <div className="error-message">{errors.phone}</div>
-                )}
-              </div>
-
-              {/* National ID */}
-              <div className="space-y-2">
-                <label className="upload-label">National ID</label>
-                <input
-                  type="text"
-                  name="national_id"
-                  placeholder="Enter your national ID"
-                  value={formData.national_id}
-                  onChange={handleInputChange}
-                  className={`modern-input ${
-                    errors.national_id ? "error" : ""
-                  }`}
-                />
-                {errors.national_id && (
-                  <div className="error-message">{errors.national_id}</div>
-                )}
-              </div>
-
-              {/* Age */}
-              <div className="space-y-2">
-                <label className="upload-label">Age</label>
-                <input
-                  type="number"
-                  name="age"
-                  placeholder="Enter your age"
-                  min="18"
-                  max="100"
-                  value={formData.age}
-                  onChange={handleInputChange}
-                  className={`modern-input ${errors.age ? "error" : ""}`}
-                />
-                {errors.age && (
-                  <div className="error-message">{errors.age}</div>
-                )}
-              </div>
-
-              {/* Password */}
-              <div className="space-y-2">
-                <label className="upload-label">Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  placeholder="Create a strong password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className={`modern-input ${errors.password ? "error" : ""}`}
-                />
-                {errors.password && (
-                  <div className="error-message">{errors.password}</div>
-                )}
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-2">
-                <label className="upload-label">Confirm Password</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  className={`modern-input ${
-                    errors.confirmPassword ? "error" : ""
-                  }`}
-                />
-                {errors.confirmPassword && (
-                  <div className="error-message">{errors.confirmPassword}</div>
-                )}
-              </div>
-
-              {/* File Uploads */}
-              <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                {/* Profile Image Upload */}
-                <div className="upload-section">
-                  <label className="upload-label">Profile Image</label>
-                  <Dragger
-                    name="image"
-                    multiple={false}
-                    customRequest={(options) =>
-                      customUploadRequest(options, "image")
-                    }
-                    onChange={(info) => handleFileUpload(info, "image")}
-                    className={`custom-dragger ${
-                      files.image ? "file-uploaded" : ""
-                    }`}
-                    accept="image/*"
-                  >
-                    <p className="ant-upload-drag-icon">
-                      <InboxOutlined />
-                    </p>
-                    <p className="ant-upload-text">
-                      {files.image ? "Image Selected!" : "Upload Image"}
-                    </p>
-                    <p className="ant-upload-hint">JPG, PNG, GIF (Max 5MB)</p>
-                  </Dragger>
-                  {errors.image && (
-                    <div className="error-message">{errors.image}</div>
+                  {errors.full_name && (
+                    <div className="error-message">{errors.full_name}</div>
                   )}
-                </div>
+                </motion.div>
 
-                {/* Driving License Upload */}
-                <div className="upload-section">
-                  <label className="upload-label">Driving License</label>
-                  <Dragger
-                    name="driving_license"
-                    multiple={false}
-                    customRequest={(options) =>
-                      customUploadRequest(options, "driving_license")
-                    }
-                    onChange={(info) =>
-                      handleFileUpload(info, "driving_license")
-                    }
-                    className={`custom-dragger ${
-                      files.driving_license ? "file-uploaded" : ""
+                {/* Email */}
+                <motion.div className="space-y-2" variants={itemVariants}>
+                  <label className="upload-label">Email Address</label>
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className={`modern-input ${errors.email ? "error" : ""}`}
+                  />
+                  {errors.email && (
+                    <div className="error-message">{errors.email}</div>
+                  )}
+                </motion.div>
+
+                {/* Phone Number */}
+                <motion.div
+                  className="col-span-1 md:col-span-2 space-y-2"
+                  variants={itemVariants}
+                >
+                  <label className="upload-label">Phone Number</label>
+                  <div className="phone-input-container">
+                    <PhoneInput
+                      placeholder="Enter your phone number"
+                      value={formData.phone}
+                      onChange={handlePhoneChange}
+                      defaultCountry="EG"
+                      international
+                      countryCallingCodeEditable={false}
+                    />
+                  </div>
+                  {errors.phone && (
+                    <div className="error-message">{errors.phone}</div>
+                  )}
+                </motion.div>
+
+                {/* National ID */}
+                <motion.div className="space-y-2" variants={itemVariants}>
+                  <label className="upload-label">National ID</label>
+                  <input
+                    type="text"
+                    name="national_id"
+                    placeholder="Enter your national ID"
+                    value={formData.national_id}
+                    onChange={handleInputChange}
+                    className={`modern-input ${
+                      errors.national_id ? "error" : ""
                     }`}
-                    accept="image/*,.pdf"
-                  >
-                    <p className="ant-upload-drag-icon">
-                      <InboxOutlined />
-                    </p>
-                    <p className="ant-upload-text">
-                      {files.driving_license
-                        ? "License Selected!"
-                        : "Upload License"}
-                    </p>
-                    <p className="ant-upload-hint">JPG, PNG, PDF (Max 5MB)</p>
-                  </Dragger>
-                  {errors.driving_license && (
+                  />
+                  {errors.national_id && (
+                    <div className="error-message">{errors.national_id}</div>
+                  )}
+                </motion.div>
+
+                {/* Age */}
+                <motion.div className="space-y-2" variants={itemVariants}>
+                  <label className="upload-label">Age</label>
+                  <input
+                    type="number"
+                    name="age"
+                    placeholder="Enter your age"
+                    min="18"
+                    max="100"
+                    value={formData.age}
+                    onChange={handleInputChange}
+                    className={`modern-input ${errors.age ? "error" : ""}`}
+                  />
+                  {errors.age && (
+                    <div className="error-message">{errors.age}</div>
+                  )}
+                </motion.div>
+
+                {/* Password */}
+                <motion.div className="space-y-2" variants={itemVariants}>
+                  <label className="upload-label">Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder="Create a strong password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className={`modern-input ${errors.password ? "error" : ""}`}
+                  />
+                  {errors.password && (
+                    <div className="error-message">{errors.password}</div>
+                  )}
+                </motion.div>
+
+                {/* Confirm Password */}
+                <motion.div className="space-y-2" variants={itemVariants}>
+                  <label className="upload-label">Confirm Password</label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    placeholder="Confirm your password"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    className={`modern-input ${
+                      errors.confirmPassword ? "error" : ""
+                    }`}
+                  />
+                  {errors.confirmPassword && (
                     <div className="error-message">
-                      {errors.driving_license}
+                      {errors.confirmPassword}
                     </div>
                   )}
-                </div>
+                </motion.div>
 
-                {/* Passport Upload */}
-                <div className="upload-section">
-                  <label className="upload-label">Passport</label>
-                  <Dragger
-                    name="passport"
-                    multiple={false}
-                    customRequest={(options) =>
-                      customUploadRequest(options, "passport")
-                    }
-                    onChange={(info) => handleFileUpload(info, "passport")}
-                    className={`custom-dragger ${
-                      files.passport ? "file-uploaded" : ""
-                    }`}
-                    accept="image/*,.pdf"
+                {/* File Uploads */}
+                <motion.div
+                  className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6"
+                  variants={itemVariants}
+                >
+                  {/* Profile Image Upload */}
+                  <div className="upload-section">
+                    <label className="upload-label">Profile Image</label>
+                    <Dragger
+                      name="image"
+                      multiple={false}
+                      customRequest={(options) =>
+                        customUploadRequest(options, "image")
+                      }
+                      onChange={(info) => handleFileUpload(info, "image")}
+                      className={`custom-dragger ${
+                        files.image ? "file-uploaded" : ""
+                      }`}
+                      accept="image/*"
+                    >
+                      <p className="ant-upload-drag-icon">
+                        <InboxOutlined />
+                      </p>
+                      <p className="ant-upload-text">
+                        {files.image ? "Image Selected!" : "Upload Image"}
+                      </p>
+                      <p className="ant-upload-hint">JPG, PNG, GIF (Max 5MB)</p>
+                    </Dragger>
+                    {errors.image && (
+                      <div className="error-message">{errors.image}</div>
+                    )}
+                  </div>
+
+                  {/* Driving License Upload */}
+                  <div className="upload-section">
+                    <label className="upload-label">Driving License</label>
+                    <Dragger
+                      name="driving_license"
+                      multiple={false}
+                      customRequest={(options) =>
+                        customUploadRequest(options, "driving_license")
+                      }
+                      onChange={(info) =>
+                        handleFileUpload(info, "driving_license")
+                      }
+                      className={`custom-dragger ${
+                        files.driving_license ? "file-uploaded" : ""
+                      }`}
+                      accept="image/*,.pdf"
+                    >
+                      <p className="ant-upload-drag-icon">
+                        <InboxOutlined />
+                      </p>
+                      <p className="ant-upload-text">
+                        {files.driving_license
+                          ? "License Selected!"
+                          : "Upload License"}
+                      </p>
+                      <p className="ant-upload-hint">JPG, PNG, PDF (Max 5MB)</p>
+                    </Dragger>
+                    {errors.driving_license && (
+                      <div className="error-message">
+                        {errors.driving_license}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Passport Upload */}
+                  <div className="upload-section">
+                    <label className="upload-label">Passport</label>
+                    <Dragger
+                      name="passport"
+                      multiple={false}
+                      customRequest={(options) =>
+                        customUploadRequest(options, "passport")
+                      }
+                      onChange={(info) => handleFileUpload(info, "passport")}
+                      className={`custom-dragger ${
+                        files.passport ? "file-uploaded" : ""
+                      }`}
+                      accept="image/*,.pdf"
+                    >
+                      <p className="ant-upload-drag-icon">
+                        <InboxOutlined />
+                      </p>
+                      <p className="ant-upload-text">
+                        {files.passport
+                          ? "Passport Selected!"
+                          : "Upload Passport"}
+                      </p>
+                      <p className="ant-upload-hint">JPG, PNG, PDF (Max 5MB)</p>
+                    </Dragger>
+                    {errors.passport && (
+                      <div className="error-message">{errors.passport}</div>
+                    )}
+                  </div>
+                </motion.div>
+
+                {/* Submit Button */}
+                <motion.div
+                  className="col-span-1  md:col-span-2 !mt-[35px]"
+                  variants={itemVariants}
+                >
+                  <button
+                    type="submit"
+                    className="modern-btn"
+                    disabled={loading}
                   >
-                    <p className="ant-upload-drag-icon">
-                      <InboxOutlined />
-                    </p>
-                    <p className="ant-upload-text">
-                      {files.passport
-                        ? "Passport Selected!"
-                        : "Upload Passport"}
-                    </p>
-                    <p className="ant-upload-hint">JPG, PNG, PDF (Max 5MB)</p>
-                  </Dragger>
-                  {errors.passport && (
-                    <div className="error-message">{errors.passport}</div>
-                  )}
-                </div>
-              </div>
+                    {loading && <span className="loading-spinner"></span>}
+                    {loading
+                      ? "Sending Verification Code..."
+                      : "Create Account"}
+                  </button>
+                </motion.div>
 
-              {/* Submit Button */}
-              <div className="col-span-1 md:col-span-2 mt-8">
-                <button type="submit" className="modern-btn" disabled={loading}>
-                  {loading && <span className="loading-spinner"></span>}
-                  {loading ? "Creating Account..." : "Create Account"}
-                </button>
-              </div>
-
-              {/* Login Link */}
-              <div className="col-span-1 md:col-span-2 text-center mt-6">
-                <span style={{ color: "#295557", fontWeight: "600" }}>
-                  Already have an account?{" "}
-                </span>
-                <Link href="/login" className="modern-link">
-                  Sign In Here
-                </Link>
-              </div>
-            </form>
-          </div>
+                {/* Login Link */}
+                <motion.div
+                  className="col-span-1 md:col-span-2 text-center mt-6"
+                  variants={itemVariants}
+                >
+                  <span style={{ color: "#295557", fontWeight: "600" }}>
+                    Already have an account?{" "}
+                  </span>
+                  <Link href="/login" className="modern-link">
+                    Sign In Here
+                  </Link>
+                </motion.div>
+              </motion.form>
+            </div>
+          </motion.div>
         </div>
       </div>
+
+      {/* OTP Verification Modal */}
+      <Modal
+        title="Email Verification"
+        open={showOtpModal}
+        onCancel={() => setShowOtpModal(false)}
+        footer={null}
+        centered
+        maskClosable={false}
+        className="otp-modal"
+        width={500}
+      >
+        <div className="otp-description">
+          We've sent a 6-digit verification code to{" "}
+          <strong>{formData.email}</strong>
+          <br />
+          Please enter the code below to verify your email address.
+        </div>
+
+        <div className="otp-container">
+          {otpInputs.map((digit, index) => (
+            <input
+              key={index}
+              ref={(el) => (otpRefs.current[index] = el)}
+              type="text"
+              maxLength={1}
+              className="otp-input"
+              value={digit}
+              onChange={(e) => handleOtpChange(index, e.target.value)}
+              onKeyDown={(e) => handleOtpKeyDown(index, e)}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pastedData = e.clipboardData.getData("text").slice(0, 6);
+                if (/^\d+$/.test(pastedData)) {
+                  const newOtpInputs = [...otpInputs];
+                  pastedData.split("").forEach((char, i) => {
+                    if (i < 6) newOtpInputs[i] = char;
+                  });
+                  setOtpInputs(newOtpInputs);
+                  setOtpCode(newOtpInputs.join(""));
+                }
+              }}
+            />
+          ))}
+        </div>
+
+        <button
+          className="otp-verify-btn"
+          onClick={handleOtpVerification}
+          disabled={otpLoading || otpCode.length !== 6}
+        >
+          {otpLoading && <span className="loading-spinner"></span>}
+          {otpLoading ? "Verifying & Creating Account..." : "Verify & Continue"}
+        </button>
+
+        <button
+          className="otp-cancel-btn"
+          onClick={() => setShowOtpModal(false)}
+          disabled={otpLoading}
+        >
+          Cancel
+        </button>
+
+        <div className="resend-container">
+          <span className="resend-link" onClick={handleResendOtp}>
+            Didn't receive the code? Resend
+          </span>
+        </div>
+      </Modal>
     </>
   );
 };

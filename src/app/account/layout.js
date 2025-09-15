@@ -110,7 +110,7 @@ const Layout = ({ children }) => {
   return (
     <div className="d-flex justify-content-center">
       <div className="profile_side_bar container mx-1">
-        <div className="package-details-area mb-120 position-relative mx-auto">
+        <div className="package-details-area mb-[30px] position-relative mx-auto">
           <div className="">
             <div className="row g-xl-4 gy-5 ">
               <div

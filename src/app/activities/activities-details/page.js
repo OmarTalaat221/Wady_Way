@@ -417,7 +417,7 @@ const Page = () => {
                 </div>
               </div>
 
-              <div className="faq-content-wrap mb-80">
+              <div className="faq-content-wrap mb-[25px]">
                 <FAQ faqData={faqData} text={true} />
               </div>
             </div>
