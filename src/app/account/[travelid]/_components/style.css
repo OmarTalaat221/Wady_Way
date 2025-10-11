@@ -1,0 +1,313 @@
+/* Card container */
+.summary-card {
+  width: 100%;
+  /* margin: 20px; */
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+/* Header */
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* margin-bottom: 10px; */
+}
+
+.summary-header h2 {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--primary-color2);
+  margin-bottom: 0;
+}
+
+.summary-header .date {
+  color: var(--primary-color1);
+  font-weight: bold;
+}
+
+.status-badge {
+  background: var(--primary-color2);
+  color: var(--white-color);
+
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 10px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 8px;
+}
+
+/* Description */
+.summary-description {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 0px !important;
+}
+
+.bookings {
+  color: var(--primary-color2) !important;
+}
+
+/* Summary Details */
+.summary-details {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+/* Product Image */
+.product-image {
+  width: 120px;
+  height: 90px;
+  /* background: #f3f3f3; */
+  border-radius: 15px !important;
+  display: flex;
+  object-fit: cover;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.product-image img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px !important;
+}
+
+/* Product Info */
+.product-info {
+  flex: 1;
+}
+
+.product-category {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: start;
+  gap: 5px;
+  color: #888;
+}
+
+.product-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--primary-color2);
+}
+
+.product-options {
+  font-size: 14px;
+  color: #444;
+}
+
+/* Color box */
+.color-box {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: black;
+  border-radius: 50%;
+  margin-left: 5px;
+}
+
+/* Price Section */
+.product-price {
+  text-align: right;
+}
+
+.product-price span {
+  display: block;
+  font-size: 14px;
+  color: #666;
+}
+
+.product-price strong {
+  font-size: 16px;
+  font-weight: bold;
+  color: #222;
+}
+
+.tour_guide {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+/* Hide the default checkbox */
+.check_contain input {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.tour_guide_modal .modal-content .modal-header .btn-close {
+  margin: 0 !important;
+}
+
+.check_contain {
+  display: block;
+  position: relative;
+  width: fit-content;
+  cursor: pointer;
+  font-size: 20px;
+  user-select: none;
+  border: 1.5px solid #cd533b96; /* Updated border color */
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Create a custom checkbox */
+.checkmark {
+  position: relative;
+  top: 0;
+  left: 0;
+  height: 1.3em;
+  width: 1.3em;
+  background-color: #cd533b; /* Updated background color */
+  border-bottom: 1.5px solid #cd533b; /* Updated bottom stroke color */
+  box-shadow: 0 0 1px #f0c9c1, inset 0 -2.5px 3px #e67a5a,
+    inset 0 3px 3px rgba(0, 0, 0, 0.34); /* Updated inner shadow colors */
+  border-radius: 8px;
+  transition: transform 0.3s ease-in-out; /* Transition for smooth animation */
+}
+
+/* When the checkbox is checked, modify the checkmark appearance */
+.check_contain input:not(:checked) ~ .checkmark {
+  transform: translateY(40px); /* Move down */
+  animation: wipeDown 0.6s ease-in-out forwards; /* Apply wipe animation */
+}
+
+/* When the checkbox is not checked, modify the checkmark appearance */
+.check_contain input:checked ~ .checkmark {
+  transform: translateY(-40px); /* Move up */
+  animation: wipeUp 0.6s ease-in-out forwards; /* Apply wipe animation */
+}
+
+/* Keyframes for wipe animations */
+@keyframes wipeDown {
+  0% {
+    transform: translateY(0); /* Starting position */
+  }
+  100% {
+    transform: translateY(40px); /* End position */
+  }
+}
+
+@keyframes wipeUp {
+  0% {
+    transform: translateY(40); /* Starting position */
+  }
+  100% {
+    transform: translateY(0px); /* End position */
+  }
+}
+
+/* Create the checkmark/indicator */
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkmark when checked */
+.check_contain input:checked ~ .checkmark:after {
+  display: block;
+}
+
+/* Style the checkmark/indicator */
+.check_contain .checkmark:before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 4px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  box-shadow: 0 4px 2px rgba(0, 0, 0, 0.34); /* Icon drop shadow */
+}
+
+.confirm_tour_guide {
+  border: none;
+  outline: none;
+  background-color: var(--primary-color2);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 5px;
+  transition: all ease 0.2s;
+  box-shadow: 0px 5px 0px 0px #ffb3a4;
+}
+
+.confirm_tour_guide:active {
+  transform: translateY(5px);
+  box-shadow: 0px 0px 0px 0px #ffb3a4;
+}
+
+.order-summary {
+  width: 100%;
+  border: 1px solid #e0e0e0;
+  padding: 20px;
+  border-radius: 8px;
+  position: sticky;
+  top: 90px;
+  background: #fff;
+}
+
+.needing_ {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.payment-status {
+  background: #ffeeba;
+  color: #856404;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+.order-description {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.order-details {
+  margin-top: 15px;
+}
+
+.order-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 5px 0;
+}
+
+.order-total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+  font-size: 16px;
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+}

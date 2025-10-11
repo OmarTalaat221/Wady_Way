@@ -1,0 +1,94 @@
+[
+  {
+    "id": "1",
+    "label": "Home",
+    "link": "/",
+    "icon": false
+  },
+  {
+    "id": "2",
+    "label": "About",
+    "link": "/about",
+    "icon": false
+  },
+
+  {
+    "id": "8",
+    "label": "Team",
+    "link": "/Team",
+    "icon": false
+  },
+
+  {
+    "id": "4",
+    "label": "Tours",
+    "link": "/package",
+    "icon": false
+  },
+
+  {
+    "id": "5",
+    "label": "Gallery",
+    "link": "/gallery"
+  },
+
+  {
+    "id": "9",
+    "label": "More",
+    "link": "#",
+    "icon": true,
+    "subMenu": [
+      {
+        "id": "9-1",
+        "label": "FAQ",
+        "link": "/faq",
+        "icon": false
+      },
+      {
+        "id": "9-2",
+        "label": "Blog",
+        "link": "/blog",
+        "icon": false
+      },
+      {
+        "id": "9-3",
+        "label": "Services",
+        "link": "/services",
+        "icon": true,
+        "subMenu": [
+          {
+            "id": "9-3-1",
+            "label": "Transportation",
+            "link": "/transport",
+            "icon": false
+          },
+          {
+            "id": "9-3-2",
+            "label": "Accommodation",
+            "link": "/hotel-suits",
+            "icon": false
+          },
+          {
+            "id": "9-3-3",
+            "label": "Activities",
+            "link": "/activities",
+            "icon": false
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "id": "6",
+    "label": "Contact",
+    "link": "/contact",
+    "icon": false
+  },
+  {
+    "id": "7",
+    "label": "Account",
+    "link": "/account",
+    "icon": false
+  }
+]

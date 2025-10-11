@@ -1,0 +1,222 @@
+[
+  {
+    "id": 1,
+    "name": "Toyota Camry",
+    "type": "Sedan",
+    "image": "https://www.hdwallpapers.in/download/toyota_camry_hybrid_ws_leather_package_2021_4k_5k_hd_cars-HD.jpg",
+    "price": 45,
+    "priceUnit": "day",
+    "features": {
+      "seats": 5,
+      "doors": 4,
+      "luggage": 3,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Gasoline",
+      "year": 2022,
+      "mileage": "Unlimited"
+    },
+    "description": "Comfortable and reliable sedan, perfect for both city driving and longer trips. Excellent fuel economy and smooth ride.",
+    "available": true,
+    "rating": 4.8,
+    "reviewCount": 124
+  },
+  {
+    "id": 2,
+    "name": "Honda CR-V",
+    "type": "SUV",
+    "image": "https://images.unsplash.com/photo-1580273916550-e323be2ae537?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2064&q=80",
+    "price": 65,
+    "priceUnit": "day",
+    "features": {
+      "seats": 5,
+      "doors": 5,
+      "luggage": 5,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Gasoline",
+      "year": 2023,
+      "mileage": "Unlimited"
+    },
+    "description": "Spacious SUV with plenty of cargo space. Ideal for family trips and outdoor adventures. Includes modern safety features.",
+    "available": true,
+    "rating": 4.9,
+    "reviewCount": 98
+  },
+  {
+    "id": 3,
+    "name": "Mercedes-Benz E-Class",
+    "type": "Luxury",
+    "image": "https://images.unsplash.com/photo-1563720223185-11003d516935?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    "price": 120,
+    "priceUnit": "day",
+    "features": {
+      "seats": 5,
+      "doors": 4,
+      "luggage": 4,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Gasoline",
+      "year": 2023,
+      "mileage": "Unlimited"
+    },
+    "description": "Luxury sedan with premium leather interior and advanced technology features. Experience comfort and style on your journey.",
+    "available": true,
+    "rating": 5.0,
+    "reviewCount": 76
+  },
+  {
+    "id": 4,
+    "name": "Ford Mustang",
+    "type": "Sports",
+    "image": "https://images.unsplash.com/photo-1494905998402-395d579af36f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    "price": 110,
+    "priceUnit": "day",
+    "features": {
+      "seats": 4,
+      "doors": 2,
+      "luggage": 2,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Gasoline",
+      "year": 2022,
+      "mileage": "200 miles/day"
+    },
+    "description": "Iconic American muscle car. Feel the power and excitement with this sporty vehicle. Perfect for an exhilarating driving experience.",
+    "available": true,
+    "rating": 4.7,
+    "reviewCount": 82
+  },
+  {
+    "id": 5,
+    "name": "Toyota Sienna",
+    "type": "Minivan",
+    "image": "https://wallpapercat.com/w/full/6/6/f/1664396-3840x2160-desktop-4k-toyota-sienna-wallpaper.jpg",
+    "price": 85,
+    "priceUnit": "day",
+    "features": {
+      "seats": 8,
+      "doors": 5,
+      "luggage": 6,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Hybrid",
+      "year": 2023,
+      "mileage": "Unlimited"
+    },
+    "description": "Spacious minivan perfect for large families or group trips. Plenty of room for passengers and luggage. Fuel-efficient hybrid engine.",
+    "available": true,
+    "rating": 4.6,
+    "reviewCount": 65
+  },
+  {
+    "id": 6,
+    "name": "BMW X5",
+    "type": "Luxury SUV",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    "price": 135,
+    "priceUnit": "day",
+    "features": {
+      "seats": 5,
+      "doors": 5,
+      "luggage": 5,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Gasoline",
+      "year": 2023,
+      "mileage": "Unlimited"
+    },
+    "description": "Premium luxury SUV with powerful performance and elegant design. Packed with advanced technology and comfort features.",
+    "available": true,
+    "rating": 4.9,
+    "reviewCount": 91
+  },
+  {
+    "id": 7,
+    "name": "Tesla Model 3",
+    "type": "Electric",
+    "image": "https://images.unsplash.com/photo-1560958089-b8a1929cea89?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2071&q=80",
+    "price": 95,
+    "priceUnit": "day",
+    "features": {
+      "seats": 5,
+      "doors": 4,
+      "luggage": 3,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Electric",
+      "year": 2023,
+      "mileage": "250 miles/charge"
+    },
+    "description": "Environmentally friendly electric vehicle with cutting-edge technology. Enjoy a quiet, smooth ride and zero emissions.",
+    "available": true,
+    "rating": 4.8,
+    "reviewCount": 103
+  },
+  {
+    "id": 8,
+    "name": "Jeep Wrangler",
+    "type": "SUV",
+    "image": "https://www.jeep.com/content/dam/fca-brands/na/jeep/en_us/2025/wrangler/gallery/desktop/my25-jeep-wrangler-gallery-01-exterior-desktop.jpg.image.1440.jpg",
+    "price": 75,
+    "priceUnit": "day",
+    "features": {
+      "seats": 5,
+      "doors": 4,
+      "luggage": 3,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Gasoline",
+      "year": 2022,
+      "mileage": "Unlimited"
+    },
+    "description": "Rugged off-road SUV ideal for adventure seekers. Perfect for exploring nature and challenging terrains.",
+    "available": true,
+    "rating": 4.7,
+    "reviewCount": 88
+  },
+  {
+    "id": 9,
+    "name": "Audi A4",
+    "type": "Sedan",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    "price": 90,
+    "priceUnit": "day",
+    "features": {
+      "seats": 5,
+      "doors": 4,
+      "luggage": 3,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Gasoline",
+      "year": 2022,
+      "mileage": "Unlimited"
+    },
+    "description": "German-engineered luxury sedan combining performance and comfort. Experience precision handling and premium features.",
+    "available": true,
+    "rating": 4.8,
+    "reviewCount": 75
+  },
+  {
+    "id": 10,
+    "name": "Chevrolet Tahoe",
+    "type": "Large SUV",
+    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    "price": 105,
+    "priceUnit": "day",
+    "features": {
+      "seats": 8,
+      "doors": 5,
+      "luggage": 7,
+      "transmission": "Automatic",
+      "airConditioner": true,
+      "fuel": "Gasoline",
+      "year": 2022,
+      "mileage": "Unlimited"
+    },
+    "description": "Full-size SUV with ample space for passengers and cargo. Perfect for long trips and comfortable family travel.",
+    "available": true,
+    "rating": 4.6,
+    "reviewCount": 83
+  }
+]

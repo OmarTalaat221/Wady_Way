@@ -1,0 +1,21 @@
+.profile_side_bar{
+  
+}
+
+.profile_side_bar .sidebar_content{
+  background-color: red;
+}
+
+.profile_side_btn{
+  cursor:pointer ;
+  color  :black
+}
+.profile_side_btn.active{
+  color: var(--primary-color2);
+}
+
+.profile_side_btn:hover{
+
+}
+
+

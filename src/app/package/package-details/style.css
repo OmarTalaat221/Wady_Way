@@ -1,0 +1,79 @@
+header,
+.default-layout-header {
+  display: flex;
+  align-items: center;
+  padding: 20px 0;
+  padding-bottom: 0 !important;
+  /* background-color: red; */
+  justify-content: space-between;
+  top: 0px;
+  left: 0px;
+  align-items: center;
+  right: 0px;
+}
+header {
+  position: sticky;
+  width: 100%;
+  z-index: 19;
+  transition: 0.5s ease-in-out;
+  height: 131px !important;
+  border-bottom: 1px solid #fff;
+  /* position: relative; */
+}
+
+header.homeheader {
+  position: fixed;
+  top: 20px;
+}
+
+header.sticky-one {
+  background: black;
+  width: 100% !important;
+  padding: 8px 20px !important;
+  border: none !important;
+  top: 0 !important;
+}
+
+header ul {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 0;
+}
+
+header ul.links {
+  margin: 0;
+  gap: 90px;
+}
+
+header ul li a {
+  color: white !important;
+  text-decoration: none;
+  margin: 0;
+}
+
+header:not(.homeheader) ul li a {
+  color: black !important;
+}
+
+/* header.sticky-one ul li a {
+  color: black !important;
+  
+} */
+
+header ul li a.active {
+  color: var(--main-color);
+}
+
+.headerlogo {
+  margin: 0;
+  width: 144.94px;
+  height: 64.48px;
+  object-fit: contain;
+}
+
+header:not(.homeheader) {
+  background-color: white;
+  width: 100% !important;
+}
