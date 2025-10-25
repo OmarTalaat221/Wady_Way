@@ -2,43 +2,32 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 
-const TourHighlights = () => {
+const TourHighlights = ({ highlights = [] }) => {
   const t = useTranslations("packageDetails");
+
+  const fallbackHighlights = [
+    t("highlight1"),
+    t("highlight2"),
+    t("highlight3"),
+    t("highlight4"),
+    t("highlight5"),
+  ];
+
+  const displayHighlights =
+    highlights.length > 0 ? highlights : fallbackHighlights;
 
   return (
     <div className="highlight-tour mb-[20px]">
       <h4>{t("highlightsTitle")}</h4>
       <ul>
-        <li>
-          <span>
-            <i className="bi bi-check" />
-          </span>{" "}
-          {t("highlight1")}
-        </li>
-        <li>
-          <span>
-            <i className="bi bi-check" />
-          </span>{" "}
-          {t("highlight2")}
-        </li>
-        <li>
-          <span>
-            <i className="bi bi-check" />
-          </span>{" "}
-          {t("highlight3")}
-        </li>
-        <li>
-          <span>
-            <i className="bi bi-check" />
-          </span>{" "}
-          {t("highlight4")}
-        </li>
-        <li>
-          <span>
-            <i className="bi bi-check" />
-          </span>{" "}
-          {t("highlight5")}
-        </li>
+        {displayHighlights.map((highlight, index) => (
+          <li key={index}>
+            <span>
+              <i className="bi bi-check" />
+            </span>{" "}
+            {highlight}
+          </li>
+        ))}
       </ul>
     </div>
   );

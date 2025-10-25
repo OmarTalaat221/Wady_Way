@@ -26,9 +26,12 @@ const BookingSidebar = ({
   items,
   scrollToDiv,
   packageId,
+  tourData, // Add this prop
+  selectedTours, // Add this prop
 }) => {
   const locale = useLocale();
   const t = useTranslations("bookingSidebar");
+
   const contentStyle = {
     backgroundColor: "#fff",
     borderRadius: "8px",
@@ -39,6 +42,50 @@ const BookingSidebar = ({
   const menuStyle = {
     boxShadow: "none",
   };
+
+  const calculateTotalPrice = () => {
+    if (!tourData) return 0;
+
+    // Base price from tour data
+    const adultPrice = parseFloat(tourData.per_adult || 0);
+    const childPrice = parseFloat(tourData.per_child || 0);
+
+    const basePrice = adultPrice * people.adults + childPrice * people.children;
+
+    // Add hotel prices
+    const hotelPrice =
+      selectedTours?.hotels?.reduce(
+        (sum, hotel) => sum + (parseFloat(hotel.price) || 0),
+        0
+      ) || 0;
+
+    // Add transfer prices
+    const transferPrice =
+      selectedTours?.transfers?.reduce(
+        (sum, transfer) => sum + (parseFloat(transfer.price) || 0),
+        0
+      ) || 0;
+
+    // Add activity prices if any
+    const activityPrice =
+      selectedTours?.activities?.reduce(
+        (sum, activity) => sum + (parseFloat(activity.price) || 0),
+        0
+      ) || 0;
+
+    return (
+      Math.round(
+        (basePrice + hotelPrice + transferPrice + activityPrice) * 100
+      ) / 100
+    );
+  };
+
+  // Calculate number of days
+  const numberOfDays =
+    tourData?.itinerary?.length ||
+    Math.ceil(
+      (new Date(dateValue[1]) - new Date(dateValue[0])) / (1000 * 60 * 60 * 24)
+    ) + 1;
 
   return (
     <div
@@ -101,6 +148,8 @@ const BookingSidebar = ({
                       </div>
                     </div>
                   </Dropdown>
+
+                  {/* Travelers Dropdown */}
                   <Dropdown
                     menu={{
                       items: [],
@@ -117,10 +166,11 @@ const BookingSidebar = ({
                             {t("addTravelers")}
                           </div>
 
+                          {/* Adults */}
                           <div className="d-flex justify-content-between px-2 align-items-center w-100">
                             <div className="flex flex-col">
                               <div className="drop_text">{t("adults")}</div>
-                              <div className="text-[10px] text-gray-500 ">
+                              <div className="text-[10px] text-gray-500">
                                 {t("adultsDescription")}
                               </div>
                             </div>
@@ -128,11 +178,11 @@ const BookingSidebar = ({
                             <div className="d-flex align-items-center gap-3">
                               <button
                                 className="travel_button"
-                                disabled={people?.adults == 1}
+                                disabled={people?.adults <= 1}
                                 onClick={() =>
                                   setPeople({
                                     ...people,
-                                    adults: people?.adults - 1,
+                                    adults: Math.max(1, people?.adults - 1),
                                   })
                                 }
                               >
@@ -142,6 +192,7 @@ const BookingSidebar = ({
                               <div className="adults_text">
                                 {people?.adults}
                               </div>
+
                               <button
                                 onClick={() =>
                                   setPeople({
@@ -155,10 +206,12 @@ const BookingSidebar = ({
                               </button>
                             </div>
                           </div>
+
+                          {/* Children */}
                           <div className="d-flex justify-content-between px-2 align-items-center w-100">
                             <div className="flex flex-col">
                               <div className="drop_text">{t("children")}</div>
-                              <div className="text-[10px] text-gray-500 ">
+                              <div className="text-[10px] text-gray-500">
                                 {t("childrenDescription")}
                               </div>
                             </div>
@@ -170,7 +223,7 @@ const BookingSidebar = ({
                                 onClick={() =>
                                   setPeople({
                                     ...people,
-                                    children: people?.children - 1,
+                                    children: Math.max(0, people?.children - 1),
                                   })
                                 }
                               >
@@ -180,6 +233,7 @@ const BookingSidebar = ({
                               <div className="adults_text">
                                 {people?.children}
                               </div>
+
                               <button
                                 onClick={() =>
                                   setPeople({
@@ -193,10 +247,12 @@ const BookingSidebar = ({
                               </button>
                             </div>
                           </div>
+
+                          {/* Infants */}
                           <div className="d-flex justify-content-between px-2 align-items-center w-100">
                             <div className="flex flex-col">
                               <div className="drop_text">{t("infants")}</div>
-                              <div className="text-[10px] text-gray-500 ">
+                              <div className="text-[10px] text-gray-500">
                                 {t("infantsDescription")}
                               </div>
                             </div>
@@ -208,7 +264,7 @@ const BookingSidebar = ({
                                 onClick={() =>
                                   setPeople({
                                     ...people,
-                                    infants: people?.infants - 1,
+                                    infants: Math.max(0, people?.infants - 1),
                                   })
                                 }
                               >
@@ -218,6 +274,7 @@ const BookingSidebar = ({
                               <div className="adults_text">
                                 {people?.infants}
                               </div>
+
                               <button
                                 onClick={() =>
                                   setPeople({
@@ -240,12 +297,10 @@ const BookingSidebar = ({
                       <div className="travel-input gap-2">
                         <span className="travel-icon mx-0">👤</span>
                         <span className="travel-text">
-                          {+people?.adults +
-                            +people?.children +
-                            +people?.infants}{" "}
-                          {+people?.adults +
-                            +people?.children +
-                            +people?.infants ==
+                          {people?.adults + people?.children + people?.infants}{" "}
+                          {people?.adults +
+                            people?.children +
+                            people?.infants ===
                           1
                             ? t("traveler")
                             : t("travelers_plural")}
@@ -260,26 +315,31 @@ const BookingSidebar = ({
                     </div>
                   </Dropdown>
                 </div>
+
+                {/* Selected Items Summary */}
                 <Collapse
                   expandIcon={customExpandIcon("12px")}
                   ghost
                   size="large"
                 >
-                  {items.map((item) => (
+                  {items?.map((item) => (
                     <Panel
                       key={item.key}
                       header={
                         <div className="d-flex justify-content-between align-items-center">
                           <span className="panel_head">
-                            {item.label[locale] || item.label.en}
+                            {item.label?.[locale] || item.label?.en}
                           </span>
 
                           <button
-                            className="edit-button flex gap-[5px] px-1 "
+                            className="edit-button flex gap-[5px] px-1"
                             type="button"
-                            onClick={() =>
-                              scrollToDiv(item.label[locale] || item.label.en)
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              scrollToDiv(
+                                item.label?.[locale] || item.label?.en
+                              );
+                            }}
                           >
                             <FaEdit className="" />
                             {t("edit")}
@@ -289,33 +349,20 @@ const BookingSidebar = ({
                       style={{ padding: "0px" }}
                     >
                       <div
-                        className={`d-flex justify-content-start flex-column gap-1`}
+                        className="d-flex justify-content-start flex-column gap-1"
                         style={{ color: "#000" }}
                       >
                         {item.children?.map((child, index) => (
                           <div
                             key={index}
                             className={`content_panel d-flex justify-content-start flex-column align-items-start ${
-                              child?.children && "mb-2"
+                              child?.children ? "mb-2" : ""
                             }`}
                           >
                             <div className="fw-bold mb-3 d-flex align-items-center gap-2">
                               <div>{child.icon}</div>
                               <div className="text-start">
-                                {/* {typeof child.title === "object" ? (
-                                  <div className="d-flex align-items-center gap-2">
-                                    <div>{child.title.icon}</div>
-                                    <div>{child.title.subtitle}</div>
-                                  </div>
-                                ) : (
-                                  <div className="text-start">
-                                    {child.title?.en}
-                                  </div>
-                                )} */}
-
-                                <div className="text-start">
-                                  {child.title?.[locale]}
-                                </div>
+                                {child.title?.[locale] || child.title?.en}
                               </div>
                             </div>
 
@@ -334,7 +381,10 @@ const BookingSidebar = ({
                                     key={subIndex}
                                   >
                                     <div>{subChild.icon}</div>
-                                    <div>{subChild.title[locale]}</div>
+                                    <div>
+                                      {subChild.title?.[locale] ||
+                                        subChild.title?.en}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -345,13 +395,84 @@ const BookingSidebar = ({
                     </Panel>
                   ))}
                 </Collapse>
+
+                {/* Price Breakdown */}
+                {tourData && (
+                  <div className="price-breakdown mb-3">
+                    <div className="price-item">
+                      <span className="price-label">
+                        {t("adults")} ({people.adults} × ${tourData.per_adult}):
+                      </span>
+                      <span className="price-value">
+                        $
+                        {(
+                          parseFloat(tourData.per_adult || 0) * people.adults
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+
+                    {people.children > 0 && (
+                      <div className="price-item">
+                        <span className="price-label">
+                          {t("children")} ({people.children} × $
+                          {tourData.per_child}):
+                        </span>
+                        <span className="price-value">
+                          $
+                          {(
+                            parseFloat(tourData.per_child || 0) *
+                            people.children
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+
+                    {selectedTours?.hotels?.length > 0 && (
+                      <div className="price-item">
+                        <span className="price-label">
+                          {t("accommodations")}:
+                        </span>
+                        <span className="price-value">
+                          $
+                          {selectedTours.hotels
+                            .reduce(
+                              (sum, hotel) =>
+                                sum + parseFloat(hotel.price || 0),
+                              0
+                            )
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+
+                    {selectedTours?.transfers?.length > 0 && (
+                      <div className="price-item">
+                        <span className="price-label">{t("transfers")}:</span>
+                        <span className="price-value">
+                          $
+                          {selectedTours.transfers
+                            .reduce(
+                              (sum, transfer) =>
+                                sum + parseFloat(transfer.price || 0),
+                              0
+                            )
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="book_butt_cont">
                 <div className="total-price">
-                  <span>{t("totalPrice")}</span>{" "}
-                  {6 * (+people?.adults * 70 + +people?.children * 50)}$
+                  <span>{t("totalPrice")}</span>
+                  <span className="price-amount">
+                    {tourData?.price_currency || "$"}
+                    {calculateTotalPrice()}
+                  </span>
                 </div>
+
                 <Link
                   href={`/package/package-details/${packageId}/package-summary`}
                   className="primary-btn1 two text-white"

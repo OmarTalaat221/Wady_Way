@@ -43,9 +43,10 @@ const page = () => {
           id: car.id,
           name: car.title || car.name || "Car Rental",
           type: car.car_type || car.type || "Standard",
-          image:
-            car.image ||
-            "https://via.placeholder.com/300x200/666/FFFFFF?text=Car",
+
+          background_image: car.background_image,
+          image: car.image,
+
           location: car.location || "Location not specified",
           price_current: car.price_current || "0.00",
           price_original: car.price_original || car.price_current || "0.00",
@@ -198,6 +199,10 @@ const page = () => {
     selectedCarTypes,
     selectedFeatures,
   ]);
+
+  useEffect(() => {
+    console.log(filteredCars, "filte");
+  }, [filteredCars]);
 
   // Calculate counts for filters
   const getFeatureCount = (feature) => {
@@ -427,7 +432,7 @@ const page = () => {
                               className="transport-img"
                             >
                               <img
-                                src={car?.image}
+                                src={car?.background_image}
                                 alt={car?.name || "Car"}
                                 onError={(e) => {
                                   e.target.src =

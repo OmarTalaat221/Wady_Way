@@ -77,3 +77,43 @@ header:not(.homeheader) {
   background-color: white;
   width: 100% !important;
 }
+
+.price-breakdown {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 15px;
+  margin-top: 15px;
+}
+
+.price-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.price-label {
+  color: #666;
+}
+
+.price-value {
+  font-weight: 600;
+  color: #295557;
+}
+
+.total-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #295557;
+  padding: 15px 0;
+  border-top: 2px solid #295557;
+  margin-top: 10px;
+}
+
+.price-amount {
+  color: #e74c3c;
+  font-size: 20px;
+}
