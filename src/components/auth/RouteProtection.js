@@ -1,10 +1,10 @@
-// components/auth/RouteProtection.js
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Preloader from "../../app/loading";
 
 const RouteProtection = ({ children }) => {
+  const protectedRoutes = ["/account"];
   const router = useRouter();
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(true);
@@ -13,23 +13,20 @@ const RouteProtection = ({ children }) => {
 
   useEffect(() => {
     const user = localStorage.getItem("user");
-    // const token = localStorage.getItem("token");
-    const isLoggedIn = user;
+    const isLoggedIn = !!user;
 
-    if (isLoggedIn) {
-      if (authRoutes.includes(pathname)) {
-        router.push("/");
-        return;
-      }
-    } else {
-      if (!authRoutes.includes(pathname)) {
-        router.push("/login");
-        return;
-      }
+    if (isLoggedIn && authRoutes.includes(pathname)) {
+      router.push("/");
+      return;
+    }
+
+    if (!isLoggedIn && protectedRoutes.includes(pathname)) {
+      router.push("/login");
+      return;
     }
 
     setIsLoading(false);
-  }, [pathname, router]);
+  }, [pathname, router, protectedRoutes]);
 
   if (isLoading) {
     return <Preloader />;

@@ -10,16 +10,16 @@ const Reviews = () => {
   const params = useParams();
   const packageId = params.packageId;
 
-  // Sample reviews data (in a real app, this would come from an API)
+  // Sample reviews data
   const reviewsData = [
     {
       id: 1,
       name: "Mr. Bowmik Haldar",
       date: "05 June, 2023",
       image:
-        "https://travelami.templaza.net/wp-content/uploads/2025/02/co-founder2.jpg",
+        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
       content:
-        "A solution that we came up with is to think of sanitary pads packaging as you would tea. Tea comes individually packaged and is stored in a beautiful box that people display in their homes.",
+        "Amazing experience! The tour was well organized and our guide was very knowledgeable. Highly recommended for anyone looking for an authentic travel experience.",
       ratings: {
         overall: 4.5,
         transport: 4.5,
@@ -33,9 +33,9 @@ const Reviews = () => {
       name: "Sarah Johnson",
       date: "12 May, 2023",
       image:
-        "https://travelami.templaza.net/wp-content/uploads/2025/02/co-founder1-500x500.jpg",
+        "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
       content:
-        "The tour was absolutely amazing! The guide was knowledgeable and friendly. The accommodations were comfortable and the food was delicious. I would highly recommend this tour to anyone looking for an authentic experience.",
+        "The tour exceeded my expectations! Beautiful destinations, comfortable accommodations, and excellent service throughout. The food was delicious and the transportation was reliable.",
       ratings: {
         overall: 5,
         transport: 4.5,
@@ -49,9 +49,9 @@ const Reviews = () => {
       name: "John Smith",
       date: "23 April, 2023",
       image:
-        "https://travelami.templaza.net/wp-content/uploads/2025/02/co-founder2.jpg",
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
       content:
-        "This was my second time taking this tour and it was even better than the first! The itinerary was well-planned and gave us plenty of time to explore each location. The local experiences were authentic and memorable.",
+        "This was my second time taking this tour and it was even better than the first! The itinerary was well-planned and gave us plenty of time to explore each location.",
       ratings: {
         overall: 4.5,
         transport: 4,
@@ -62,38 +62,51 @@ const Reviews = () => {
     },
   ];
 
+  const renderStars = (rating) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+    const stars = [];
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<i key={i} className="bi bi-star-fill text-yellow-400"></i>);
+    }
+
+    if (hasHalfStar) {
+      stars.push(
+        <i key="half" className="bi bi-star-half text-yellow-400"></i>
+      );
+    }
+
+    return stars;
+  };
+
   return (
     <div className="w-full">
       <h4 className="text-2xl font-bold mb-6">{t("customerReview")}</h4>
+
+      {/* Overall Rating Summary */}
       <div className="bg-white rounded-lg p-6 shadow-md mb-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
-            <h2 className="text-4xl font-bold text-amber-500 mr-4">9.5</h2>
+            <h2 className="text-4xl font-bold text-amber-500 mr-4">4.7</h2>
             <div>
-              <div className="flex text-amber-400 mb-1">
-                <i className="bi bi-star-fill"></i>
-                <i className="bi bi-star-fill"></i>
-                <i className="bi bi-star-fill"></i>
-                <i className="bi bi-star-fill"></i>
-                <i className="bi bi-star-half"></i>
-              </div>
+              <div className="flex text-amber-400 mb-1">{renderStars(4.7)}</div>
               <span className="text-gray-600">
                 {t("reviewCount", { count: 2590 })}
               </span>
             </div>
           </div>
-          <a
+          <button
             className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-md transition-colors"
             data-bs-toggle="modal"
-            href="#exampleModalToggle"
-            role="button"
+            data-bs-target="#reviewModal"
           >
             {t("giveRating")}
-          </a>
+          </button>
         </div>
       </div>
 
-      {/* Reviews Section */}
+      {/* Reviews List */}
       <div className="space-y-6">
         {reviewsData.slice(0, 3).map((review) => (
           <div
@@ -110,6 +123,9 @@ const Reviews = () => {
                     src={review.image}
                     alt={review.name}
                     className="w-full h-full object-cover"
+                    // onError={(e) => {
+                    //   e.target.src = "https://via.placeholder.com/56x56";
+                    // }}
                   />
                 </div>
                 <div className="flex-1">
@@ -123,30 +139,16 @@ const Reviews = () => {
                       <span className="text-gray-600 text-sm mr-2">
                         {t("overall")}
                       </span>
-                      <div className="flex text-amber-400">
-                        {[...Array(Math.floor(review.ratings.overall))].map(
-                          (_, i) => (
-                            <i key={i} className="bi bi-star-fill"></i>
-                          )
-                        )}
-                        {review.ratings.overall % 1 !== 0 && (
-                          <i className="bi bi-star-half"></i>
-                        )}
+                      <div className="flex">
+                        {renderStars(review.ratings.overall)}
                       </div>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm mr-2">
                         {t("transport")}
                       </span>
-                      <div className="flex text-amber-400">
-                        {[...Array(Math.floor(review.ratings.transport))].map(
-                          (_, i) => (
-                            <i key={i} className="bi bi-star-fill"></i>
-                          )
-                        )}
-                        {review.ratings.transport % 1 !== 0 && (
-                          <i className="bi bi-star-half"></i>
-                        )}
+                      <div className="flex">
+                        {renderStars(review.ratings.transport)}
                       </div>
                     </div>
                   </div>
@@ -179,142 +181,99 @@ const Reviews = () => {
         </Link>
       </div>
 
-      {/* Modal for review */}
+      {/* Review Modal */}
       <div
         className="modal fade"
-        id="exampleModalToggle"
-        aria-hidden="true"
+        id="reviewModal"
         tabIndex={-1}
+        aria-labelledby="reviewModalLabel"
+        aria-hidden="true"
       >
-        <div className="modal-dialog modal-dialog-centered">
+        <div className="modal-dialog modal-dialog-centered modal-lg">
           <div className="modal-content">
-            <div className="modal-body">
+            <div className="modal-header">
+              <h5 className="modal-title" id="reviewModalLabel">
+                {t("writeReview")}
+              </h5>
               <button
                 type="button"
                 className="btn-close"
                 data-bs-dismiss="modal"
                 aria-label="Close"
-              >
-                <i className="bi bi-x-lg" />
-              </button>
-              <div className="row g-2">
-                <div className="col-lg-8">
-                  <div className="review-from-wrapper">
-                    <h4>{t("writeReview")}</h4>
-                    <form>
-                      <div className="row">
-                        <div className="col-md-6 mb-[20px]">
-                          <div className="form-inner">
-                            <label>{t("name")}</label>
-                            <input type="text" placeholder={t("enterName")} />
-                          </div>
-                        </div>
-                        <div className="col-md-6 mb-[20px]">
-                          <div className="form-inner">
-                            <label>{t("email")}</label>
-                            <input type="email" placeholder={t("enterEmail")} />
-                          </div>
-                        </div>
-                        <div className="col-lg-12 mb-[20px]">
-                          <div className="form-inner">
-                            <label>{t("review")}*</label>
-                            <textarea
-                              name="message"
-                              placeholder={t("enterReview")}
-                              defaultValue={""}
-                            />
-                          </div>
-                        </div>
-                        <div className="col-lg-12 mb-10">
-                          <div className="star-rating-wrapper">
-                            <ul className="star-rating-list">
-                              <li>
-                                <div
-                                  className="rating-container"
-                                  data-rating={0}
-                                >
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                </div>
-                                <span>{t("overall")}</span>
-                              </li>
-                              <li>
-                                <div
-                                  className="rating-container"
-                                  data-rating={0}
-                                >
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                </div>
-                                <span>{t("transport")}</span>
-                              </li>
-                              <li>
-                                <div
-                                  className="rating-container"
-                                  data-rating={0}
-                                >
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                </div>
-                                <span>{t("food")}</span>
-                              </li>
-                              <li>
-                                <div
-                                  className="rating-container"
-                                  data-rating={0}
-                                >
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                </div>
-                                <span>{t("destination")}</span>
-                              </li>
-                              <li>
-                                <div
-                                  className="rating-container"
-                                  data-rating={0}
-                                >
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                  <i className="bi bi-star-fill star-icon" />
-                                </div>
-                                <span>{t("hospitality")}</span>
-                              </li>
-                            </ul>
-                          </div>
-                        </div>
-                        <div className="col-lg-12">
-                          <button type="submit" className="primary-btn1">
-                            {t("submitNow")}
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-                <div className="col-lg-4 d-lg-flex d-none">
-                  <div className="modal-form-image">
-                    <img
-                      src="/assets/img/innerpage/form-image.jpg"
-                      alt="image"
-                      className="img-fluid"
+              ></button>
+            </div>
+            <div className="modal-body">
+              <form>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">{t("name")}</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder={t("enterName")}
                     />
                   </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">{t("email")}</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      placeholder={t("enterEmail")}
+                    />
+                  </div>
+                  <div className="col-12 mb-3">
+                    <label className="form-label">{t("review")}*</label>
+                    <textarea
+                      className="form-control"
+                      rows="4"
+                      placeholder={t("enterReview")}
+                    ></textarea>
+                  </div>
+                  <div className="col-12 mb-3">
+                    <label className="form-label">Rating</label>
+                    <div className="star-rating-wrapper">
+                      {[
+                        "overall",
+                        "transport",
+                        "food",
+                        "destination",
+                        "hospitality",
+                      ].map((category) => (
+                        <div
+                          key={category}
+                          className="d-flex justify-content-between align-items-center mb-2"
+                        >
+                          <span className="text-capitalize">{t(category)}</span>
+                          <div className="rating-stars">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <i
+                                key={star}
+                                className="bi bi-star text-gray-300 cursor-pointer hover:text-yellow-400"
+                                onClick={(e) => {
+                                  // Handle star rating
+                                  console.log(`${category}: ${star} stars`);
+                                }}
+                              ></i>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary">
+                {t("submitNow")}
+              </button>
             </div>
           </div>
         </div>

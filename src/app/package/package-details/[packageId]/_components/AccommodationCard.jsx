@@ -15,9 +15,7 @@ const AccommodationCard = ({
   item,
   index,
   activeAccommodations,
-
   isFlipped,
-
   selectedAccommodation,
   selectedTours,
   setSelectedTours,
@@ -33,42 +31,45 @@ const AccommodationCard = ({
   confirmRoomSelection,
   cancelRoomSelection,
 }) => {
+  const locale = useLocale();
+  const t = useTranslations("packageDetails");
+
+  if (!item) return null;
+
   const priceDifference = calculatePriceDifference(
     activeAccommodations[index]?.price_per_night,
     item?.price_per_night
   );
 
-  const locale = useLocale();
-  const t = useTranslations("packageDetails");
-
   const totalTravelers = people.adults + people.children + people.infants;
-  const shouldFlip = totalTravelers >= 3;
+  const isSelected = activeAccommodations[index]?.id === item.id;
+  const canFlip = totalTravelers >= 3 && isSelected;
 
   return (
     <div
       key={item.id}
-      className={`card ${
-        activeAccommodations[index]?.id === item.id ? "selected" : ""
-      } ${isFlipped && selectedAccommodation?.id === item.id ? "flipped" : ""}`}
+      className={`card ${isSelected ? "selected" : ""} ${
+        isFlipped && selectedAccommodation?.id === item.id ? "flipped" : ""
+      }`}
       onClick={() => {
         if (isFlipped && selectedAccommodation?.id === item.id) return;
         handleAccommodationClick(item, index);
       }}
     >
       <div className="card-inner">
+        {/* Front of card */}
         <div className="card-front">
-          {activeAccommodations[index]?.id === item.id &&
-            people.adults + people.children + people.infants >= 3 && (
-              <button
-                className="cards-container-learnmore"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleFlip(index);
-                }}
-              >
-                {t("viewRooms")}
-              </button>
-            )}
+          {canFlip && (
+            <button
+              className="cards-container-learnmore"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFlip(index);
+              }}
+            >
+              {t("viewRooms")}
+            </button>
+          )}
 
           <div
             onClick={(e) => {
@@ -81,13 +82,17 @@ const AccommodationCard = ({
           </div>
 
           <img
-            src={item.image}
-            alt={item.name[locale] || item.name.en}
+            src={item.image || "https://via.placeholder.com/300x200"}
+            alt={item.name?.[locale] || item.name?.en || "Accommodation"}
             className="card-image"
+            onError={(e) => {
+              e.target.src = "https://via.placeholder.com/300x200";
+            }}
           />
+
           <div className="card-content">
             <h3 className="text-[20px] mb-2">
-              {item.name[locale] || item.name.en}
+              {item.name?.[locale] || item.name?.en || "Accommodation"}
             </h3>
 
             <div className="gap-3 mb-3 transfer_feat_cont">
@@ -97,68 +102,72 @@ const AccommodationCard = ({
                   <div className="fw-bold">{t("category")}</div>
                   <div
                     className="transfer_info"
-                    title={item?.category[locale] || item?.category.en}
+                    title={item.category?.[locale] || item.category?.en}
                   >
-                    {item?.category[locale] || item?.category.en}
+                    {item.category?.[locale] || item.category?.en || "Hotel"}
                   </div>
                 </div>
               </div>
+
               <div className="d-flex align-items-center gap-2 transfer_in">
                 <FaClock />
                 <div className="d-flex flex-column transfer_cont">
                   <div className="fw-bold">{t("checkIn")}</div>
-                  <div className="transfer_info" title={item?.check_in_out}>
-                    {item?.check_in_out}
+                  <div className="transfer_info" title={item.check_in_out}>
+                    {item.check_in_out || "15:00 / 11:00"}
                   </div>
                 </div>
               </div>
+
               <div className="d-flex align-items-center gap-2 transfer_in">
                 <FaLocationDot />
                 <div className="d-flex flex-column transfer_cont">
                   <div className="fw-bold">{t("location")}</div>
                   <div
                     className="transfer_info"
-                    title={item?.location[locale] || item?.location.en}
+                    title={item.location?.[locale] || item.location?.en}
                   >
-                    {item.location[locale] || item.location.en}
+                    {item.location?.[locale] ||
+                      item.location?.en ||
+                      "City center"}
                   </div>
                 </div>
               </div>
+
               <div className="d-flex align-items-center gap-2 transfer_in">
                 <FaSquareParking />
                 <div className="d-flex flex-column transfer_cont">
                   <div className="fw-bold">{t("parking")}</div>
                   <div
                     className="transfer_info"
-                    title={item?.parking[locale] || item?.parking.en}
+                    title={item.parking?.[locale] || item.parking?.en}
                   >
-                    {item.parking[locale] ||
-                      item.parking.en ||
+                    {item.parking?.[locale] ||
+                      item.parking?.en ||
                       t("notAvailable")}
                   </div>
                 </div>
               </div>
             </div>
+
             <div className="card-footer">
               <span className="price">
-                {activeAccommodations[index]?.id === item.id
+                {isSelected
                   ? t("selected")
                   : priceDifference !== 0
                   ? `${priceDifference > 0 ? "+" : ""}${priceDifference} USD`
-                  : priceDifference == 0
+                  : priceDifference === 0
                   ? t("samePrice")
-                  : `+${item.price_per_night} USD`}
+                  : `+${item.price_per_night || 0} USD`}
               </span>
-              <div
-                className={`custom-radio ${
-                  activeAccommodations[index]?.id === item.id ? "selected" : ""
-                }`}
-              >
+              <div className={`custom-radio ${isSelected ? "selected" : ""}`}>
                 <div className="radio-circle"></div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Back of card - Room selection */}
         <div className="card-back">
           <div className="room-selection-container">
             <h4>{t("selectRooms")}</h4>

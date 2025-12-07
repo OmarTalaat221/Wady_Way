@@ -43,9 +43,8 @@ const Support = () => {
               <h4 className="flex items-center justify-between w-full text-lg font-medium group-hover:text-red-600 transition-all duration-300">
                 <span>Emergency Support</span>{" "}
                 <span
-                  className={`${
-                    showEmergencyInfo ? "rotate-90" : ""
-                  } transition-all duration-300`}
+                  className={`${showEmergencyInfo ? "rotate-90" : ""
+                    } transition-all duration-300`}
                 >
                   <FaChevronRight />
                 </span>
@@ -53,21 +52,18 @@ const Support = () => {
             </div>
 
             <div
-              className={`ml-14 transition-all duration-300 ${
-                showEmergencyInfo
+              className={`ml-14 transition-all duration-300 ${showEmergencyInfo
                   ? "max-h-96 opacity-100"
                   : "max-h-0 opacity-0 overflow-hidden"
-              }`}
+                }`}
             >
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                 <p className="text-sm text-gray-700 mb-3">
-                  For immediate response in case of emergency only. If this
-                  number is used in normal mode, you will be blocked from using
-                  this number permanently and the number will disappear from
-                  your profile.{" "}
-                  <span className="text-red-500">
-                    (Tax will be added to your wallet)
-                  </span>
+                  This emergency hotline is for urgent situations only. Misuse of this
+                  service for regular inquiries will incur
+                  <span className="text-red-600 font-semibold"> an automatic penalty charge
+                    to your account wallet.</span> Please use the standard support channels
+                  for non-urgent matters.
                 </p>
 
                 <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-red-200">

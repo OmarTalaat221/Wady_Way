@@ -5,45 +5,24 @@ import Breadcrumb from "@/components/common/Breadcrumb";
 import Link from "next/link";
 import Newslatter from "@/components/common/Newslatter";
 import Footer from "@/components/footer/Footer";
-import Topbar from "@/components/topbar/Topbar";
-import Header from "@/components/header/Header";
 import { base_url } from "../../uitils/base_url";
 
-const page = () => {
-  const [allBlogs, setAllBlogs] = useState([]); // All blogs from API
-  const [filteredBlogs, setFilteredBlogs] = useState([]); // Filtered blogs
-  const [displayBlogs, setDisplayBlogs] = useState([]); // Blogs to display (paginated)
+const AdminBlogsPage = () => {
+  const [allBlogs, setAllBlogs] = useState([]);
+  const [filteredBlogs, setFilteredBlogs] = useState([]);
+  const [displayBlogs, setDisplayBlogs] = useState([]);
   const [activeFilter, setActiveFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const blogsPerPage = 9;
 
-  // Available categories - will be dynamic based on API data
   const [categories, setCategories] = useState(["All"]);
 
-  // Add isLoggedIn state for showing Add Blog button
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // Check login status on mount
-  useEffect(() => {
-    try {
-      const user = localStorage.getItem("user");
-      if (user) {
-        setIsLoggedIn(true);
-      } else {
-        setIsLoggedIn(false);
-      }
-    } catch (error) {
-      setIsLoggedIn(false);
-    }
-  }, []);
-
-  // Fetch all blogs from API once
-  const fetchAllBlogs = async () => {
+  const fetchAdminBlogs = async () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `${base_url}/user/blog/select_blogs.php`
+        `${base_url}/user/admin_blogs/select_blogs.php`
       );
 
       if (response.data.status === "success") {
@@ -51,18 +30,17 @@ const page = () => {
         setAllBlogs(blogs);
         setFilteredBlogs(blogs);
 
-        // Extract unique categories from API data
+        // Extract unique categories
         const uniqueCategories = [
           "All",
           ...new Set(blogs.map((blog) => blog.category)),
         ];
         setCategories(uniqueCategories);
 
-        // Set initial display (first page)
         setDisplayBlogs(blogs.slice(0, blogsPerPage));
       }
     } catch (error) {
-      console.error("Error fetching blogs:", error);
+      console.error("Error fetching admin blogs:", error);
       setAllBlogs([]);
       setFilteredBlogs([]);
       setDisplayBlogs([]);
@@ -71,10 +49,10 @@ const page = () => {
     }
   };
 
-  // Filter blogs by category (client-side)
+  // Filter blogs by category
   const filterBlogs = (category) => {
     setActiveFilter(category);
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
 
     let filtered;
     if (category === "All") {
@@ -84,11 +62,10 @@ const page = () => {
     }
 
     setFilteredBlogs(filtered);
-    // Update display with first page of filtered results
     setDisplayBlogs(filtered.slice(0, blogsPerPage));
   };
 
-  // Handle pagination (client-side)
+  // Handle pagination
   const handlePageChange = (page) => {
     setCurrentPage(page);
 
@@ -100,7 +77,7 @@ const page = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Calculate total pages based on filtered blogs
+  // Calculate total pages
   const getTotalPages = () => {
     return Math.ceil(filteredBlogs.length / blogsPerPage);
   };
@@ -113,10 +90,10 @@ const page = () => {
     return { day, month };
   };
 
-  // Calculate read time based on title length (mock calculation)
+  // Calculate read time
   const calculateReadTime = (title) => {
     const words = title.split(" ").length;
-    return Math.max(1, Math.ceil(words / 50)); // Assuming 50 words per minute
+    return Math.max(1, Math.ceil(words / 50));
   };
 
   // Generate pagination numbers
@@ -150,9 +127,9 @@ const page = () => {
     return pages;
   };
 
-  // Fetch data on component mount
+  // Fetch data on mount
   useEffect(() => {
-    fetchAllBlogs();
+    fetchAdminBlogs();
   }, []);
 
   // Update pagination when filtered blogs change
@@ -166,47 +143,26 @@ const page = () => {
 
   return (
     <>
-      {/* <Topbar /> */}
-      {/* <Header /> */}
-      <Breadcrumb pagename="Blog Grid" pagetitle="Blog Grid" />
+      <Breadcrumb pagename="Official Blogs" pagetitle="Official Blogs" />
       <div className="blod-grid-section pt-[50px] mb-[20px]">
         <div className="container">
-          {/* Add Blog Button for logged-in users */}
-          {isLoggedIn && (
-            <div className="text-center mb-8">
-              <Link
-                href="/blog/add-blog"
-                className="inline-flex items-center px-6 py-3 bg-[#295557]  text-white font-medium rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width={20}
-                  height={20}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mr-2"
-                >
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                Add Blog
-              </Link>
-            </div>
-          )}
+          {/* Header with Badge */}
+          <div className="text-center mb-8">
+            <p className="text-gray-600">
+              Discover curated travel insights and tips from our expert team
+            </p>
+          </div>
 
           {/* Category Filter Buttons */}
-          <div className="flex overflow-x-auto pb-2 snap-x no-scroll  flex-wrap justify-center gap-3 mb-16">
+          <div className="flex overflow-x-auto pb-2 snap-x no-scroll flex-wrap justify-center gap-3 mb-16">
             {categories.map((filter) => (
               <button
                 key={filter}
                 onClick={() => filterBlogs(filter)}
                 className={`group/filter snap-center relative px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 overflow-hidden ${
                   activeFilter === filter
-                    ? "text-white shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                    : "bg-gray-50 hover:bg-gray-100 text-gray-700 shadow-sm hover:shadow-md border border-gray-200 hover:border-gray-300 transform hover:scale-105 active:scale-95"
+                    ? "text-white transform hover:scale-105 active:scale-95"
+                    : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 hover:border-gray-300 transform hover:scale-105 active:scale-95"
                 }`}
                 style={
                   activeFilter === filter
@@ -218,8 +174,7 @@ const page = () => {
                 }
               >
                 <span className="relative z-10">
-                  {filter}
-                  {/* Show count for each category */}
+                  {filter?.replace("_", " ")}
                   {filter === "All"
                     ? ` (${allBlogs.length})`
                     : ` (${
@@ -228,7 +183,6 @@ const page = () => {
                       })`}
                 </span>
 
-                {/* Active button hover effects */}
                 {activeFilter === filter && (
                   <>
                     <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/filter:scale-x-100 transition-transform duration-300 origin-left" />
@@ -236,7 +190,6 @@ const page = () => {
                   </>
                 )}
 
-                {/* Inactive button hover effect */}
                 {activeFilter !== filter && (
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300" />
                 )}
@@ -247,8 +200,10 @@ const page = () => {
           {/* Results Counter */}
           <div className="text-center mb-6">
             <p className="text-gray-600">
-              Showing {displayBlogs.length} of {filteredBlogs.length} blogs
-              {activeFilter !== "All" && ` in "${activeFilter}"`}
+              Showing {displayBlogs.length} of {filteredBlogs.length} official
+              blogs
+              {activeFilter !== "All" &&
+                ` in "${activeFilter?.replace("_", " ")}"`}
             </p>
           </div>
 
@@ -268,7 +223,26 @@ const page = () => {
 
                     return (
                       <div key={blog.blog_id} className="col-lg-4 col-md-6">
-                        <div className="blog-card">
+                        <div className="blog-card relative">
+                          {/* Admin Badge */}
+                          <div className="absolute top-4 right-4 z-10">
+                            <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-[#295557] to-[#e8a355] text-white text-xs font-semibold rounded-full shadow-lg">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width={14}
+                                height={14}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                <path d="M2 17l10 5 10-5" />
+                              </svg>
+                              Official
+                            </span>
+                          </div>
+
                           <div className="blog-card-img-wrap">
                             <Link
                               href={`/blog/blog-details?blog_id=${blog.blog_id}`}
@@ -280,7 +254,7 @@ const page = () => {
                                 alt={blog.title}
                                 onError={(e) => {
                                   e.target.src =
-                                    "/assets/img/blog/default-blog.jpg"; // Fallback image
+                                    "/assets/img/blog/default-blog.jpg";
                                 }}
                               />
                             </Link>
@@ -297,11 +271,13 @@ const page = () => {
                                 <li>
                                   By{" "}
                                   <Link href="/blog">
-                                    {blog.user_data.full_name}
+                                    {blog.admin_name || "Admin"}
                                   </Link>
                                 </li>
                                 <li>
-                                  <Link href="/blog">{blog.category}</Link>
+                                  <Link href="/blog">
+                                    {blog.category?.replace("_", " ")}
+                                  </Link>
                                 </li>
                               </ul>
                             </div>
@@ -318,7 +294,7 @@ const page = () => {
                               <Link
                                 href={`/blog/blog-details?blog_id=${blog.blog_id}`}
                               >
-                                View Post
+                                Read More
                                 <span>
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -373,24 +349,25 @@ const page = () => {
                           />
                         </svg>
                       </div>
-                      <h4 className="text-gray-500 mb-2">No blogs found</h4>
+                      <h4 className="text-gray-500 mb-2">
+                        No official blogs found
+                      </h4>
                       <p className="text-gray-400">
                         {activeFilter !== "All"
-                          ? `No blogs found in "${activeFilter}" category. Try selecting "All" or another category.`
-                          : "No blogs available at the moment."}
+                          ? `No official blogs found in "${activeFilter}" category.`
+                          : "No official blogs available at the moment."}
                       </p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Pagination - Only show if there are multiple pages */}
+              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="row">
                   <div className="col-lg-12">
                     <nav className="inner-pagination-area">
                       <ul className="pagination-list">
-                        {/* Previous Button */}
                         <li>
                           <button
                             onClick={() => handlePageChange(currentPage - 1)}
@@ -405,7 +382,6 @@ const page = () => {
                           </button>
                         </li>
 
-                        {/* Page Numbers */}
                         {generatePaginationNumbers().map((page, index) => (
                           <li key={index}>
                             {page === "..." ? (
@@ -427,7 +403,6 @@ const page = () => {
                           </li>
                         ))}
 
-                        {/* Next Button */}
                         <li>
                           <button
                             onClick={() => handlePageChange(currentPage + 1)}
@@ -443,11 +418,10 @@ const page = () => {
                         </li>
                       </ul>
 
-                      {/* Page Info */}
                       <div className="text-center mt-4">
                         <span className="text-sm text-gray-500">
                           Page {currentPage} of {totalPages} (
-                          {filteredBlogs.length} total blogs)
+                          {filteredBlogs.length} total official blogs)
                         </span>
                       </div>
                     </nav>
@@ -464,4 +438,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default AdminBlogsPage;

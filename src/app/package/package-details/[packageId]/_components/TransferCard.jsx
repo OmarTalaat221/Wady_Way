@@ -7,57 +7,57 @@ import { GiDuration } from "react-icons/gi";
 const TransferCard = ({
   item,
   index,
+  activeTransfers,
   selectedTours,
   setSelectedTours,
+  handleTransferClick,
   calculatePriceDifference,
 }) => {
   const locale = useLocale();
   const t = useTranslations("packageDetails");
 
-  const selectedTransfer = selectedTours?.transfers?.find(
-    (selected) => selected.day === index + 1
-  );
+  if (!item) return null;
 
-  const isSelected = selectedTransfer?.id === item.id;
+  // Check if this transfer is selected for this day using activeTransfers
+  const isSelected = activeTransfers?.[index]?.id === item.id;
 
-  const priceDifference = calculatePriceDifference(
-    selectedTransfer?.price,
-    item?.price
-  );
+  // Calculate price difference from the currently selected transfer
+  const selectedTransfer = activeTransfers?.[index];
+  const priceDifference = selectedTransfer
+    ? calculatePriceDifference(selectedTransfer.price, item.price)
+    : 0;
+
+  const onTransferClick = () => {
+    if (isSelected) return;
+    // Call the handler from parent which syncs with Redux
+    handleTransferClick(item, index);
+  };
 
   return (
     <div
       key={item.id}
-      className={`card ${isSelected ? "selected" : ""}`}
-      onClick={() => {
-        setSelectedTours((prevState) => ({
-          ...prevState,
-          transfers: [
-            ...prevState.transfers.filter((h) => h.day !== index + 1),
-            {
-              day: index + 1,
-              name: item.name,
-              id: item.id,
-              price: item.price,
-            },
-          ],
-        }));
-      }}
+      className={`card ${
+        isSelected ? "selected" : ""
+      } hover:shadow-lg transition-shadow cursor-pointer`}
+      onClick={onTransferClick}
     >
       <img
-        src={item.image}
-        alt={item.name[locale] || item.name.en}
+        src={item.image || "https://via.placeholder.com/300x200"}
+        alt={item.name?.[locale] || item.name?.en || "Transfer"}
         className="card-image"
+        onError={(e) => {
+          e.target.src = "https://via.placeholder.com/300x200";
+        }}
       />
       <div className="card-content">
-        <h3>{item.name[locale] || item.name.en}</h3>
+        <h3>{item.name?.[locale] || item.name?.en || "Transfer"}</h3>
         <div className="gap-3 mb-3 transfer_feat_cont">
           <div className="d-flex align-items-center gap-2 transfer_in">
             <FaHotel />
             <div className="d-flex flex-column transfer_cont">
               <div className="fw-bold">{t("brand")}</div>
-              <div className="transfer_info" title={item?.category.en}>
-                {item?.category.en}
+              <div className="transfer_info" title={item.category?.en}>
+                {item.category?.[locale] || item.category?.en || "Standard"}
               </div>
             </div>
           </div>
@@ -65,8 +65,8 @@ const TransferCard = ({
             <GiDuration />
             <div className="d-flex flex-column transfer_cont">
               <div className="fw-bold capitalize">{t("capacity")}</div>
-              <div className="transfer_info" title={item?.capacity}>
-                {item?.capacity}
+              <div className="transfer_info" title={item.capacity}>
+                {item.capacity || 4} {t("passengers")}
               </div>
             </div>
           </div>
@@ -77,9 +77,7 @@ const TransferCard = ({
               ? t("selected")
               : priceDifference !== 0
               ? `${priceDifference > 0 ? "+" : ""}${priceDifference} USD`
-              : priceDifference == 0
-              ? t("samePrice")
-              : `+${item.price} USD`}
+              : t("samePrice")}
           </span>
           <div className={`custom-radio ${isSelected ? "selected" : ""}`}>
             <div className="radio-circle"></div>

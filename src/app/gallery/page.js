@@ -228,6 +228,7 @@ const Page = () => {
                   />
                   <a
                     data-fancybox="gallery-01"
+                    className="text-white"
                     onClick={() =>
                       setOpenimg({ openingState: true, openingIndex: index })
                     }

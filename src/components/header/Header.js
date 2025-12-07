@@ -184,6 +184,45 @@ const HeaderContent = ({
   isFixed = false,
 }) => {
   const pathname = usePathname();
+  const [hoveredMenu, setHoveredMenu] = useState("");
+  const [hoveredSubMenu, setHoveredSubMenu] = useState("");
+  const menuTimeoutRef = useRef(null);
+  const subMenuTimeoutRef = useRef(null);
+
+  // Handle main menu hover
+  const handleMenuEnter = (label) => {
+    if (menuTimeoutRef.current) clearTimeout(menuTimeoutRef.current);
+    setHoveredMenu(label);
+  };
+
+  const handleMenuLeave = () => {
+    menuTimeoutRef.current = setTimeout(() => {
+      setHoveredMenu("");
+      setHoveredSubMenu("");
+    }, 200);
+  };
+
+  // Handle submenu hover
+  const handleSubMenuEnter = (label) => {
+    if (subMenuTimeoutRef.current) clearTimeout(subMenuTimeoutRef.current);
+    if (menuTimeoutRef.current) clearTimeout(menuTimeoutRef.current);
+    setHoveredSubMenu(label);
+  };
+
+  const handleSubMenuLeave = () => {
+    subMenuTimeoutRef.current = setTimeout(() => {
+      setHoveredSubMenu("");
+    }, 200);
+  };
+
+  // Check if menu is open (hover or click)
+  const isMenuOpen = (label) => {
+    return hoveredMenu === label || state.activeMenu === label;
+  };
+
+  const isSubMenuOpen = (label) => {
+    return hoveredSubMenu === label || state.activeSubMenu === label;
+  };
 
   return (
     <>
@@ -200,6 +239,7 @@ const HeaderContent = ({
           />
         </Link>
       </div>
+
       <div className={`main-menu ${state.isSidebarOpen ? "show-menu" : ""}`}>
         <div className="mobile-logo-area d-lg-none d-flex justify-content-between align-items-center">
           <div className="mobile-logo-wrap">
@@ -212,126 +252,183 @@ const HeaderContent = ({
           </div>
         </div>
 
-        <ul
-          className="menu-list"
-          style={{ color: "white", display: "flex", flexWrap: "nowrap" }}
-        >
+        <ul className="menu-list flex flex-nowrap text-white">
           {navData.map((data, index) => {
             const { id, label, link, icon, subMenu } = data;
+            const menuIsOpen = isMenuOpen(label);
+
             return (
               <li
                 key={id + "-" + index}
-                style={{ color: "white" }}
-                className={`${icon === true ? "menu-item-has-children" : ""}`}
+                className={`relative ${icon ? "menu-item-has-children" : ""}`}
+                onMouseEnter={() => icon && handleMenuEnter(label)}
+                onMouseLeave={icon ? handleMenuLeave : undefined}
               >
                 <Link
                   href={link}
-                  className="drop-down !text-[13.5px]"
-                  style={{ color: "white" }}
+                  className="drop-down text-white hover:text-[#e8a355] transition-colors duration-300"
+                  style={{ fontSize: "13.5px" }}
                 >
                   {label}
                 </Link>
+
                 {icon && (
                   <i
-                    style={{ color: "white" }}
                     onClick={() => toggleMenu(label)}
                     className={`bi bi-chevron-${
-                      state.activeMenu === label ? "up" : "down"
-                    } dropdown-icon`}
+                      menuIsOpen ? "up" : "down"
+                    } dropdown-icon text-white cursor-pointer lg:hidden`}
+                    style={{
+                      transition: "transform 0.3s ease",
+                      transform: menuIsOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
                   />
                 )}
 
+                {/* Submenu */}
                 {subMenu && (
                   <ul
-                    className={`sub-menu  ${
-                      label === "More"
-                        ? "bg-white rounded-md shadow-lg p-2 text-gray-800 absolute z-50 "
-                        : ""
-                    } ${state.activeMenu === label ? "active" : ""}`}
+                    className={`
+                      ${
+                        label === "More"
+                          ? "absolute left-0 top-full bg-white rounded-md shadow-lg p-2 text-gray-800 z-50 min-w-[200px]"
+                          : "sub-menu"
+                      }
+                      ${
+                        menuIsOpen
+                          ? "opacity-100 visible translate-y-0"
+                          : "opacity-0 invisible translate-y-4 lg:pointer-events-none"
+                      }
+                    `}
+                    style={{
+                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                      transitionProperty: "opacity, visibility, transform",
+                      display: state.activeMenu === label ? "block" : undefined, // For mobile click
+                    }}
+                    onMouseEnter={() => handleMenuEnter(label)}
+                    onMouseLeave={handleMenuLeave}
                   >
-                    {subMenu.map((subItem) => (
-                      <li
-                        className={`relative border-b border-gray-100 last:border-0 ${
-                          subItem.subMenu
-                            ? "before:!content-[''] before:absolute before:top-0 before:-right-5 before:w-[50px] before:h-[45px] before:bg-transparent before:rounded-md before:p-2 before:text-gray-800 before:z50"
-                            : ""
-                        }`}
-                        key={`${id}-${subItem.id}`}
-                      >
-                        {subItem.subMenu ? (
-                          <div
-                            className="!text-[13.5px] text-gray-700 hover:text-[#e8a355] !py-0 !px-0 block transition-colors duration-200"
-                            onClick={(e) => e.preventDefault()}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="cursor-pointer hover:text-[#e8a355] transition-colors duration-200 p-[10px_15px] font-[400] uppercase leading-[1.3]">
-                                {subItem.label}
-                              </div>
-                              {subItem.icon && (
-                                <>
-                                  <i
-                                    className="d-lg-flex p-0 !text-black d-none bi bi-chevron-right dropdown-icon"
-                                    style={{
-                                      color: "black",
-                                      position: "static",
-                                    }}
-                                  />
-                                  <i
-                                    onClick={() => toggleSubMenu(subItem.label)}
-                                    className={`d-lg-none p-0 d-flex !text-black bi bi-chevron-${
-                                      state.activeSubMenu === subItem.label
-                                        ? "up"
-                                        : "down"
-                                    } dropdown-icon`}
-                                  />
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <Link
-                            className="!text-[13.5px] text-gray-700 hover:text-[#e8a355] !py-0 !px-0 block transition-colors duration-200"
-                            legacyBehavior
-                            href={subItem.link}
-                          >
-                            <a>
-                              <div className="flex items-center justify-between">
-                                <div className="cursor-pointer hover:text-[#e8a355] transition-colors duration-200">
+                    {subMenu.map((subItem, subIndex) => {
+                      const subMenuIsOpen = isSubMenuOpen(subItem.label);
+
+                      return (
+                        <li
+                          key={`${id}-${subItem.id}`}
+                          className={`relative border-b !block border-gray-100 last:border-0 ${
+                            subItem.subMenu ? "has-nested" : ""
+                          }`}
+                          onMouseEnter={() =>
+                            subItem.subMenu && handleSubMenuEnter(subItem.label)
+                          }
+                          onMouseLeave={
+                            subItem.subMenu ? handleSubMenuLeave : undefined
+                          }
+                          style={{
+                            opacity: 0,
+                            animation: menuIsOpen
+                              ? `fadeInUp 0.3s ease forwards ${
+                                  subIndex * 0.05
+                                }s`
+                              : "none",
+                          }}
+                        >
+                          {subItem.subMenu ? (
+                            // Has nested submenu
+                            <div
+                              className="text-gray-700 hover:text-[#e8a355] hover:bg-gray-50 transition-all duration-200 cursor-pointer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleSubMenu(subItem.label);
+                              }}
+                            >
+                              <div className="flex items-center justify-between p-[10px_15px]">
+                                <span className="text-[13.5px] font-normal uppercase">
                                   {subItem.label}
-                                </div>
+                                </span>
                                 {subItem.icon && (
-                                  <i className="d-lg-flex p-0 !text-black d-none bi bi-chevron-right dropdown-icon" />
+                                  <>
+                                    <i className="bi bi-chevron-right text-black hidden lg:block" />
+                                    <i
+                                      className={`bi bi-chevron-${
+                                        subMenuIsOpen ? "up" : "down"
+                                      } text-black lg:hidden`}
+                                    />
+                                  </>
                                 )}
                               </div>
-                            </a>
-                          </Link>
-                        )}
+                            </div>
+                          ) : (
+                            // Regular link
+                            <Link href={subItem.link} className="p-0">
+                              <div className="flex items-center justify-between p-[10px_15px] text-gray-700 hover:text-[#e8a355] hover:bg-gray-50 transition-all duration-200 cursor-pointer">
+                                <span className="text-[13.5px]">
+                                  {subItem.label}
+                                </span>
+                                {subItem.icon && (
+                                  <i className="bi bi-chevron-right text-black hidden lg:block" />
+                                )}
+                              </div>
+                            </Link>
+                          )}
 
-                        {subItem.subMenu && (
-                          <ul
-                            className={`sub-menu dropdown-menu ${
-                              data.label === "More" ? "white-dropdown ml-2" : ""
-                            } ${
-                              state.activeSubMenu == subItem.label
-                                ? "active"
-                                : ""
-                            }`}
-                          >
-                            {subItem.subMenu.map((subSubItem) => (
-                              <li key={`${subItem.id}-${subSubItem.id}`}>
-                                <Link
-                                  className="!text-[13.5px]"
-                                  legacyBehavior
-                                  href={subSubItem.link}
-                                >
-                                  <a>{subSubItem.label}</a>
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    ))}
+                          {/* Nested Submenu */}
+                          {subItem.subMenu && (
+                            <ul
+                              className={`
+                                absolute left-full top-0 ml-1 bg-white rounded-md shadow-lg p-2 min-w-[180px] z-50
+                                ${
+                                  subMenuIsOpen
+                                    ? "opacity-100 visible translate-x-0"
+                                    : "opacity-0 invisible -translate-x-2 lg:pointer-events-none"
+                                }
+                              `}
+                              style={{
+                                transition:
+                                  "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                transitionProperty:
+                                  "opacity, visibility, transform",
+                                display:
+                                  state.activeSubMenu === subItem.label
+                                    ? "block"
+                                    : undefined,
+                              }}
+                              onMouseEnter={() =>
+                                handleSubMenuEnter(subItem.label)
+                              }
+                              onMouseLeave={handleSubMenuLeave}
+                            >
+                              {subItem.subMenu.map(
+                                (subSubItem, subSubIndex) => (
+                                  <li
+                                    key={`${subItem.id}-${subSubItem.id}`}
+                                    className="!block border-b border-gray-100 last:border-0"
+                                    style={{
+                                      opacity: 0,
+                                      animation: subMenuIsOpen
+                                        ? `fadeInUp 0.3s ease forwards ${
+                                            subSubIndex * 0.05
+                                          }s`
+                                        : "none",
+                                    }}
+                                  >
+                                    <Link
+                                      href={subSubItem.link}
+                                      className="p-0"
+                                    >
+                                      <div className="p-[10px_15px] text-gray-700 hover:text-[#e8a355] hover:bg-gray-50 transition-all duration-200 cursor-pointer">
+                                        <span className="text-[13.5px]">
+                                          {subSubItem.label}
+                                        </span>
+                                      </div>
+                                    </Link>
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </li>
@@ -339,6 +436,7 @@ const HeaderContent = ({
           })}
         </ul>
       </div>
+
       <div className="nav-right d-flex jsutify-content-end align-items-center">
         <div className="hotline-area d-xl-flex d-none">
           <div className="drop-down uppercase">
@@ -349,12 +447,10 @@ const HeaderContent = ({
                 e.preventDefault();
                 changeLanguage(currentLocale == "ar" ? "en" : "ar");
               }}
-              style={{
-                cursor: "pointer",
-              }}
+              style={{ cursor: "pointer" }}
             >
               <div className="d-flex align-items-center gap-1">
-                <div className="!uppercase ">{currentLocale}</div>
+                <div className="!uppercase">{currentLocale}</div>
                 <div style={{ width: "30px" }}>
                   {currentLocale == "ar" ? arFlag : enFlag}
                 </div>
@@ -373,6 +469,41 @@ const HeaderContent = ({
           </svg>
         </div>
       </div>
+
+      {/* Animation Keyframes */}
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        /* Mobile - disable animations */
+        @media (max-width: 991px) {
+          .menu-list ul {
+            display: none;
+          }
+          .menu-list ul.active,
+          .menu-list li:hover > ul {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: none !important;
+          }
+        }
+
+        /* Desktop - enable smooth transitions */
+        @media (min-width: 992px) {
+          .menu-item-has-children:hover > a {
+            color: #e8a355 !important;
+          }
+        }
+      `}</style>
     </>
   );
 };

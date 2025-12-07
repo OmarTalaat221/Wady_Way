@@ -3,7 +3,6 @@
     "title": "Our Team",
     "description": "Meet our expert tour guides and travel specialists"
   },
-
   "transportDetails": {
     "frequentlyAskedQuestion": "Frequently Asked & Question",
     "title": "Toyota Car Rental - Travel in Style and Comfort",
@@ -36,27 +35,25 @@
     "result": "Showing 1–12 of 101 results",
     "duration": "7 Days / 8 Night",
     "people": "Max People : 40",
-    "country": "Italy &amp; France.",
+    "country": "Italy & France.",
     "English": "English",
     "Arabic": "Arabic",
     "viewDetails": "View Details",
-
-    "tour and travel": "Tour and travel refer to the activities related to planning, organizing, and experiencing trips to various destinations forleisure, exploration, adventure, or relaxation.Choose yourdestination based on your interests and preferences, whether it's a cultural experience, a natural adventure, historical exploration, or a beach vacation.",
-
-    "book suitable": "Book suitable accommodation, which can range from hotels, resorts, hostels, vacation rentals, or even camping depending on your travel style and destination.Arrange transportation to and within your destination. This can include flights, trains, buses, rental cars, or even cruises.",
-    "Included and Excluded": "Included and Excluded",
+    "tourAndTravel": "Tour and travel refer to the activities related to planning, organizing, and experiencing trips to various destinations for leisure, exploration, adventure, or relaxation. Choose your destination based on your interests and preferences, whether it's a cultural experience, a natural adventure, historical exploration, or a beach vacation.",
+    "bookSuitable": "Book suitable accommodation, which can range from hotels, resorts, hostels, vacation rentals, or even camping depending on your travel style and destination. Arrange transportation to and within your destination. This can include flights, trains, buses, rental cars, or even cruises.",
+    "includedAndExcluded": "Included and Excluded",
     "viewAllReviews": "View All Reviews",
+    "included": "Included",
+    "excluded": "Excluded",
     "included1": "Meal as per hotel Plan and drinks free too.",
     "included2": "Return airport and round trip transfers.",
     "included3": "Accommodation on twin sharing basis.",
     "included4": "The above rates are on per day disposal basis.",
     "included5": "Enjoy Brussels day tours. Overnight Brussels.",
-
     "excluded1": "AC will not be functional on Hills or Slopes.",
     "excluded2": "Any other service not mentioned.",
     "excluded3": "Additional entry fees other than specified.",
     "excluded4": "Amsterdam canal cruise not included for basic.",
-
     "viewRooms": "View Rooms",
     "category": "Category",
     "checkIn": "Check-in",
@@ -75,27 +72,25 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "brand": "Brand",
-
+    "passengers": "passengers",
     "personalizeItinerary": "Personalize your itinerary",
     "day": "Day",
     "options": "options",
     "accommodation": "Accommodation",
     "cars": "Cars",
     "readMore": "Read more",
-
     "highlightsTitle": "Highlights of the Tour",
     "highlight1": "Our team of knowledgeable guides and travel experts are dedicated to making your journey memorable and worry-free",
     "highlight2": "Dive into rich cultures and traditions. Explore historic sites, savor authentic cuisine, and connect with locals.",
     "highlight3": "We take care of all the details, so you can focus on creating memories. Rest assured that your journey is in capable hands",
     "highlight4": "Sip cocktails on the beach as you watch the sun dip below the horizon.",
     "highlight5": "From accommodations to dining experiences, we select the best partners to ensure your comfort and enjoyment throughout your journey.",
-
     "tripExperience": "Trip Experience",
     "tourStarts": "Tour starts",
     "difficulty": "Difficulty",
     "languages": "Languages",
+    "language": "Language",
     "locationMap": "Location Map",
-
     "customerReview": "Customer Review",
     "reviewCount": "2590 Reviews",
     "writeReview": "Write Your Review",
@@ -118,9 +113,20 @@
     "thanksReview": "Thanks for your review.",
     "replySimple": "Reply",
     "frequentlyAskedQuestion": "Frequently Asked & Question",
-    "capacity": "Capacity"
+    "capacity": "Capacity",
+    "showMore": "Show More",
+    "showLess": "Show Less",
+    "more": "more",
+    "noHotelSelected": "No hotel selected",
+    "noTransferSelected": "No transfer selected",
+    "noDescription": "Day description not available",
+    "noAccommodationOptions": "No accommodation options available",
+    "noTransferOptions": "No transfer options available",
+    "includedActivities": "Included Activities",
+    "assignedTravelers": "Assigned travelers",
+    "chooseYourAccommodation": "Choose Your Accommodation",
+    "chooseYourTransfer": "Choose Your Transfer"
   },
-
   "packageSummary": {
     "warning": "Warning: This itinerary includes days without a tour guide. The traveler is responsible for driving and navigation. Please ensure you can handle these responsibilities before booking.",
     "bookings": "Your Bookings",
@@ -142,14 +148,28 @@
     "car_capacity_tooltip": "Number of passengers the vehicle can accommodate",
     "cancel": "Cancel",
     "summary_description": "Trip Summary",
-    "details": "Details"
-  },
+    "details": "Details",
 
+    "secure_payment": "Secure & Encrypted",
+    "adults": "Adults",
+    "children": "Children",
+    "infants": "Infants",
+    "please_login": "Please login to continue",
+    "no_tour_selected": "No tour selected",
+    "booking_success": "Booking Confirmed!",
+    "booking_success_message": "Your tour has been successfully booked.",
+    "booking_details": "Booking Details",
+    "booking_id": "Booking ID",
+    "tour": "Tour",
+    "total_paid": "Total",
+    "confirmation_email": "A confirmation email has been sent to your registered email address.",
+    "view_bookings": "View Bookings",
+    "back_home": "Back to Home"
+  },
   "galleryPackage": {
     "viewMoreImages": "View More Images",
     "watchVideo": "Watch Video"
   },
-
   "bookingSidebar": {
     "travelDetails": "Travel Details",
     "travelDates": "Travel dates",
@@ -165,9 +185,18 @@
     "infantsDescription": "Infants are 0-2 years old.",
     "totalPrice": "Total Price:",
     "bookNow": "Book Now",
-    "edit": "Edit"
+    "edit": "Edit",
+    "selectDates": "Select Travel Dates",
+    "priceBreakdown": "Price Breakdown",
+    "basePriceFor": "Base price for",
+    "accommodations": "Accommodations",
+    "transfers": "Transfers",
+    "activities": "Activities",
+    "taxes": "Taxes & Fees",
+    "calculating": "Calculating...",
+    "freeChanges": "Free changes up to 24 hours before departure",
+    "minimumAdults": "At least one adult is required"
   },
-
   "reviewsDetails": {
     "home": "Home",
     "packageDetails": "Package Details",

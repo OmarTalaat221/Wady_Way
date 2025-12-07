@@ -32,7 +32,6 @@ const page = () => {
         );
 
         if (response?.data.status === "success") {
-          // Transform API data to match the component structure
           const transformedTrips = response?.data.message.map((tour) => ({
             id: tour.id,
             title: tour.title,

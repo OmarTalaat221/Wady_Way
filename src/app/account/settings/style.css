@@ -1,0 +1,78 @@
+@keyframes gradient-x {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 3s ease infinite;
+}
+
+/* Phone Input Custom Styles */
+.phone-input-wrapper .react-international-phone-input-container {
+  width: 100%;
+}
+
+.phone-input-wrapper .react-international-phone-input:focus {
+  border-color: #295557 !important;
+  background-color: white !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(41, 85, 87, 0.1) !important;
+}
+
+.phone-input-wrapper .react-international-phone-country-selector-button {
+  transition: all 0.3s ease !important;
+}
+
+.phone-input-wrapper .react-international-phone-country-selector-button:hover {
+  background-color: #e2e8f0 !important;
+}
+
+.phone-input-wrapper .react-international-phone-country-selector-button:focus {
+  border-color: #295557 !important;
+  outline: none !important;
+}
+
+.phone-input-wrapper .react-international-phone-country-selector-dropdown {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.phone-input-wrapper
+  .react-international-phone-country-selector-dropdown__list-item:hover {
+  background-color: #f8fafc !important;
+}
+
+.phone-input-wrapper
+  .react-international-phone-country-selector-dropdown__list-item--selected {
+  background-color: #295557 !important;
+  color: white !important;
+}
+
+/* Scrollbar styling for dropdown */
+.phone-input-wrapper
+  .react-international-phone-country-selector-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.phone-input-wrapper
+  .react-international-phone-country-selector-dropdown::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.phone-input-wrapper
+  .react-international-phone-country-selector-dropdown::-webkit-scrollbar-thumb {
+  background: #295557;
+  border-radius: 10px;
+}
+
+.phone-input-wrapper
+  .react-international-phone-country-selector-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #1f4244;
+}

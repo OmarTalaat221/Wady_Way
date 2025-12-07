@@ -39,6 +39,7 @@ const LeftSummary = ({ days, setDays, lang }) => {
   };
 
   const { Panel } = Collapse;
+
   return (
     <div className="flex flex-col gap-4">
       {days?.map((day) => (
@@ -67,9 +68,9 @@ const LeftSummary = ({ days, setDays, lang }) => {
               style={{ padding: "0px" }}
             >
               <div className="px-4 pb-4">
-                <div className="flex justify-between items-center mb-4">
+                {/* <div className="flex justify-between items-center mb-4">
                   <p className="text-gray-700">{day.description[lang]}</p>
-                </div>
+                </div> */}
 
                 <div className="mb-4">
                   <h3 className="text-lg font-medium text-gray-800 mb-2">

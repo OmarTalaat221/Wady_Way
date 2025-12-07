@@ -62,7 +62,7 @@ const page = () => {
     setLoading(true);
     try {
       const response = await axios.post(
-        `${base_url}/user/blog/blog_details.php`,
+        `${base_url}/user/admin_blogs/blog_details.php`,
         { blog_id: blogId },
         {
           headers: {
@@ -105,7 +105,7 @@ const page = () => {
       };
 
       const response = await axios.post(
-        `${base_url}/user/blog/make_a_comment.php`,
+        `${base_url}/user/admin_blogs/make_a_comment.php`,
         commentData,
         {
           headers: {
@@ -178,7 +178,7 @@ const page = () => {
       };
 
       const response = await axios.post(
-        `${base_url}/user/blog/make_a_comment.php`,
+        `${base_url}/user/admin_blogs/make_a_comment.php`,
         replyData,
         {
           headers: {
@@ -188,7 +188,6 @@ const page = () => {
       );
 
       if (response.data.status === "success") {
-        // Create new reply object for local state
         const newReply = {
           comment_id: Date.now().toString(), // Temporary ID
           user_id: userData.user_id || userData.id,
@@ -314,7 +313,7 @@ const page = () => {
               <div className="post-title mb-10">
                 <h1>{blogData.title}</h1>
               </div>
-              <div className="blog-meta two mb-50">
+              {/* <div className="blog-meta two mb-50">
                 <div className="author-area">
                   <div className="author-img">
                     <img
@@ -377,7 +376,7 @@ const page = () => {
                     </a>
                   </li>
                 </ul>
-              </div>
+              </div> */}
               <p className="first-para">{blogData.description}</p>
               {blogData.quote_text && (
                 <blockquote>
@@ -441,75 +440,77 @@ const page = () => {
               </div>
 
               {/* Navigation */}
-              <div className="row mb-100">
-                <div className="col-lg-12">
-                  <div className="details-navigation">
-                    {blogData.previous_blog && (
-                      <div className="single-navigation">
-                        <Link
-                          className="arrow"
-                          href={`/blog/blog-details?blog_id=${blogData.previous_blog.blog_id}`}
-                        >
-                          <svg
-                            width={9}
-                            height={15}
-                            viewBox="0 0 8 13"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path d="M0 6.50008L8 0L2.90909 6.50008L8 13L0 6.50008Z" />
-                          </svg>
-                        </Link>
-                        <div className="content">
+              {(blogData.previous_blog || blogData.next_blog) && (
+                <div className="row sm:mb-6 mb-0 md:mb-10 ">
+                  <div className="col-lg-12">
+                    <div className="details-navigation">
+                      {blogData.previous_blog && (
+                        <div className="single-navigation">
                           <Link
+                            className="arrow"
                             href={`/blog/blog-details?blog_id=${blogData.previous_blog.blog_id}`}
                           >
-                            Prev Post
+                            <svg
+                              width={9}
+                              height={15}
+                              viewBox="0 0 8 13"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path d="M0 6.50008L8 0L2.90909 6.50008L8 13L0 6.50008Z" />
+                            </svg>
                           </Link>
-                          <h6>
+                          <div className="content">
                             <Link
                               href={`/blog/blog-details?blog_id=${blogData.previous_blog.blog_id}`}
                             >
-                              {blogData.previous_blog.title}
+                              Prev Post
                             </Link>
-                          </h6>
+                            <h6>
+                              <Link
+                                href={`/blog/blog-details?blog_id=${blogData.previous_blog.blog_id}`}
+                              >
+                                {blogData.previous_blog.title}
+                              </Link>
+                            </h6>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {blogData.next_blog && (
-                      <div className="single-navigation two text-end">
-                        <div className="content">
-                          <Link
-                            href={`/blog/blog-details?blog_id=${blogData.next_blog.blog_id}`}
-                          >
-                            Next Post
-                          </Link>
-                          <h6>
+                      {blogData.next_blog && (
+                        <div className="single-navigation two text-end">
+                          <div className="content">
                             <Link
                               href={`/blog/blog-details?blog_id=${blogData.next_blog.blog_id}`}
                             >
-                              {blogData.next_blog.title}
+                              Next Post
                             </Link>
-                          </h6>
-                        </div>
-                        <Link
-                          className="arrow"
-                          href={`/blog/blog-details?blog_id=${blogData.next_blog.blog_id}`}
-                        >
-                          <svg
-                            width={9}
-                            height={15}
-                            viewBox="0 0 8 13"
-                            xmlns="http://www.w3.org/2000/svg"
+                            <h6>
+                              <Link
+                                href={`/blog/blog-details?blog_id=${blogData.next_blog.blog_id}`}
+                              >
+                                {blogData.next_blog.title}
+                              </Link>
+                            </h6>
+                          </div>
+                          <Link
+                            className="arrow"
+                            href={`/blog/blog-details?blog_id=${blogData.next_blog.blog_id}`}
                           >
-                            <path d="M8 6.50008L0 0L5.09091 6.50008L0 13L8 6.50008Z" />
-                          </svg>
-                        </Link>
-                      </div>
-                    )}
+                            <svg
+                              width={9}
+                              height={15}
+                              viewBox="0 0 8 13"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path d="M8 6.50008L0 0L5.09091 6.50008L0 13L8 6.50008Z" />
+                            </svg>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Comments Section */}
               <div className="row">

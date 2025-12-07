@@ -51,6 +51,13 @@
         "icon": false
       },
       {
+        "id": "9-4",
+        "label": "Community",
+        "link": "/community",
+        "icon": false
+      },
+
+      {
         "id": "9-3",
         "label": "Services",
         "link": "/services",

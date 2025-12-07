@@ -1,19 +1,19 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Dropdown, Collapse } from "antd";
 import Calendar from "react-calendar";
-import {
-  FaCalendar,
-  FaMapMarkerAlt,
-  FaHotel,
-  FaCar,
-  FaPlus,
-  FaMinus,
-  FaEdit,
-} from "react-icons/fa";
+import { FaEdit, FaPlus, FaMinus } from "react-icons/fa";
 import { customExpandIcon } from "./CustomExpandIcon";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import {
+  setTourData,
+  setTourInfo,
+  setPeopleCount,
+  calculateTotal,
+  selectTourReservation,
+} from "@/lib/redux/slices/tourReservationSlice";
 
 const { Panel } = Collapse;
 
@@ -26,11 +26,17 @@ const BookingSidebar = ({
   items,
   scrollToDiv,
   packageId,
-  tourData, // Add this prop
-  selectedTours, // Add this prop
+  tourData,
+  selectedTours,
 }) => {
   const locale = useLocale();
   const t = useTranslations("bookingSidebar");
+  const dispatch = useDispatch();
+
+  const selectedByDay = useSelector(
+    (state) => state.tourReservation.selectedByDay
+  );
+  const totalAmount = useSelector((state) => state.tourReservation.totalAmount);
 
   const contentStyle = {
     backgroundColor: "#fff",
@@ -43,44 +49,67 @@ const BookingSidebar = ({
     boxShadow: "none",
   };
 
-  const calculateTotalPrice = () => {
-    if (!tourData) return 0;
+  useEffect(() => {
+    console.log(tourData, "tourData");
+  }, []);
 
-    // Base price from tour data
-    const adultPrice = parseFloat(tourData.per_adult || 0);
-    const childPrice = parseFloat(tourData.per_child || 0);
+  useEffect(() => {
+    if (tourData) {
+      dispatch(setTourData(tourData));
+    }
+  }, [tourData, dispatch]);
 
-    const basePrice = adultPrice * people.adults + childPrice * people.children;
-
-    // Add hotel prices
-    const hotelPrice =
-      selectedTours?.hotels?.reduce(
-        (sum, hotel) => sum + (parseFloat(hotel.price) || 0),
-        0
-      ) || 0;
-
-    // Add transfer prices
-    const transferPrice =
-      selectedTours?.transfers?.reduce(
-        (sum, transfer) => sum + (parseFloat(transfer.price) || 0),
-        0
-      ) || 0;
-
-    // Add activity prices if any
-    const activityPrice =
-      selectedTours?.activities?.reduce(
-        (sum, activity) => sum + (parseFloat(activity.price) || 0),
-        0
-      ) || 0;
-
-    return (
-      Math.round(
-        (basePrice + hotelPrice + transferPrice + activityPrice) * 100
-      ) / 100
+  useEffect(() => {
+    dispatch(
+      setPeopleCount({
+        adults: people.adults,
+        children: people.children,
+        infants: people.infants,
+      })
     );
+  }, [people, dispatch]);
+
+  // Update dates in Redux
+  useEffect(() => {
+    if (dateValue && dateValue.length === 2) {
+      dispatch(
+        setTourInfo({
+          startDate: dateValue[0].toISOString().split("T")[0],
+          endDate: dateValue[1].toISOString().split("T")[0],
+        })
+      );
+    }
+  }, [dateValue, dispatch]);
+
+  // Calculate total whenever selections change
+  useEffect(() => {
+    dispatch(calculateTotal());
+  }, [selectedByDay, people, dispatch]);
+
+  // Get selected items for display
+  const getSelectedHotels = () => {
+    return Object.values(selectedByDay)
+      .map((day) => day.hotel)
+      .filter(Boolean);
   };
 
-  // Calculate number of days
+  const getSelectedCars = () => {
+    return Object.values(selectedByDay)
+      .map((day) => day.car)
+      .filter(Boolean);
+  };
+
+  const getSelectedActivities = () => {
+    return Object.values(selectedByDay)
+      .flatMap((day) => day.activities || [])
+      .filter(Boolean);
+  };
+
+  // Use Redux total or calculate locally
+  const calculateTotalPrice = () => {
+    return totalAmount || 0;
+  };
+
   const numberOfDays =
     tourData?.itinerary?.length ||
     Math.ceil(
@@ -427,17 +456,22 @@ const BookingSidebar = ({
                       </div>
                     )}
 
-                    {selectedTours?.hotels?.length > 0 && (
+                    {getSelectedHotels().length > 0 && (
                       <div className="price-item">
                         <span className="price-label">
                           {t("accommodations")}:
                         </span>
                         <span className="price-value">
                           $
-                          {selectedTours.hotels
+                          {getSelectedHotels()
                             .reduce(
                               (sum, hotel) =>
-                                sum + parseFloat(hotel.price || 0),
+                                sum +
+                                parseFloat(
+                                  hotel.adult_price ||
+                                    hotel.price_per_night ||
+                                    0
+                                ),
                               0
                             )
                             .toFixed(2)}
@@ -445,15 +479,16 @@ const BookingSidebar = ({
                       </div>
                     )}
 
-                    {selectedTours?.transfers?.length > 0 && (
+                    {getSelectedCars().length > 0 && (
                       <div className="price-item">
                         <span className="price-label">{t("transfers")}:</span>
                         <span className="price-value">
                           $
-                          {selectedTours.transfers
+                          {getSelectedCars()
                             .reduce(
-                              (sum, transfer) =>
-                                sum + parseFloat(transfer.price || 0),
+                              (sum, car) =>
+                                sum +
+                                parseFloat(car.price_current || car.price || 0),
                               0
                             )
                             .toFixed(2)}

@@ -2529,13 +2529,13 @@ header.style-1 .main-menu ul > li.menu-item-has-children:hover::after {
 @media (min-width: 992px) {
   header.style-1 .main-menu ul > li:hover > ul.sub-menu {
     display: block;
-    animation: fade-down 0.45s ease-in-out;
+    animation: fade-down2 0.45s ease-in-out;
   }
 }
 @media (min-width: 992px) {
   header.style-1 .main-menu ul > li:hover .mega-menu {
     display: block;
-    animation: fade-down 0.45s linear;
+    animation: fade-down2 0.45s linear;
   }
 }
 @keyframes fade-up {

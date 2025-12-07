@@ -53,7 +53,7 @@ const PackageInfo = ({ tourData }) => {
 
       <p>{tourData.description}</p>
 
-      <div className="price-info">
+      {/* <div className="price-info">
         <div className="price-display">
           <span className="current-price">
             {tourData.price_currency}
@@ -70,7 +70,7 @@ const PackageInfo = ({ tourData }) => {
         {tourData.price_note && (
           <p className="price-note">{tourData.price_note}</p>
         )}
-      </div>
+      </div> */}
     </div>
   );
 };

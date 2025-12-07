@@ -28,6 +28,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import Header from "../components/header/Header";
 import { Toaster } from "react-hot-toast";
 import RouteProtection from "../components/auth/RouteProtection";
+import StoreProvider from "./StoreProvider";
 
 export default async function RootLayout({ children }) {
   const locale = await getLocale();
@@ -38,13 +39,15 @@ export default async function RootLayout({ children }) {
   return (
     <html lang={locale} dir={dir}>
       <body className="min-h-screen">
-        <NextIntlClientProvider messages={messages}>
-          <RouteProtection>
-            <Header currentLocale={locale} />
-            {children}
-          </RouteProtection>
-        </NextIntlClientProvider>
-        <Toaster />
+        <StoreProvider>
+          <NextIntlClientProvider messages={messages}>
+            <RouteProtection>
+              <Header currentLocale={locale} />
+              {children}
+            </RouteProtection>
+          </NextIntlClientProvider>
+          <Toaster />
+        </StoreProvider>
       </body>
     </html>
   );
