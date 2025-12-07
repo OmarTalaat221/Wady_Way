@@ -29,6 +29,8 @@ import Header from "../components/header/Header";
 import { Toaster } from "react-hot-toast";
 import RouteProtection from "../components/auth/RouteProtection";
 import StoreProvider from "./StoreProvider";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import QueryProvider from "../uitils/QueryProvider";
 
 export default async function RootLayout({ children }) {
   const locale = await getLocale();
@@ -39,15 +41,17 @@ export default async function RootLayout({ children }) {
   return (
     <html lang={locale} dir={dir}>
       <body className="min-h-screen">
-        <StoreProvider>
-          <NextIntlClientProvider messages={messages}>
-            <RouteProtection>
-              <Header currentLocale={locale} />
-              {children}
-            </RouteProtection>
-          </NextIntlClientProvider>
-          <Toaster />
-        </StoreProvider>
+        <QueryProvider>
+          <StoreProvider>
+            <NextIntlClientProvider messages={messages}>
+              <RouteProtection>
+                <Header currentLocale={locale} />
+                {children}
+              </RouteProtection>
+            </NextIntlClientProvider>
+            <Toaster />
+          </StoreProvider>
+        </QueryProvider>
       </body>
     </html>
   );

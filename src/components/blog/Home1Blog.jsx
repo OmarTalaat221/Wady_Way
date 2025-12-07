@@ -1,7 +1,15 @@
 import Link from "next/link";
 import React from "react";
 
-const Home1Blog = () => {
+export const formatDayMonth = (dateStr, locale = "en-GB") => {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "short",
+  }).format(d);
+};
+const Home1Blog = ({ data }) => {
   return (
     <>
       <div className="blog-section pt-[60px] mb-[60px]">
@@ -46,293 +54,173 @@ const Home1Blog = () => {
             </div>
           </div>
           <div className="row g-lg-4 gy-5">
-            <div className="col-lg-5">
-              <div className="blog-card">
-                <div className="blog-card-img-wrap">
-                  <Link href="/blog/blog-details" className="card-img">
-                    <img
-                      style={{ width: "531px", height: "511px" }}
-                      src="https://travelami.templaza.net/wp-content/uploads/2024/08/slider4-1.jpg"
-                      alt=""
-                    />
-                  </Link>
-                </div>
-                <div className="blog-card-content">
-                  <div className="blog-card-content-top">
-                    <ul>
-                      <li>
-                        By <Link href="/blog">Rison donec</Link>
-                      </li>
-                      <li>
-                        <Link href="/blog">Nov 10, 2022</Link>
-                      </li>
-                      <li>5 Comment</li>
-                    </ul>
+            {data?.blogs?.slice(0, 1).map((item) => (
+              <div className="col-lg-5">
+                <div className="blog-card">
+                  <div className="blog-card-img-wrap">
+                    <Link href="/blog/blog-details" className="card-img">
+                      <img
+                        style={{ width: "531px", height: "511px" }}
+                        src={item.cover_image}
+                        alt={item.category}
+                      />
+                    </Link>
                   </div>
-                  <h5>
-                    <Link href="/blog/blog-details">
-                      Our Begin Now What Your Will Bean forest this our agency.
-                    </Link>
-                  </h5>
-                  <div className="bottom-area">
-                    <Link href="/blog/blog-details">
-                      View Post
-                      <span>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width={14}
-                          height={12}
-                          viewBox="0 0 14 12"
-                          fill="none"
-                        >
-                          <path
-                            d="M2.07617 8.73272L12.1899 2.89355"
-                            strokeLinecap="round"
-                          />
-                          <path
-                            d="M10.412 7.59764L12.1908 2.89295L7.22705 2.08105"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </span>
-                    </Link>
-                    <ul className="social-list">
-                      <li>
-                        <a href="https://www.facebook.com/">
-                          <i className="bx bxl-facebook" />
-                        </a>
-                      </li>
-                      <li>
-                        <a href="https://twitter.com/">
+                  <div className="blog-card-content">
+                    <div className="blog-card-content-top">
+                      <ul>
+                        <li>
+                          By{" "}
+                          <Link href="/blog">
+                            {item?.user?.name || "Rison donec"}
+                          </Link>
+                        </li>
+                        <li>
+                          <Link href="/blog">
+                            {item?.created_at?.split(" ")[0]}
+                          </Link>
+                        </li>
+                        <li>{item?.commentsCount || "0"} Comment</li>
+                      </ul>
+                    </div>
+                    <h5>
+                      <Link href={`/blog/blog-details?blog_id=${item.blog_id}`}>
+                        {item?.title}
+                      </Link>
+                    </h5>
+                    <div className="bottom-area">
+                      <Link href={`/blog/blog-details?blog_id=${item.blog_id}`}>
+                        View Post
+                        <span>
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            width={12}
+                            width={14}
                             height={12}
-                            fill="currentColor"
-                            className="bi bi-twitter-x"
-                            viewBox="0 0 16 16"
+                            viewBox="0 0 14 12"
+                            fill="none"
                           >
-                            <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865l8.875 11.633Z" />
+                            <path
+                              d="M2.07617 8.73272L12.1899 2.89355"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M10.412 7.59764L12.1908 2.89295L7.22705 2.08105"
+                              strokeLinecap="round"
+                            />
                           </svg>
-                        </a>
-                      </li>
-                      <li>
-                        <a href="https://twitter.com/">
-                          <i className="bx bxl-pinterest-alt" />
-                        </a>
-                      </li>
-                      <li>
-                        <a href="https://twitter.com/">
-                          <i className="bx bxl-instagram" />
-                        </a>
-                      </li>
-                    </ul>
+                        </span>
+                      </Link>
+                      {/*     <ul className="social-list">
+                        <li>
+                          <a href="https://www.facebook.com/">
+                            <i className="bx bxl-facebook" />
+                          </a>
+                        </li>
+                        <li>
+                          <a href="https://twitter.com/">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width={12}
+                              height={12}
+                              fill="currentColor"
+                              className="bi bi-twitter-x"
+                              viewBox="0 0 16 16"
+                            >
+                              <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865l8.875 11.633Z" />
+                            </svg>
+                          </a>
+                        </li>
+                        <li>
+                          <a href="https://twitter.com/">
+                            <i className="bx bxl-pinterest-alt" />
+                          </a>
+                        </li>
+                        <li>
+                          <a href="https://twitter.com/">
+                            <i className="bx bxl-instagram" />
+                          </a>
+                        </li>
+                      </ul> */}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ))}
             <div className="col-lg-7">
-              <div className="blog-card two mb-30">
-                <div className="blog-card-img-wrap">
-                  <Link href="/blog/blog-details" className="card-img">
-                    <img
-                      style={{ width: "300px", height: "215px" }}
-                      src="https://travelami.templaza.net/wp-content/uploads/2024/04/ivan-bertona-mEecKkkJbIE-unsplash.jpg"
-                      alt=""
-                    />
-                  </Link>
-                  <Link href="/blog" className="date">
-                    <span>
-                      <strong>20</strong> <br /> August
-                    </span>
-                  </Link>
-                </div>
-                <div className="blog-card-content">
-                  <div className="blog-card-content-top">
-                    <ul>
-                      <li>
-                        By <Link href="/blog">Rison donec</Link>
-                      </li>
-                      <li>
-                        <Link href="/blog">City Tour</Link>
-                      </li>
-                    </ul>
-                  </div>
-                  <h5>
-                    <Link href="/blog/blog-details">
-                      Our Begin Now To Benign Onet What You Will Be.
+              {data?.blogs?.slice(1).map((item) => (
+                <div className="blog-card two mb-30">
+                  <div className="blog-card-img-wrap">
+                    <Link href="/blog/blog-details" className="card-img">
+                      <img
+                        style={{ width: "300px", height: "215px" }}
+                        src={item.cover_image}
+                        alt=""
+                      />
                     </Link>
-                  </h5>
-                  <div className="bottom-area">
-                    <Link href="/blog/blog-details">
-                      View Post
+                    <Link href="/blog" className="date font-bold">
+                      <span className="">
+                        {formatDayMonth(item.created_at)}
+                      </span>
+                    </Link>
+                  </div>
+                  <div className="blog-card-content">
+                    <div className="blog-card-content-top">
+                      <ul>
+                        <li>
+                          By <Link href="/blog">{item?.user?.name}</Link>
+                        </li>
+                        <li>
+                          <Link href="/blog">{item.category}</Link>
+                        </li>
+                      </ul>
+                    </div>
+                    <h5 className="!text-sm">
+                      <Link
+                        style={{
+                          fontSize: "14px",
+                        }}
+                        href={`"/blog/blog-details?blog_id=${item.blog_id}"`}
+                      >
+                        {item?.title}
+                      </Link>
+                    </h5>
+                    <div className="bottom-area">
+                      <Link href={`/blog/blog-details?blog_id=${item.blog_id}`}>
+                        View Post
+                        <span>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width={14}
+                            height={12}
+                            viewBox="0 0 14 12"
+                            fill="none"
+                          >
+                            <path
+                              d="M2.07617 8.73272L12.1899 2.89355"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M10.412 7.59764L12.1908 2.89295L7.22705 2.08105"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </span>
+                      </Link>
                       <span>
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          width={14}
+                          width={9}
                           height={12}
-                          viewBox="0 0 14 12"
-                          fill="none"
+                          viewBox="0 0 9 12"
                         >
-                          <path
-                            d="M2.07617 8.73272L12.1899 2.89355"
-                            strokeLinecap="round"
-                          />
-                          <path
-                            d="M10.412 7.59764L12.1908 2.89295L7.22705 2.08105"
-                            strokeLinecap="round"
-                          />
+                          <path d="M5.85726 11.3009C7.14547 9.08822 6.60613 6.30362 4.57475 4.68025C4.57356 4.67933 4.57238 4.67818 4.57143 4.6775L4.58021 4.69862L4.57878 4.71446C4.97457 5.72599 4.91905 6.83648 4.43285 7.78924L4.09022 8.461L3.9851 7.71876C3.91368 7.21529 3.71745 6.735 3.41515 6.32382H3.36745L3.3423 6.25495C3.34586 7.02428 3.17834 7.78213 2.8497 8.49704C2.41856 9.43259 2.48191 10.5114 3.01936 11.3833L3.39023 11.9853L2.72299 11.7126C1.62271 11.2628 0.743103 10.3964 0.309587 9.33547C-0.176131 8.15083 -0.0862008 6.77725 0.550429 5.66194C0.882388 5.08179 1.11493 4.46582 1.24187 3.8308L1.36597 3.2084L1.68251 3.76353C1.83366 4.02824 1.94494 4.31476 2.01399 4.61574L2.02111 4.62285L2.02847 4.67107L2.03535 4.669C2.98353 3.45015 3.55158 1.93354 3.6344 0.397865L3.65575 0L4.00076 0.217643C5.4088 1.10544 6.38664 2.52976 6.6887 4.13017L6.69558 4.163L6.69914 4.16805L6.71457 4.14693C6.99053 3.79429 7.13622 3.37485 7.13622 2.93336V2.24967L7.56261 2.7947C8.55398 4.06153 9.06224 5.63301 8.99391 7.21988C8.90991 9.08776 7.85708 10.7272 6.17736 11.6154L5.45008 12L5.85726 11.3009Z" />
                         </svg>
+                        5 Min Read
                       </span>
-                    </Link>
-                    <span>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width={9}
-                        height={12}
-                        viewBox="0 0 9 12"
-                      >
-                        <path d="M5.85726 11.3009C7.14547 9.08822 6.60613 6.30362 4.57475 4.68025C4.57356 4.67933 4.57238 4.67818 4.57143 4.6775L4.58021 4.69862L4.57878 4.71446C4.97457 5.72599 4.91905 6.83648 4.43285 7.78924L4.09022 8.461L3.9851 7.71876C3.91368 7.21529 3.71745 6.735 3.41515 6.32382H3.36745L3.3423 6.25495C3.34586 7.02428 3.17834 7.78213 2.8497 8.49704C2.41856 9.43259 2.48191 10.5114 3.01936 11.3833L3.39023 11.9853L2.72299 11.7126C1.62271 11.2628 0.743103 10.3964 0.309587 9.33547C-0.176131 8.15083 -0.0862008 6.77725 0.550429 5.66194C0.882388 5.08179 1.11493 4.46582 1.24187 3.8308L1.36597 3.2084L1.68251 3.76353C1.83366 4.02824 1.94494 4.31476 2.01399 4.61574L2.02111 4.62285L2.02847 4.67107L2.03535 4.669C2.98353 3.45015 3.55158 1.93354 3.6344 0.397865L3.65575 0L4.00076 0.217643C5.4088 1.10544 6.38664 2.52976 6.6887 4.13017L6.69558 4.163L6.69914 4.16805L6.71457 4.14693C6.99053 3.79429 7.13622 3.37485 7.13622 2.93336V2.24967L7.56261 2.7947C8.55398 4.06153 9.06224 5.63301 8.99391 7.21988C8.90991 9.08776 7.85708 10.7272 6.17736 11.6154L5.45008 12L5.85726 11.3009Z" />
-                      </svg>
-                      5 Min Read
-                    </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="blog-card two mb-30">
-                <div className="blog-card-img-wrap">
-                  <Link href="/blog/blog-details" className="card-img">
-                    <img
-                      style={{ width: "300px", height: "215px" }}
-                      src="https://travelami.templaza.net/wp-content/uploads/2024/04/spencer-davis-ONVA6s03hg8-unsplash.jpg"
-                      alt=""
-                    />
-                  </Link>
-                  <Link href="/blog" className="date">
-                    <span>
-                      <strong>16</strong> <br /> July
-                    </span>
-                  </Link>
-                </div>
-                <div className="blog-card-content">
-                  <div className="blog-card-content-top">
-                    <ul>
-                      <li>
-                        By <Link href="/blog">Goran Jack</Link>
-                      </li>
-                      <li>
-                        <Link href="/blog">City Tour</Link>
-                      </li>
-                    </ul>
-                  </div>
-                  <h5>
-                    <Link href="/blog/blog-details">
-                      Our Begin Now To Benign Onet What You Will Be.
-                    </Link>
-                  </h5>
-                  <div className="bottom-area">
-                    <Link href="/blog/blog-details">
-                      View Post
-                      <span>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width={14}
-                          height={12}
-                          viewBox="0 0 14 12"
-                          fill="none"
-                        >
-                          <path
-                            d="M2.07617 8.73272L12.1899 2.89355"
-                            strokeLinecap="round"
-                          />
-                          <path
-                            d="M10.412 7.59764L12.1908 2.89295L7.22705 2.08105"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </span>
-                    </Link>
-                    <span>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width={9}
-                        height={12}
-                        viewBox="0 0 9 12"
-                      >
-                        <path d="M5.85726 11.3009C7.14547 9.08822 6.60613 6.30362 4.57475 4.68025C4.57356 4.67933 4.57238 4.67818 4.57143 4.6775L4.58021 4.69862L4.57878 4.71446C4.97457 5.72599 4.91905 6.83648 4.43285 7.78924L4.09022 8.461L3.9851 7.71876C3.91368 7.21529 3.71745 6.735 3.41515 6.32382H3.36745L3.3423 6.25495C3.34586 7.02428 3.17834 7.78213 2.8497 8.49704C2.41856 9.43259 2.48191 10.5114 3.01936 11.3833L3.39023 11.9853L2.72299 11.7126C1.62271 11.2628 0.743103 10.3964 0.309587 9.33547C-0.176131 8.15083 -0.0862008 6.77725 0.550429 5.66194C0.882388 5.08179 1.11493 4.46582 1.24187 3.8308L1.36597 3.2084L1.68251 3.76353C1.83366 4.02824 1.94494 4.31476 2.01399 4.61574L2.02111 4.62285L2.02847 4.67107L2.03535 4.669C2.98353 3.45015 3.55158 1.93354 3.6344 0.397865L3.65575 0L4.00076 0.217643C5.4088 1.10544 6.38664 2.52976 6.6887 4.13017L6.69558 4.163L6.69914 4.16805L6.71457 4.14693C6.99053 3.79429 7.13622 3.37485 7.13622 2.93336V2.24967L7.56261 2.7947C8.55398 4.06153 9.06224 5.63301 8.99391 7.21988C8.90991 9.08776 7.85708 10.7272 6.17736 11.6154L5.45008 12L5.85726 11.3009Z" />
-                      </svg>
-                      5 Min Read
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="blog-card two">
-                <div className="blog-card-img-wrap">
-                  <Link href="/blog/blog-details" className="card-img">
-                    <img
-                      style={{ width: "300px", height: "215px" }}
-                      src="https://travelami.templaza.net/wp-content/uploads/2024/04/kit-suman-5mcnzeSHFvE-unsplash.jpg"
-                      alt=""
-                    />
-                  </Link>
-                  <Link href="/blog" className="date">
-                    <span>
-                      <strong>30</strong> <br /> June
-                    </span>
-                  </Link>
-                </div>
-                <div className="blog-card-content">
-                  <div className="blog-card-content-top">
-                    <ul>
-                      <li>
-                        By <Link href="/blog">David Mitat</Link>
-                      </li>
-                      <li>
-                        <Link href="/blog">City Tour</Link>
-                      </li>
-                    </ul>
-                  </div>
-                  <h5>
-                    <Link href="/blog/blog-details">
-                      Our Begin Now To Benign Onet What You Will Be.
-                    </Link>
-                  </h5>
-                  <div className="bottom-area">
-                    <Link href="/blog/blog-details">
-                      View Post
-                      <span>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width={14}
-                          height={12}
-                          viewBox="0 0 14 12"
-                          fill="none"
-                        >
-                          <path
-                            d="M2.07617 8.73272L12.1899 2.89355"
-                            strokeLinecap="round"
-                          />
-                          <path
-                            d="M10.412 7.59764L12.1908 2.89295L7.22705 2.08105"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </span>
-                    </Link>
-                    <span>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width={9}
-                        height={12}
-                        viewBox="0 0 9 12"
-                      >
-                        <path d="M5.85726 11.3009C7.14547 9.08822 6.60613 6.30362 4.57475 4.68025C4.57356 4.67933 4.57238 4.67818 4.57143 4.6775L4.58021 4.69862L4.57878 4.71446C4.97457 5.72599 4.91905 6.83648 4.43285 7.78924L4.09022 8.461L3.9851 7.71876C3.91368 7.21529 3.71745 6.735 3.41515 6.32382H3.36745L3.3423 6.25495C3.34586 7.02428 3.17834 7.78213 2.8497 8.49704C2.41856 9.43259 2.48191 10.5114 3.01936 11.3833L3.39023 11.9853L2.72299 11.7126C1.62271 11.2628 0.743103 10.3964 0.309587 9.33547C-0.176131 8.15083 -0.0862008 6.77725 0.550429 5.66194C0.882388 5.08179 1.11493 4.46582 1.24187 3.8308L1.36597 3.2084L1.68251 3.76353C1.83366 4.02824 1.94494 4.31476 2.01399 4.61574L2.02111 4.62285L2.02847 4.67107L2.03535 4.669C2.98353 3.45015 3.55158 1.93354 3.6344 0.397865L3.65575 0L4.00076 0.217643C5.4088 1.10544 6.38664 2.52976 6.6887 4.13017L6.69558 4.163L6.69914 4.16805L6.71457 4.14693C6.99053 3.79429 7.13622 3.37485 7.13622 2.93336V2.24967L7.56261 2.7947C8.55398 4.06153 9.06224 5.63301 8.99391 7.21988C8.90991 9.08776 7.85708 10.7272 6.17736 11.6154L5.45008 12L5.85726 11.3009Z" />
-                      </svg>
-                      5 Min Read
-                    </span>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
