@@ -30931,7 +30931,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   .tour-date-wrap
   .form-check
   .form-check-input:checked
-  .form-check-label::brfore {
+  ~ .form-check-label::before {
   border-color: var(--primary-color1);
 }
 .booking-form-wrap
