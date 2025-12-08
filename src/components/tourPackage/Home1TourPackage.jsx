@@ -19,7 +19,7 @@ const money = (currency, val) => {
 };
 
 export const mapApiItemToTourCardItem = (apiItem) => {
-  const detailsHref = apiItem?.cta_button_url || "/package/package-details";
+  const detailsHref = `/package/package-details/${apiItem?.id}`;
 
   // locations فوق يمين (زي Nepal / Indonesia Tour)
   // لو عندك country_name استخدمه، غير كده category

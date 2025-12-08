@@ -9,6 +9,7 @@ export const formatDayMonth = (dateStr, locale = "en-GB") => {
     month: "short",
   }).format(d);
 };
+
 const Home1Blog = ({ data }) => {
   return (
     <>
@@ -55,14 +56,17 @@ const Home1Blog = ({ data }) => {
           </div>
           <div className="row g-lg-4 gy-5">
             {data?.blogs?.slice(0, 1).map((item) => (
-              <div className="col-lg-5">
-                <div className="blog-card">
-                  <div className="blog-card-img-wrap">
-                    <Link href="/blog/blog-details" className="card-img">
+              <div className="col-lg-5" key={item.blog_id}>
+                <div className="blog-card group">
+                  <div className="blog-card-img-wrap overflow-hidden ">
+                    <Link
+                      href={`/blog/blog-details?blog_id=${item.blog_id}`}
+                      className="card-img block"
+                    >
                       <img
-                        style={{ width: "531px", height: "511px" }}
                         src={item.cover_image}
                         alt={item.category}
+                        className="w-full h-[250px] xs:h-[280px] sm:h-[320px] md:h-[400px] lg:h-[450px] xl:h-[511px] object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
                       />
                     </Link>
                   </div>
@@ -110,37 +114,6 @@ const Home1Blog = ({ data }) => {
                           </svg>
                         </span>
                       </Link>
-                      {/*     <ul className="social-list">
-                        <li>
-                          <a href="https://www.facebook.com/">
-                            <i className="bx bxl-facebook" />
-                          </a>
-                        </li>
-                        <li>
-                          <a href="https://twitter.com/">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width={12}
-                              height={12}
-                              fill="currentColor"
-                              className="bi bi-twitter-x"
-                              viewBox="0 0 16 16"
-                            >
-                              <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865l8.875 11.633Z" />
-                            </svg>
-                          </a>
-                        </li>
-                        <li>
-                          <a href="https://twitter.com/">
-                            <i className="bx bxl-pinterest-alt" />
-                          </a>
-                        </li>
-                        <li>
-                          <a href="https://twitter.com/">
-                            <i className="bx bxl-instagram" />
-                          </a>
-                        </li>
-                      </ul> */}
                     </div>
                   </div>
                 </div>
@@ -148,13 +121,16 @@ const Home1Blog = ({ data }) => {
             ))}
             <div className="col-lg-7">
               {data?.blogs?.slice(1).map((item) => (
-                <div className="blog-card two mb-30">
-                  <div className="blog-card-img-wrap">
-                    <Link href="/blog/blog-details" className="card-img">
+                <div className="blog-card two mb-30 group" key={item.blog_id}>
+                  <div className="blog-card-img-wrap overflow-hidden w-full sm:w-[200px] md:w-[240px] lg:w-[250px] xl:w-[300px] h-[200px] sm:h-[160px] md:h-[180px] lg:h-[190px] xl:h-[215px] flex-shrink-0">
+                    <Link
+                      href={`/blog/blog-details?blog_id=${item.blog_id}`}
+                      className="card-img block w-full h-full"
+                    >
                       <img
-                        style={{ width: "300px", height: "215px" }}
                         src={item.cover_image}
-                        alt=""
+                        alt={item.category}
+                        className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
                       />
                     </Link>
                     <Link href="/blog" className="date font-bold">
@@ -167,19 +143,26 @@ const Home1Blog = ({ data }) => {
                     <div className="blog-card-content-top">
                       <ul>
                         <li>
-                          By <Link href="/blog">{item?.user?.name}</Link>
+                          By{" "}
+                          <Link
+                            href={`/blog/blog-details?blog_id=${item.blog_id}`}
+                          >
+                            {item?.user?.name}
+                          </Link>
                         </li>
                         <li>
-                          <Link href="/blog">{item.category}</Link>
+                          <Link
+                            href={`/blog/blog-details?blog_id=${item.blog_id}`}
+                          >
+                            {item.category}
+                          </Link>
                         </li>
                       </ul>
                     </div>
-                    <h5 className="!text-sm">
+                    <h5 className="!text-sm sm:!text-base">
                       <Link
-                        style={{
-                          fontSize: "14px",
-                        }}
-                        href={`"/blog/blog-details?blog_id=${item.blog_id}"`}
+                        className="text-sm sm:text-base"
+                        href={`/blog/blog-details?blog_id=${item.blog_id}`}
                       >
                         {item?.title}
                       </Link>

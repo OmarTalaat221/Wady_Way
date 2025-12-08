@@ -59,7 +59,9 @@ export const TourCard = ({ item }) => {
             <h6>Starting Form:</h6>
             <span>
               {item?.price}{" "}
-              {item?.oldPrice ? <del>{item?.oldPrice}</del> : null}
+              {item?.oldPrice && item?.oldPrice > item?.price ? (
+                <del>{item?.oldPrice}</del>
+              ) : null}
             </span>
             <p>TAXES INCL/PERS</p>
           </div>

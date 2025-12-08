@@ -61,6 +61,7 @@ const page = () => {
               ? parseFloat(tour.price_original)
               : null,
             link: `/package/package-details/${tour.id}`,
+            image: tour?.image,
           }));
 
           setTrips(transformedTrips);
@@ -258,7 +259,7 @@ const page = () => {
                                 className="card-img"
                               >
                                 <img
-                                  src={tour?.images[0]}
+                                  src={tour?.image}
                                   alt={tour?.title}
                                   onError={(e) => {
                                     e.target.src =
@@ -402,9 +403,10 @@ const page = () => {
                                   <h6>Starting From:</h6>
                                   <span>
                                     ${tour?.price}{" "}
-                                    {tour?.oldPrice && (
-                                      <del>${tour?.oldPrice}</del>
-                                    )}
+                                    {tour?.oldPrice &&
+                                      tour?.oldPrice > tour?.price && (
+                                        <del>${tour?.oldPrice}</del>
+                                      )}
                                   </span>
                                   <p>TAXES INCL/PERS</p>
                                 </div>

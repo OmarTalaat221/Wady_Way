@@ -423,7 +423,7 @@ const page = () => {
 
                   {/* Cars Grid */}
                   {!loading && cars.length > 0 && (
-                    <div className="grid grid-cols-2 gap-4 mb-[30px]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-[30px]">
                       {filteredCars.length > 0 ? (
                         filteredCars.map((car) => (
                           <div key={car?.id} className="transport-card">
@@ -490,7 +490,7 @@ const page = () => {
                               )}
 
                               <div className="card-bottom">
-                                <div className="details-btn">
+                                <div className="details-btn md:w-full !w-fit">
                                   <Link
                                     href={`/transport/transport-details?id=${car?.id}`}
                                     className="primary-btn1"

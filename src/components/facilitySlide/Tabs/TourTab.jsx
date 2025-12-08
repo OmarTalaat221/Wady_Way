@@ -52,7 +52,7 @@ export default function TourTab({ items = [] }) {
   if (!normalized.length) return null; // أو حط Skeleton/Empty state لو عندك
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {normalized.map((item) => (
         <TourCard key={item.id} item={item} />
       ))}

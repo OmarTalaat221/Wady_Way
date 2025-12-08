@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo } from "react";
-import TransportCard from "../cards/TransportCard";
+import TransportCard from "../Cards/TransportCard";
+// import TransportCard from "../cards/TransportCard";
 
 function safeJsonParse(str, fallback = null) {
   try {
@@ -11,12 +12,6 @@ function safeJsonParse(str, fallback = null) {
   }
 }
 
-/**
- * ratings عندك جاية بالشكل:
- *  {"platform":"Booking.com",...},{...}
- * يعني مش Array JSON صالح
- * فبنلفها بـ [] لو لزم
- */
 function parseRatings(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;
@@ -93,7 +88,7 @@ function mapItemToTransport(item) {
 
     price: {
       now: item?.price_current,
-      was: item.price_original, 
+      was: item.price_original,
       note: item?.price_note, // PER DAY
     },
 

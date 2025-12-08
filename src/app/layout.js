@@ -31,6 +31,7 @@ import RouteProtection from "../components/auth/RouteProtection";
 import StoreProvider from "./StoreProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import QueryProvider from "../uitils/QueryProvider";
+import MobileHeader from "../components/mobileHeader/MobileHeader";
 
 export default async function RootLayout({ children }) {
   const locale = await getLocale();
@@ -46,6 +47,7 @@ export default async function RootLayout({ children }) {
             <NextIntlClientProvider messages={messages}>
               <RouteProtection>
                 <Header currentLocale={locale} />
+                <MobileHeader currentLocale={locale} />
                 {children}
               </RouteProtection>
             </NextIntlClientProvider>

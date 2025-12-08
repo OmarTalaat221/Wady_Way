@@ -686,7 +686,7 @@ const Header = ({ currentLocale }) => {
       <header
         ref={headerRef}
         style={{ background: "#e29b4bdb", color: "white" }}
-        className="header-area style-1 header-area-static"
+        className="header-area style-1 header-area-static lg:!flex !hidden"
       >
         <HeaderContent
           state={state}
