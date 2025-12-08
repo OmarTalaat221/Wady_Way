@@ -432,7 +432,7 @@ const page = () => {
                               className="transport-img"
                             >
                               <img
-                                src={car?.background_image}
+                                src={car?.image}
                                 alt={car?.name || "Car"}
                                 onError={(e) => {
                                   e.target.src =
