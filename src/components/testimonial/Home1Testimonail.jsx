@@ -6,7 +6,6 @@ import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-// SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const Home1Testimonail = () => {
   const settings = useMemo(() => {
