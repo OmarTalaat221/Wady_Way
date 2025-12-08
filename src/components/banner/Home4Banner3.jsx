@@ -1,18 +1,15 @@
 "use client";
 import React, { useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import Link from "next/link";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const Home4Banner3 = () => {
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,
@@ -524,22 +521,34 @@ const Home4Banner3 = () => {
                       <div className="swiper-wrapper">
                         <SwiperSlide className="swiper-slide">
                           <div className="tab-with-slider-img">
-                            <img src="/assets/img/home4/rafting-01.jpg" alt="" />
+                            <img
+                              src="/assets/img/home4/rafting-01.jpg"
+                              alt=""
+                            />
                           </div>
                         </SwiperSlide>
                         <SwiperSlide className="swiper-slide">
                           <div className="tab-with-slider-img">
-                            <img src="/assets/img/home4/rafting-02.jpg" alt="" />
+                            <img
+                              src="/assets/img/home4/rafting-02.jpg"
+                              alt=""
+                            />
                           </div>
                         </SwiperSlide>
                         <SwiperSlide className="swiper-slide">
                           <div className="tab-with-slider-img">
-                            <img src="/assets/img/home4/rafting-01.jpg" alt="" />
+                            <img
+                              src="/assets/img/home4/rafting-01.jpg"
+                              alt=""
+                            />
                           </div>
                         </SwiperSlide>
                         <SwiperSlide className="swiper-slide">
                           <div className="tab-with-slider-img">
-                            <img src="/assets/img/home4/rafting-02.jpg" alt="" />
+                            <img
+                              src="/assets/img/home4/rafting-02.jpg"
+                              alt=""
+                            />
                           </div>
                         </SwiperSlide>
                       </div>
@@ -725,22 +734,34 @@ const Home4Banner3 = () => {
                       <div className="swiper-wrapper">
                         <SwiperSlide className="swiper-slide">
                           <div className="tab-with-slider-img">
-                            <img src="/assets/img/home4/sarfing-01.jpg" alt="" />
+                            <img
+                              src="/assets/img/home4/sarfing-01.jpg"
+                              alt=""
+                            />
                           </div>
                         </SwiperSlide>
                         <SwiperSlide className="swiper-slide">
                           <div className="tab-with-slider-img">
-                            <img src="/assets/img/home4/sarfing-02.jpg" alt="" />
+                            <img
+                              src="/assets/img/home4/sarfing-02.jpg"
+                              alt=""
+                            />
                           </div>
                         </SwiperSlide>
                         <SwiperSlide className="swiper-slide">
                           <div className="tab-with-slider-img">
-                            <img src="/assets/img/home4/sarfing-01.jpg" alt="" />
+                            <img
+                              src="/assets/img/home4/sarfing-01.jpg"
+                              alt=""
+                            />
                           </div>
                         </SwiperSlide>
                         <SwiperSlide className="swiper-slide">
                           <div className="tab-with-slider-img">
-                            <img src="/assets/img/home4/sarfing-02.jpg" alt="" />
+                            <img
+                              src="/assets/img/home4/sarfing-02.jpg"
+                              alt=""
+                            />
                           </div>
                         </SwiperSlide>
                       </div>

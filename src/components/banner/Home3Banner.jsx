@@ -2,19 +2,16 @@
 import React, { useMemo, useState } from "react";
 import ModalVideo from "react-modal-video";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import Link from "next/link";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const Home3Banner = () => {
   const [isOpen, setOpen] = useState(false);
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,
@@ -44,7 +41,7 @@ const Home3Banner = () => {
           <div className="swiper-wrapper">
             <SwiperSlide className="swiper-slide">
               <div
-                className="home3-banner-wrapper" 
+                className="home3-banner-wrapper"
                 style={{
                   backgroundImage:
                     "linear-gradient(180deg, rgba(34, 34, 34, 0.5) 0%, rgba(34, 34, 34, 0.5) 100%), url(assets/img/home3/1.jpg)",

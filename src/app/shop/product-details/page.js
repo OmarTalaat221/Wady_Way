@@ -5,17 +5,13 @@ import Breadcrumb from "@/components/common/Breadcrumb";
 import QuantityCounter from "@/uitils/QuantityCounter";
 import Link from "next/link";
 
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
 
 const Page = () => {
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,

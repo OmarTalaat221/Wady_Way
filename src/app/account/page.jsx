@@ -27,22 +27,22 @@ import {
 } from "react-icons/fa";
 import { BsFillCaretRightFill } from "react-icons/bs";
 
-import { FaSquareParking, FaLocationDot } from "react-icons/fa6";
+// import { FaSquareParking, FaLocationDot } from "react-icons/fa6";
 
-import { GiDuration } from "react-icons/gi";
-import { MdNetworkWifi2Bar } from "react-icons/md";
-import { LiaLanguageSolid } from "react-icons/lia";
+// import { GiDuration } from "react-icons/gi";
+// import { MdNetworkWifi2Bar } from "react-icons/md";
+// import { LiaLanguageSolid } from "react-icons/lia";
 import "react-datepicker/dist/react-datepicker.css";
-import Newslatter from "@/components/common/Newslatter";
-import { Dropdown, Collapse } from "antd";
-import Footer from "@/components/footer/Footer";
-import Header from "@/components/header/Header";
-import Topbar from "@/components/topbar/Topbar";
-import Calendar from "react-calendar";
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, EffectFade, Autoplay } from "swiper/modules";
-import Link from "../../components/link";
+// import Newslatter from "@/components/common/Newslatter";
+// import { Dropdown, Collapse } from "antd";
+// import Footer from "@/components/footer/Footer";
+// import Header from "@/components/header/Header";
+// import Topbar from "@/components/topbar/Topbar";
+// import Calendar from "react-calendar";
+// import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
+// import { Swiper, SwiperSlide } from "swiper/react";
+// import { Navigation, EffectFade, Autoplay } from "swiper/modules";
+// import Link from "../../components/link";
 import "./style.css";
 import TravelCard from "./../../components/cards/TravelCard";
 const Account = () => {

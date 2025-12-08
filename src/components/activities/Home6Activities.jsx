@@ -2,19 +2,16 @@
 import React, { useMemo, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import ModalVideo from "react-modal-video";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import Link from "next/link";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const Home6Activities = () => {
   const [isOpen, setOpen] = useState(false);
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 0,

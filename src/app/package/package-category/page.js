@@ -3,22 +3,19 @@ import Breadcrumb from "@/components/common/Breadcrumb";
 
 import React, { useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import Link from "next/link";
 import Footer from "@/components/footer/Footer";
 import Newslatter from "@/components/common/Newslatter";
 import Header from "@/components/header/Header";
 import Topbar from "@/components/topbar/Topbar";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const Page = () => {
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 30,

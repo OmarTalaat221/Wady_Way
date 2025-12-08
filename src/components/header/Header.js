@@ -14,16 +14,11 @@ import LoginModal from "../common/LoginModal";
 import { Swiper, SwiperSlide } from "swiper/react";
 import logo from "../../img/long_logo.png";
 import { usePathname } from "next/navigation";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import { useTranslations } from "next-intl";
 import setLanguageValue from "../../../actions/set-language-action";
 import { Select } from "antd";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const initialState = {
   activeMenu: "",
@@ -592,6 +587,8 @@ const Header = ({ currentLocale }) => {
 
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,

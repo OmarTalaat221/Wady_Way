@@ -1,17 +1,12 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import Link from "next/link";
 import TourTab from "./Tabs/TourTab";
 import HotelTab from "./Tabs/HotelTabs";
 import TransportTab from "./Tabs/TransportTab";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const Home1Fecilities2 = ({ data }) => {
   console.log(data);
@@ -168,6 +163,8 @@ const Home1Fecilities2 = ({ data }) => {
 
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,

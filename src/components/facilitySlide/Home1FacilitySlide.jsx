@@ -1,17 +1,13 @@
 "use client";
 import React, { useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
 
 const Home1FacilitySlide = () => {
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,
@@ -284,7 +280,10 @@ const Home1FacilitySlide = () => {
             </div>
             <div className="col-lg-6">
               <div className="franctional-slider-right-img">
-                <img src="https://travelami.templaza.net/wp-content/uploads/2024/03/khachik-simonian-nXOB-wh4Oyc-unsplash1380.jpg" alt="" />
+                <img
+                  src="https://travelami.templaza.net/wp-content/uploads/2024/03/khachik-simonian-nXOB-wh4Oyc-unsplash1380.jpg"
+                  alt=""
+                />
                 <div className="logo">
                   {/* <img
                     src="/assets/img/home1/icon/tripadvisor-logo2.svg "

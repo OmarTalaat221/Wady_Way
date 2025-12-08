@@ -1,17 +1,13 @@
 "use client";
 import React, { useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
 
 const Home6Testimonial = () => {
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,

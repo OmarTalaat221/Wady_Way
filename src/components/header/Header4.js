@@ -5,14 +5,9 @@ import { useEffect, useMemo, useReducer, useRef } from "react";
 
 import LoginModal from "../common/LoginModal";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import { useParams, usePathname } from "next/navigation";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const initialState = {
   activeMenu: "",
@@ -96,6 +91,8 @@ const Header4 = () => {
   };
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,

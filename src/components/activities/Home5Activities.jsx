@@ -1,18 +1,15 @@
 "use client";
 import React, { useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import Link from "next/link";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const Home5Activities = () => {
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 2000,
       spaceBetween: 25,
@@ -163,7 +160,10 @@ const Home5Activities = () => {
                     </SwiperSlide>
                     <SwiperSlide className="swiper-slide">
                       <div className="activity-card">
-                        <img src="/assets/img/home5/paragliding-01.jpg" alt="" />
+                        <img
+                          src="/assets/img/home5/paragliding-01.jpg"
+                          alt=""
+                        />
                         <div className="activity-card-content-wrapper">
                           <div className="activity-card-content">
                             <div className="icon">
@@ -189,7 +189,10 @@ const Home5Activities = () => {
                     </SwiperSlide>
                     <SwiperSlide className="swiper-slide">
                       <div className="activity-card">
-                        <img src="/assets/img/home5/ski-touring-01.jpg" alt="" />
+                        <img
+                          src="/assets/img/home5/ski-touring-01.jpg"
+                          alt=""
+                        />
                         <div className="activity-card-content-wrapper">
                           <div className="activity-card-content">
                             <div className="icon">

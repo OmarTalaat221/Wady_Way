@@ -1,52 +1,49 @@
 "use client";
 import React, { useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 const Home3InstagramSlide = () => {
   const settings = useMemo(() => {
     return {
-      slidesPerView: "",
-		speed: 2500,
-		spaceBetween: 2,
-		autoplay: {
-			delay: 2500, // Autoplay duration in milliseconds
-			disableOnInteraction: false,
-		},
-		pagination: {
-			el: ".swiper-pagination5",
-			clickable: true,
-		},
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
 
-		breakpoints: {
-			280: {
-				slidesPerView: 1,
-			},
-			386: {
-				slidesPerView: 1,
-			},
-			576: {
-				slidesPerView: 2,
-			},
-			768: {
-				slidesPerView: 3,
-				spaceBetween: 15,
-			},
-			992: {
-				slidesPerView: 4,
-			},
-			1200: {
-				slidesPerView: 5,
-			},
-			1400: {
-				slidesPerView: 5,
-			},
-		}
+      slidesPerView: "",
+      speed: 2500,
+      spaceBetween: 2,
+      autoplay: {
+        delay: 2500, // Autoplay duration in milliseconds
+        disableOnInteraction: false,
+      },
+      pagination: {
+        el: ".swiper-pagination5",
+        clickable: true,
+      },
+
+      breakpoints: {
+        280: {
+          slidesPerView: 1,
+        },
+        386: {
+          slidesPerView: 1,
+        },
+        576: {
+          slidesPerView: 2,
+        },
+        768: {
+          slidesPerView: 3,
+          spaceBetween: 15,
+        },
+        992: {
+          slidesPerView: 4,
+        },
+        1200: {
+          slidesPerView: 5,
+        },
+        1400: {
+          slidesPerView: 5,
+        },
+      },
     };
   }, []);
   return (

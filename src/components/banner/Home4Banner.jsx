@@ -3,21 +3,18 @@ import React, { useMemo } from "react";
 import QuantityCounter from "@/uitils/QuantityCounter";
 
 import { Swiper, SwiperSlide } from "swiper/react";
-import SwiperCore, {
-  Autoplay,
-  EffectFade,
-  Navigation,
-  Pagination,
-} from "swiper";
+import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+
 import DestinationSearch from "./DestinationSearch";
 import TourTypeDropdown from "./TourTypeDropdown";
 import WhenDropdown from "./WhenDropdown";
 import TourCategoryDropdown from "./TourCategoryDropdown";
-SwiperCore.use([Autoplay, EffectFade, Navigation, Pagination]);
 
 const Home4Banner = () => {
   const settings = useMemo(() => {
     return {
+      modules: [Autoplay, EffectFade, Pagination, Navigation],
+
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,
@@ -274,8 +271,7 @@ const Home4Banner = () => {
                                         <path d="M13.5 4.79883C11.3192 4.79883 9.54492 6.57308 9.54492 8.75391C9.54492 10.9347 11.3192 12.709 13.5 12.709C15.6808 12.709 17.4551 10.9347 17.4551 8.75391C17.4551 6.57308 15.6808 4.79883 13.5 4.79883ZM13.5 11.127C12.1915 11.127 11.127 10.0624 11.127 8.75391C11.127 7.44541 12.1915 6.38086 13.5 6.38086C14.8085 6.38086 15.873 7.44541 15.873 8.75391C15.873 10.0624 14.8085 11.127 13.5 11.127Z" />
                                       </svg>
                                     </div>
-                                    <DestinationSearch destination="Destination"/>
-                                   
+                                    <DestinationSearch destination="Destination" />
                                   </div>
                                 </div>
                                 <div className="col-xxl-3 col-sm-6 d-flex justify-content-center divider">
@@ -294,8 +290,7 @@ const Home4Banner = () => {
                                         </g>
                                       </svg>
                                     </div>
-                                    <TourTypeDropdown/>
-                                   
+                                    <TourTypeDropdown />
                                   </div>
                                 </div>
                                 <div className="col-xxl-3 col-sm-6 d-flex justify-content-center divider">
@@ -313,8 +308,7 @@ const Home4Banner = () => {
                                         </g>
                                       </svg>
                                     </div>
-                                    <WhenDropdown/>
-                                 
+                                    <WhenDropdown />
                                   </div>
                                 </div>
                                 <div className="col-xxl-3 col-sm-6 d-flex justify-content-center">
@@ -333,8 +327,10 @@ const Home4Banner = () => {
                                         </g>
                                       </svg>
                                     </div>
-                                    <TourCategoryDropdown data={['Economy', 'Luxury', 'Delux']} labelType="Tour Category"/>
-                                 
+                                    <TourCategoryDropdown
+                                      data={["Economy", "Luxury", "Delux"]}
+                                      labelType="Tour Category"
+                                    />
                                   </div>
                                 </div>
                               </div>
@@ -374,8 +370,7 @@ const Home4Banner = () => {
                                         <path d="M13.5 4.79883C11.3192 4.79883 9.54492 6.57308 9.54492 8.75391C9.54492 10.9347 11.3192 12.709 13.5 12.709C15.6808 12.709 17.4551 10.9347 17.4551 8.75391C17.4551 6.57308 15.6808 4.79883 13.5 4.79883ZM13.5 11.127C12.1915 11.127 11.127 10.0624 11.127 8.75391C11.127 7.44541 12.1915 6.38086 13.5 6.38086C14.8085 6.38086 15.873 7.44541 15.873 8.75391C15.873 10.0624 14.8085 11.127 13.5 11.127Z" />
                                       </svg>
                                     </div>
-                                    <DestinationSearch destination="Location"/>
-                                 
+                                    <DestinationSearch destination="Location" />
                                   </div>
                                 </div>
                                 <div className="col-xxl-3 col-md-6 d-flex justify-content-center divider">
@@ -787,8 +782,7 @@ const Home4Banner = () => {
                                         <path d="M13.5 4.79883C11.3192 4.79883 9.54492 6.57308 9.54492 8.75391C9.54492 10.9347 11.3192 12.709 13.5 12.709C15.6808 12.709 17.4551 10.9347 17.4551 8.75391C17.4551 6.57308 15.6808 4.79883 13.5 4.79883ZM13.5 11.127C12.1915 11.127 11.127 10.0624 11.127 8.75391C11.127 7.44541 12.1915 6.38086 13.5 6.38086C14.8085 6.38086 15.873 7.44541 15.873 8.75391C15.873 10.0624 14.8085 11.127 13.5 11.127Z" />
                                       </svg>
                                     </div>
-                                    <DestinationSearch destination="Location"/>
-                                 
+                                    <DestinationSearch destination="Location" />
                                   </div>
                                 </div>
                                 <div className="col-xxl-3 col-md-6 d-flex justify-content-center divider">
@@ -807,8 +801,14 @@ const Home4Banner = () => {
                                         </g>
                                       </svg>
                                     </div>
-                                    <TourCategoryDropdown data={["Adventure","Cultural","Historical"]} labelType="Activities Type" />
-                                   
+                                    <TourCategoryDropdown
+                                      data={[
+                                        "Adventure",
+                                        "Cultural",
+                                        "Historical",
+                                      ]}
+                                      labelType="Activities Type"
+                                    />
                                   </div>
                                 </div>
                                 <div className="col-xxl-3 col-md-6 d-flex justify-content-center divider">
@@ -900,8 +900,7 @@ const Home4Banner = () => {
                                         <path d="M13.5 4.79883C11.3192 4.79883 9.54492 6.57308 9.54492 8.75391C9.54492 10.9347 11.3192 12.709 13.5 12.709C15.6808 12.709 17.4551 10.9347 17.4551 8.75391C17.4551 6.57308 15.6808 4.79883 13.5 4.79883ZM13.5 11.127C12.1915 11.127 11.127 10.0624 11.127 8.75391C11.127 7.44541 12.1915 6.38086 13.5 6.38086C14.8085 6.38086 15.873 7.44541 15.873 8.75391C15.873 10.0624 14.8085 11.127 13.5 11.127Z" />
                                       </svg>
                                     </div>
-                                    <DestinationSearch destination="Form"/>
-                                   
+                                    <DestinationSearch destination="Form" />
                                   </div>
                                 </div>
                                 <div className="col-xxl-3 col-md-6 d-flex justify-content-center divider">
@@ -917,8 +916,7 @@ const Home4Banner = () => {
                                         <path d="M13.5 4.79883C11.3192 4.79883 9.54492 6.57308 9.54492 8.75391C9.54492 10.9347 11.3192 12.709 13.5 12.709C15.6808 12.709 17.4551 10.9347 17.4551 8.75391C17.4551 6.57308 15.6808 4.79883 13.5 4.79883ZM13.5 11.127C12.1915 11.127 11.127 10.0624 11.127 8.75391C11.127 7.44541 12.1915 6.38086 13.5 6.38086C14.8085 6.38086 15.873 7.44541 15.873 8.75391C15.873 10.0624 14.8085 11.127 13.5 11.127Z" />
                                       </svg>
                                     </div>
-                                    <DestinationSearch destination="To"/>
-                                  
+                                    <DestinationSearch destination="To" />
                                   </div>
                                 </div>
                                 <div className="col-xxl-3 col-md-6 d-flex justify-content-center divider">
