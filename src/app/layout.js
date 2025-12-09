@@ -32,6 +32,8 @@ import StoreProvider from "./StoreProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import QueryProvider from "../uitils/QueryProvider";
 import MobileHeader from "../components/mobileHeader/MobileHeader";
+import NotificationHandler from "../components/notifications/NotificationHandler";
+import ToastContainer from "../components/notifications/ToastContainer";
 
 export default async function RootLayout({ children }) {
   const locale = await getLocale();
@@ -45,12 +47,15 @@ export default async function RootLayout({ children }) {
         <QueryProvider>
           <StoreProvider>
             <NextIntlClientProvider messages={messages}>
-              <RouteProtection>
-                <Header currentLocale={locale} />
-                <MobileHeader currentLocale={locale} />
-                {children}
-              </RouteProtection>
+              <NotificationHandler>
+                <RouteProtection>
+                  <Header currentLocale={locale} />
+                  <MobileHeader currentLocale={locale} />
+                  {children}
+                </RouteProtection>
+              </NotificationHandler>
             </NextIntlClientProvider>
+            <ToastContainer />
             <Toaster />
           </StoreProvider>
         </QueryProvider>

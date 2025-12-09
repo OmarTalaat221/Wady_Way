@@ -30,8 +30,8 @@ export default function HomePage() {
       <Home1Banner2 data={data?.message?.offers} />
 
       <Home1Testimonail />
-      {/*  <Newslatter /> */}
       <Home1Blog data={data?.message} />
+      <Newslatter />
       <Footer />
     </>
   );

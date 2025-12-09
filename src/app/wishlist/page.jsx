@@ -7,61 +7,137 @@ import Header from "@/components/header/Header";
 import Topbar from "@/components/topbar/Topbar";
 import Link from "next/link";
 import "./style.css";
+import { base_url } from "../../uitils/base_url";
+import axios from "axios";
+import { useDispatch } from "react-redux";
+// import { addToast } from "@/store/notificationSlice";
+import { useWishlist } from "@/hooks/useWishlist";
 
 const WishlistPage = () => {
-  const [favorites, setFavorites] = useState({});
-  const [favoriteTrips, setFavoriteTrips] = useState([]);
+  const dispatch = useDispatch();
+  const { toggleWishlist, isLoading: isLoadingFav } = useWishlist();
+
+  const [wishlistItems, setWishlistItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
   const [animation, setAnimation] = useState("");
   const [shareModalOpen, setShareModalOpen] = useState(null);
-  const [showCopyAlert, setShowCopyAlert] = useState(false);
+  const [animatedId, setAnimatedId] = useState(null);
 
+  // Get user ID from localStorage
   useEffect(() => {
-    // Load favorites from localStorage
-    const savedFavorites = localStorage.getItem("tripFavorites");
-    if (savedFavorites) {
-      const parsedFavorites = JSON.parse(savedFavorites);
-      setFavorites(parsedFavorites);
-
-      // Get trips data
-      import("../../data/trips")
-        .then(({ trips }) => {
-          // Filter trips that are in favorites
-          const favTrips = trips.filter((trip) => parsedFavorites[trip.id]);
-          setFavoriteTrips(favTrips);
-          setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error loading trips data:", err);
-          setIsLoading(false);
-        });
+    const userDataString = localStorage.getItem("user");
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        setUserId(userData.id || userData.user_id);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+        // dispatch(
+        //   addToast({
+        //     type: "error",
+        //     title: "Error",
+        //     message: "Failed to get user information",
+        //   })
+        // );
+      }
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
-  const toggleFavorite = (tourId) => {
-    setAnimation(`animate-heart-${tourId}`);
+  // Fetch wishlist from API
+  useEffect(() => {
+    const fetchWishlist = async () => {
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const response = await axios.post(
+          `${base_url}/user/wish_list/select_wish_list.php`,
+          {
+            user_id: userId,
+          }
+        );
+
+        if (response?.data?.status === "success") {
+          setWishlistItems(response?.data?.message || []);
+        } else {
+          setWishlistItems([]);
+        }
+      } catch (error) {
+        console.error("Error fetching wishlist:", error);
+        // dispatch(
+        //   addToast({
+        //     type: "error",
+        //     title: "Error",
+        //     message: "Failed to load wishlist",
+        //   })
+        // );
+        setWishlistItems([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchWishlist();
+  }, [userId, dispatch]);
+
+  // Toggle favorite (remove from wishlist)
+  const handleToggleFavorite = async (item) => {
+    setAnimatedId(item.id);
+    setAnimation(`animate-heart-${item.id}`);
+
     setTimeout(() => setAnimation(""), 500);
 
-    setFavorites((prev) => {
-      const newFavorites = {
-        ...prev,
-        [tourId]: !prev[tourId],
-      };
+    // Call API through hook
+    const result = await toggleWishlist(item.id, item.type, item.is_fav);
 
-      // Save to localStorage
-      localStorage.setItem("tripFavorites", JSON.stringify(newFavorites));
-
-      // Update favorite trips list
-      setFavoriteTrips((prevTrips) =>
-        prevTrips.filter((trip) => trip.id !== tourId)
+    // Update local state if successful
+    if (result.success) {
+      // Remove from wishlist
+      setWishlistItems((prevItems) =>
+        prevItems.filter((wishItem) => wishItem.wish_id !== item.wish_id)
       );
+    }
 
-      return newFavorites;
-    });
+    // Remove animation after delay
+    setTimeout(() => {
+      setAnimatedId(null);
+    }, 600);
   };
 
+  // Get appropriate link based on type
+  const getItemLink = (item) => {
+    switch (item.type) {
+      case "tour":
+        return `/package/package-details/${item.id}`;
+      case "transport":
+        return `/transport/transport-details?id=${item.id}`;
+      case "activity":
+        return `/activities/activities-details?id=${item.id}`;
+      case "hotel":
+        return `/hotel-suits/hotel-details?hotel=${item.id}`;
+      default:
+        return "#";
+    }
+  };
+
+  // Get type badge
+  const getTypeBadge = (type) => {
+    const badges = {
+      tour: { label: "Tour", color: "#295570" },
+      transport: { label: "Transport", color: "#e8a355" },
+      activity: { label: "Activity", color: "#10b981" },
+      hotel: { label: "Hotel", color: "#ef4444" },
+    };
+    return badges[type] || { label: type, color: "#6c757d" };
+  };
+
+  // Share Modal Functions
   const toggleShareModal = (id) => {
     if (shareModalOpen === id) {
       setShareModalOpen(null);
@@ -74,8 +150,8 @@ const WishlistPage = () => {
     setShareModalOpen(null);
   };
 
-  const shareOnFacebook = (tour) => {
-    const url = `${window.location.origin}/package/package-details/${tour.id}`;
+  const shareOnFacebook = (item) => {
+    const url = `${window.location.origin}${getItemLink(item)}`;
     window.open(
       `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
       "_blank"
@@ -83,16 +159,16 @@ const WishlistPage = () => {
     closeShareModal();
   };
 
-  const shareOnWhatsapp = (tour) => {
-    const url = `${window.location.origin}/package/package-details/${tour.id}`;
-    const message = `Check out this amazing tour: ${tour.title} - ${url}`;
+  const shareOnWhatsapp = (item) => {
+    const url = `${window.location.origin}${getItemLink(item)}`;
+    const message = `Check out this amazing ${item.type}: ${item.title} - ${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
     closeShareModal();
   };
 
-  const shareOnTwitter = (tour) => {
-    const url = `${window.location.origin}/package/package-details/${tour.id}`;
-    const message = `Check out this amazing tour: ${tour.title}`;
+  const shareOnTwitter = (item) => {
+    const url = `${window.location.origin}${getItemLink(item)}`;
+    const message = `Check out this amazing ${item.type}: ${item.title}`;
     window.open(
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(
         message
@@ -102,27 +178,75 @@ const WishlistPage = () => {
     closeShareModal();
   };
 
-  const copyToClipboard = (tour) => {
-    const url = `${window.location.origin}/package/package-details/${tour.id}`;
+  const copyToClipboard = (item) => {
+    const url = `${window.location.origin}${getItemLink(item)}`;
     navigator.clipboard.writeText(url).then(() => {
-      setShowCopyAlert(true);
-      setTimeout(() => {
-        setShowCopyAlert(false);
-      }, 2500);
+      // dispatch(
+      //   addToast({
+      //     type: "success",
+      //     title: "Link Copied!",
+      //     message: "Link has been copied to clipboard",
+      //   })
+      // );
       closeShareModal();
     });
   };
+
+  // Get location text
+  const getLocationText = (item) => {
+    if (item.route) {
+      return item.route.split("→").join(" → ");
+    }
+    return item.location || "Location not specified";
+  };
+
+  // Parse image (handle //CAMP// separator)
+  const getImage = (imageString) => {
+    if (!imageString)
+      return "https://via.placeholder.com/400x300?text=No+Image";
+    const images = imageString.split("//CAMP//");
+    return (
+      images[0]?.trim() || "https://via.placeholder.com/400x300?text=No+Image"
+    );
+  };
+
+  // Don't show login message if not logged in, just show empty state
+  if (!userId && !isLoading) {
+    return (
+      <>
+        <Breadcrumb pagename="My Wishlist" pagetitle="Wishlist" />
+        <div className="wishlist-section pt-10 mb-[60px]">
+          <div className="container">
+            <div className="empty-wishlist">
+              <div className="empty-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                </svg>
+              </div>
+              <h4>Please login to view your wishlist</h4>
+              <p>Login to save and manage your favorite items.</p>
+              <Link href="/login" className="primary-btn2">
+                Login Now
+              </Link>
+            </div>
+          </div>
+        </div>
+        <Newslatter />
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
       <Breadcrumb pagename="My Wishlist" pagetitle="Wishlist" />
 
-      {/* Copy to clipboard notification */}
-      <div className={`copy-alert ${showCopyAlert ? "show" : ""}`}>
-        Link copied to clipboard!
-      </div>
-
-      <div className="wishlist-section pt-10  mb-[60px]">
+      <div className="wishlist-section pt-10 mb-[60px]">
         <div className="container">
           {isLoading ? (
             <div className="loading-spinner">
@@ -135,16 +259,16 @@ const WishlistPage = () => {
                 <div className="col-12">
                   <div className="wishlist-header">
                     <h3>My Wishlist</h3>
-                    <p>
-                      {favoriteTrips.length}{" "}
-                      {favoriteTrips.length === 1 ? "item" : "items"} saved to
+                    {/* <p>
+                      {wishlistItems.length}{" "}
+                      {wishlistItems.length === 1 ? "item" : "items"} saved to
                       your wishlist
-                    </p>
+                    </p> */}
                   </div>
                 </div>
               </div>
 
-              {favoriteTrips.length === 0 ? (
+              {wishlistItems.length === 0 ? (
                 <div className="empty-wishlist">
                   <div className="empty-icon">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -158,34 +282,52 @@ const WishlistPage = () => {
                   </div>
                   <h4>Your wishlist is empty</h4>
                   <p>
-                    Add tours you love to your wishlist. Review them anytime and
-                    easily move them to booking.
+                    Add items you love to your wishlist. Review them anytime and
+                    easily book them.
                   </p>
-                  <Link href="/package" className="primary-btn2">
-                    Discover Tours
-                  </Link>
+                  <div className="empty-wishlist-actions">
+                    <Link href="/package" className="primary-btn2">
+                      Discover Tours
+                    </Link>
+                    <Link href="/activities" className="primary-btn2">
+                      Browse Activities
+                    </Link>
+                    <Link href="/transport" className="primary-btn2">
+                      Find Transport
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <div className="row gy-4">
-                  {favoriteTrips.map((tour) => (
-                    <div className="col-md-6 col-lg-4 item" key={tour.id}>
+                  {wishlistItems.map((item) => (
+                    <div className="col-md-6 col-lg-4 item" key={item.wish_id}>
                       <div className="package-card">
                         <div className="package-card-img-wrap">
-                          <Link
-                            href={`/package/package-details/${tour.id}`}
-                            className="card-img"
-                          >
-                            <img src={tour?.images[0]} alt={tour.title} />
+                          <Link href={getItemLink(item)} className="card-img">
+                            <img
+                              src={getImage(item.image)}
+                              alt={item.title}
+                              onError={(e) => {
+                                e.target.src =
+                                  "https://via.placeholder.com/400x300?text=No+Image";
+                              }}
+                            />
                           </Link>
+
+                          {/* Favorite Button */}
                           <div
                             className={`favorite-btn active ${
-                              animation === `animate-heart-${tour.id}`
+                              animation === `animate-heart-${item.id}`
                                 ? "heart-beat"
                                 : ""
+                            } ${animatedId === item.id ? "animate" : ""} ${
+                              isLoadingFav(item.id) ? "loading" : ""
                             }`}
                             onClick={(e) => {
                               e.preventDefault();
-                              toggleFavorite(tour.id);
+                              if (!isLoadingFav(item.id)) {
+                                handleToggleFavorite(item);
+                              }
                             }}
                           >
                             <svg
@@ -201,7 +343,7 @@ const WishlistPage = () => {
                             className="share-btn"
                             onClick={(e) => {
                               e.preventDefault();
-                              toggleShareModal(tour.id);
+                              toggleShareModal(item.wish_id);
                             }}
                           >
                             <svg
@@ -215,12 +357,12 @@ const WishlistPage = () => {
                           {/* Share Options Modal */}
                           <div
                             className={`share-options ${
-                              shareModalOpen === tour.id ? "show" : ""
+                              shareModalOpen === item.wish_id ? "show" : ""
                             }`}
                           >
                             <div
                               className="share-option facebook"
-                              onClick={() => shareOnFacebook(tour)}
+                              onClick={() => shareOnFacebook(item)}
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -232,7 +374,7 @@ const WishlistPage = () => {
                             </div>
                             <div
                               className="share-option whatsapp"
-                              onClick={() => shareOnWhatsapp(tour)}
+                              onClick={() => shareOnWhatsapp(item)}
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -244,7 +386,7 @@ const WishlistPage = () => {
                             </div>
                             <div
                               className="share-option twitter"
-                              onClick={() => shareOnTwitter(tour)}
+                              onClick={() => shareOnTwitter(item)}
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -256,7 +398,7 @@ const WishlistPage = () => {
                             </div>
                             <div
                               className="share-option copy"
-                              onClick={() => copyToClipboard(tour)}
+                              onClick={() => copyToClipboard(item)}
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -269,24 +411,32 @@ const WishlistPage = () => {
                           </div>
 
                           {/* Backdrop for closing modal when clicking outside */}
-                          {shareModalOpen === tour.id && (
+                          {shareModalOpen === item.wish_id && (
                             <div
                               className="share-backdrop show"
                               onClick={closeShareModal}
                             ></div>
                           )}
 
-                          <div className="batch">
-                            <span className="date">{tour?.duration}</span>
-                            <div className="location">
-                              <ul className="location-list">
-                                {tour?.mainLocations?.map(
-                                  (mainLocat, index) => (
-                                    <li key={index}>
-                                      <Link href="/package">{mainLocat}</Link>
-                                    </li>
-                                  )
-                                )}
+                          {/* Wishlist Item Badge Container - TOP LEFT */}
+                          <div className="wishlist-item-badge-container">
+                            {/* Type Badge */}
+                            <span
+                              className="wishlist-type-badge"
+                              style={{
+                                background: getTypeBadge(item.type).color,
+                              }}
+                            >
+                              {getTypeBadge(item.type).label}
+                            </span>
+
+                            {/* Location Badge */}
+                            <div className="wishlist-location-wrapper">
+                              <ul className="wishlist-location-items">
+                                <li>
+                                  <i className="bi bi-geo-alt"></i>
+                                  {getLocationText(item)}
+                                </li>
                               </ul>
                             </div>
                           </div>
@@ -294,37 +444,40 @@ const WishlistPage = () => {
                         <div className="package-card-content">
                           <div className="card-content-top">
                             <h5 style={{ height: "60px", overflow: "hidden" }}>
-                              <Link
-                                href={`/package/package-details/${tour?.id}`}
-                              >
-                                {tour?.title}
-                              </Link>
+                              <Link href={getItemLink(item)}>{item.title}</Link>
                             </h5>
                             <div className="location-area">
-                              <ul className="location-list scrollTextAni">
-                                {tour?.additionalLocations?.map(
-                                  (additLocat, index) => (
-                                    <li key={index}>
-                                      <Link href="/package">{additLocat}</Link>
-                                    </li>
-                                  )
-                                )}
+                              <ul className="location-list">
+                                <li>
+                                  <i className="bi bi-geo-alt" />{" "}
+                                  {getLocationText(item)}
+                                </li>
                               </ul>
                             </div>
                           </div>
                           <div className="card-content-bottom">
                             <div className="price-area">
-                              <h6>Starting From:</h6>
-                              <span>
-                                {tour?.oldPrice}$ <del>{tour?.price}$ </del>
-                              </span>
-                              <p>TAXES INCL/PERS</p>
+                              <h6>
+                                {item.type === "transport"
+                                  ? "Per Day:"
+                                  : "Starting From:"}
+                              </h6>
+                              <span>${item.price}</span>
+                              <p>
+                                {item.type === "transport"
+                                  ? "PER DAY"
+                                  : "TAXES INCL/PERS"}
+                              </p>
                             </div>
                             <Link
-                              href={`/package/package-details/${tour?.id}`}
+                              href={getItemLink(item)}
                               className="primary-btn2"
                             >
-                              Book a Trip
+                              {item.type === "hotel"
+                                ? "Check Availability"
+                                : item.type === "transport"
+                                ? "View Details"
+                                : "Book Now"}
                             </Link>
                           </div>
                         </div>

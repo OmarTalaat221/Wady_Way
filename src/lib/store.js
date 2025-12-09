@@ -1,5 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit";
 import tourReservationReducer from "./redux/slices/tourReservationSlice";
+import notificationReducer from "./redux/slices/notificationSlice";
 
 const loadState = () => {
   if (typeof window === "undefined") return undefined;
@@ -31,6 +32,7 @@ export const makeStore = () => {
   const store = configureStore({
     reducer: {
       tourReservation: tourReservationReducer,
+      notification: notificationReducer,
     },
     preloadedState,
   });

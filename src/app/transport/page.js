@@ -1,6 +1,3 @@
-//test
-// test
-
 "use client";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import Link from "next/link";
@@ -8,12 +5,21 @@ import { useEffect, useState, useMemo } from "react";
 import "./style.css";
 import { base_url } from "../../uitils/base_url";
 import axios from "axios";
+import { useDispatch } from "react-redux";
+// import { addToast } from "@/store/notificationSlice";
+import { useWishlist } from "@/hooks/useWishlist";
 
-const page = () => {
+const Page = () => {
+  const dispatch = useDispatch();
+  const { toggleWishlist, isLoading } = useWishlist();
+
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [allFeatures, setAllFeatures] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [shareModalOpen, setShareModalOpen] = useState(null);
+  const [animatedId, setAnimatedId] = useState(null);
 
   // Filter states
   const [searchText, setSearchText] = useState("");
@@ -32,11 +38,34 @@ const page = () => {
   // Car type options (will be populated from data)
   const [carTypes, setCarTypes] = useState([]);
 
+  // Get user ID from localStorage
+  useEffect(() => {
+    const userDataString = localStorage.getItem("user");
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        setUserId(userData.id || userData.user_id);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+  }, []);
+
   // Function to fetch cars from API
   const fetchCars = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${base_url}/user/cars/select_car.php`);
+
+      // Prepare request body with user_id if available
+      const requestBody = {};
+      if (userId) {
+        requestBody.user_id = userId;
+      }
+
+      const response = await axios.post(
+        `${base_url}/user/cars/select_car.php`,
+        requestBody
+      );
 
       const data = response.data;
 
@@ -46,10 +75,8 @@ const page = () => {
           id: car.id,
           name: car.title || car.name || "Car Rental",
           type: car.car_type || car.type || "Standard",
-
           background_image: car.background_image,
           image: car.image,
-
           location: car.location || "Location not specified",
           price_current: car.price_current || "0.00",
           price_original: car.price_original || car.price_current || "0.00",
@@ -57,6 +84,7 @@ const page = () => {
             car.ratings && car.ratings.length > 0 ? car.ratings[0].score : 4.0,
           reviews: car.review_count || Math.floor(Math.random() * 200) + 50,
           features: car.features || [],
+          is_fav: car?.is_fav || false, // Get is_fav from API
         }));
 
         setCars(mappedCars);
@@ -113,7 +141,74 @@ const page = () => {
 
   useEffect(() => {
     fetchCars();
-  }, []);
+  }, [userId]);
+
+  // Toggle favorite with API
+  const handleToggleFavorite = async (carId, currentStatus) => {
+    // Add animation
+    setAnimatedId(carId);
+
+    // Call API through hook (type = "transport" for cars)
+    const result = await toggleWishlist(carId, "transport", currentStatus);
+
+    // Update local state if successful
+    if (result.success) {
+      // Update the cars array with new is_fav status
+      setCars((prevCars) =>
+        prevCars.map((car) =>
+          car.id === carId ? { ...car, is_fav: result.is_fav } : car
+        )
+      );
+    }
+
+    // Remove animation after delay
+    setTimeout(() => {
+      setAnimatedId(null);
+    }, 600);
+  };
+
+  // Share Modal Functions
+  const toggleShareModal = (id) => {
+    if (shareModalOpen === id) {
+      setShareModalOpen(null);
+    } else {
+      setShareModalOpen(id);
+    }
+  };
+
+  const closeShareModal = () => {
+    setShareModalOpen(null);
+  };
+
+  const shareOnFacebook = (car) => {
+    const url = `${window.location.origin}/transport/transport-details?id=${car.id}`;
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      "_blank"
+    );
+    closeShareModal();
+  };
+
+  const shareOnWhatsapp = (car) => {
+    const url = `${window.location.origin}/transport/transport-details?id=${car.id}`;
+    const message = `Check out this amazing car: ${car.name} - ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+    closeShareModal();
+  };
+
+  const copyToClipboard = (car) => {
+    const url = `${window.location.origin}/transport/transport-details?id=${car.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      // dispatch(
+      //   addToast({
+      //     type: "success",
+      //     title: "Link Copied!",
+      //     message: "Car link has been copied to clipboard",
+      //   })
+      // );
+      closeShareModal();
+    });
+  };
 
   // Handle search input
   const handleSearch = (e) => {
@@ -202,10 +297,6 @@ const page = () => {
     selectedCarTypes,
     selectedFeatures,
   ]);
-
-  useEffect(() => {
-    console.log(filteredCars, "filte");
-  }, [filteredCars]);
 
   // Calculate counts for filters
   const getFeatureCount = (feature) => {
@@ -391,7 +482,7 @@ const page = () => {
                   </div>
                 </div>
 
-                <div className="col-xl-8  order-lg-2 order-1">
+                <div className="col-xl-8 order-lg-2 order-1">
                   {/* Error State */}
                   {error && !loading && cars.length === 0 && (
                     <div className="alert alert-warning" role="alert">
@@ -430,20 +521,114 @@ const page = () => {
                       {filteredCars.length > 0 ? (
                         filteredCars.map((car) => (
                           <div key={car?.id} className="transport-card">
-                            <Link
-                              href={`/transport/transport-details?id=${car?.id}`}
-                              className="transport-img"
-                            >
-                              <img
-                                src={car?.image}
-                                alt={car?.name || "Car"}
-                                onError={(e) => {
-                                  e.target.src =
-                                    "https://via.placeholder.com/300x200/666/FFFFFF?text=No+Image";
+                            <div className="transport-card-img-wrap">
+                              <Link
+                                href={`/transport/transport-details?id=${car?.id}`}
+                                className="transport-img"
+                              >
+                                <img
+                                  src={car?.image}
+                                  alt={car?.name || "Car"}
+                                  onError={(e) => {
+                                    e.target.src =
+                                      "https://via.placeholder.com/300x200/666/FFFFFF?text=No+Image";
+                                  }}
+                                />
+                                {car?.location && <span>{car.location}</span>}
+                              </Link>
+
+                              {/* Favorite Button */}
+                              <div
+                                className={`favorite-btn ${
+                                  car.is_fav ? "active" : ""
+                                } ${animatedId === car.id ? "animate" : ""} ${
+                                  isLoading(car.id) ? "loading" : ""
+                                }`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (!isLoading(car.id)) {
+                                    handleToggleFavorite(car.id, car.is_fav);
+                                  }
                                 }}
-                              />
-                              {car?.location && <span>{car.location}</span>}
-                            </Link>
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                                </svg>
+                              </div>
+
+                              {/* Share Button */}
+                              <div
+                                className="share-btn"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  toggleShareModal(car.id);
+                                }}
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
+                                </svg>
+                              </div>
+
+                              {/* Share Options Modal */}
+                              <div
+                                className={`share-options ${
+                                  shareModalOpen === car.id ? "show" : ""
+                                }`}
+                              >
+                                <div
+                                  className="share-option facebook"
+                                  onClick={() => shareOnFacebook(car)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96C15.9164 21.5878 18.0622 20.3855 19.6099 18.57C21.1576 16.7546 22.0054 14.4456 22 12.06C22 6.53 17.5 2.04 12 2.04Z" />
+                                  </svg>
+                                  <span>Facebook</span>
+                                </div>
+                                <div
+                                  className="share-option whatsapp"
+                                  onClick={() => shareOnWhatsapp(car)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                  </svg>
+                                  <span>WhatsApp</span>
+                                </div>
+
+                                <div
+                                  className="share-option copy"
+                                  onClick={() => copyToClipboard(car)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                                  </svg>
+                                  <span>Copy Link</span>
+                                </div>
+                              </div>
+
+                              {/* Backdrop for closing modal when clicking outside */}
+                              {shareModalOpen === car.id && (
+                                <div
+                                  className="share-backdrop show"
+                                  onClick={closeShareModal}
+                                ></div>
+                              )}
+                            </div>
+
                             <div className="transport-content">
                               <h4 className="line-clamp-1">
                                 <Link
@@ -532,7 +717,7 @@ const page = () => {
                           {hasActiveFilters && (
                             <button
                               onClick={clearAllFilters}
-                              className="btn !text-white p-[10px] hover:bg-[#1d3d3f]  !bg-[#295557]"
+                              className="btn !text-white p-[10px] hover:bg-[#1d3d3f] !bg-[#295557]"
                             >
                               Clear All Filters
                             </button>
@@ -592,4 +777,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;

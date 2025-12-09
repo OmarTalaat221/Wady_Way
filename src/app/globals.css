@@ -30,3 +30,60 @@
     @apply text-gray-700 hover:text-[#e8a355] py-2 px-3 block transition-colors duration-200 !important;
   }
 }
+
+/* Favorite button styles */
+.favorite-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.2s ease;
+}
+
+.favorite-btn:hover {
+  transform: scale(1.1);
+}
+
+.favorite-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: transparent;
+  stroke: #333;
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+
+.favorite-btn.active svg {
+  fill: #ff385c;
+  stroke: #ff385c;
+}
+
+.favorite-btn.animate svg {
+  animation: heartBeat 0.4s ease-in-out;
+}
+
+@keyframes heartBeat {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.3);
+  }
+  50% {
+    transform: scale(0.9);
+  }
+  75% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

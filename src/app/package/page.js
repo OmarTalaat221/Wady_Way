@@ -10,25 +10,51 @@ import React, { useState, useEffect } from "react";
 import "./style.css";
 import { base_url } from "../../uitils/base_url";
 import axios from "axios";
+import { useDispatch } from "react-redux";
+// import { addToast } from "@/";
+import { useWishlist } from "@/hooks/useWishlist";
 
-const page = () => {
+const Page = () => {
+  const dispatch = useDispatch();
+  const { toggleWishlist, isLoading } = useWishlist();
+
   const [shareModalOpen, setShareModalOpen] = useState(null);
-  const [showCopyAlert, setShowCopyAlert] = useState(false);
   const [trips, setTrips] = useState([]);
   const [SortedArray, setSortedArray] = useState([]);
   const [ActivityFilter, setActivityFilter] = useState("All Activities");
   const [TourCountryFilter, setTourCountryFilter] = useState("All countries");
-  const [favorites, setFavorites] = useState({});
   const [animatedId, setAnimatedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
+
+  // Get user ID from localStorage
+  useEffect(() => {
+    const userDataString = localStorage.getItem("user");
+    if (userDataString) {
+      try {
+        const userData = JSON.parse(userDataString);
+        setUserId(userData.id || userData.user_id);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+  }, []);
 
   // Fetch tours from API
   useEffect(() => {
     const fetchTours = async () => {
       try {
         setLoading(true);
+
+        // Prepare request body with user_id if available
+        const requestBody = {};
+        if (userId) {
+          requestBody.user_id = userId;
+        }
+
         const response = await axios.post(
-          `${base_url}/user/tours/select_tours.php`
+          `${base_url}/user/tours/select_tours.php`,
+          requestBody
         );
 
         if (response?.data.status === "success") {
@@ -48,10 +74,7 @@ const page = () => {
                   .map((loc) => loc.trim())
               : [],
             additionalLocations: tour.route
-              ? tour.route
-                  .split("-")
-
-                  .map((loc) => loc.trim())
+              ? tour.route.split("-").map((loc) => loc.trim())
               : [],
             activities: tour.category
               ? [tour.category, "All Activities"]
@@ -62,6 +85,7 @@ const page = () => {
               : null,
             link: `/package/package-details/${tour.id}`,
             image: tour?.image,
+            is_fav: tour?.is_fav || false, // Get is_fav from API
           }));
 
           setTrips(transformedTrips);
@@ -69,39 +93,46 @@ const page = () => {
         }
       } catch (error) {
         console.error("Error fetching tours:", error);
+        // dispatch(
+        //   addToast({
+        //     type: "error",
+        //     title: "Error",
+        //     message: "Failed to load tours",
+        //   })
+        // );
       } finally {
         setLoading(false);
       }
     };
 
     fetchTours();
-  }, []);
+  }, [userId, dispatch]);
 
-  // Load favorites from localStorage on component mount
-  useEffect(() => {
-    const savedFavorites = localStorage.getItem("tripFavorites");
-    if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
+  // Toggle favorite with API
+  const handleToggleFavorite = async (tourId, currentStatus) => {
+    // Add animation
+    setAnimatedId(tourId);
+
+    // Call API through hook
+    const result = await toggleWishlist(tourId, "tour", currentStatus);
+
+    // Update local state if successful
+    if (result.success) {
+      // Update the trips array with new is_fav status
+      setTrips((prevTrips) =>
+        prevTrips.map((trip) =>
+          trip.id === tourId ? { ...trip, is_fav: result.is_fav } : trip
+        )
+      );
+
+      setSortedArray((prevTrips) =>
+        prevTrips.map((trip) =>
+          trip.id === tourId ? { ...trip, is_fav: result.is_fav } : trip
+        )
+      );
     }
-  }, []);
 
-  // Save favorites to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("tripFavorites", JSON.stringify(favorites));
-  }, [favorites]);
-
-  const toggleFavorite = (id) => {
-    const newFavorites = { ...favorites };
-    newFavorites[id] = !newFavorites[id];
-    setFavorites(newFavorites);
-    localStorage.setItem("tripFavorites", JSON.stringify(newFavorites));
-
-    // Dispatch custom event for header to listen
-    const event = new Event("storage");
-    window.dispatchEvent(event);
-
-    // Add animation class
-    setAnimatedId(id);
+    // Remove animation after delay
     setTimeout(() => {
       setAnimatedId(null);
     }, 600);
@@ -138,10 +169,13 @@ const page = () => {
   const copyToClipboard = (tour) => {
     const url = `${window.location.origin}/package/package-details/${tour.id}`;
     navigator.clipboard.writeText(url).then(() => {
-      setShowCopyAlert(true);
-      setTimeout(() => {
-        setShowCopyAlert(false);
-      }, 2500);
+      // dispatch(
+      //   addToast({
+      //     type: "success",
+      //     title: "Link Copied!",
+      //     message: "Tour link has been copied to clipboard",
+      //   })
+      // );
       closeShareModal();
     });
   };
@@ -192,10 +226,6 @@ const page = () => {
       {/* <Header /> */}
       <Breadcrumb pagename="Package Grid" pagetitle="Package Grid" />
 
-      {/* Copy to clipboard notification */}
-      <div className={`copy-alert ${showCopyAlert ? "show" : ""}`}>
-        Link copied to clipboard!
-      </div>
       <div className="package-grid-with-sidebar-section pt-120 mb-120">
         <div className="container">
           <div className="row g-lg-4 gy-5">
@@ -267,13 +297,19 @@ const page = () => {
                                   }}
                                 />
                               </Link>
+
+                              {/* Favorite Button */}
                               <div
                                 className={`favorite-btn ${
-                                  favorites[tour.id] ? "active" : ""
-                                } ${animatedId === tour.id ? "animate" : ""}`}
+                                  tour.is_fav ? "active" : ""
+                                } ${animatedId === tour.id ? "animate" : ""} ${
+                                  isLoading(tour.id) ? "loading" : ""
+                                }`}
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  toggleFavorite(tour.id);
+                                  if (!isLoading(tour.id)) {
+                                    handleToggleFavorite(tour.id, tour.is_fav);
+                                  }
                                 }}
                               >
                                 <svg
@@ -425,44 +461,6 @@ const page = () => {
                   </div>
                 )}
               </div>
-
-              {/* <div className="row">
-                <div className="col-lg-12">
-                  <nav className="inner-pagination-area">
-                    <ul className="pagination-list">
-                      <li>
-                        <a href="#" className="shop-pagi-btn">
-                          <i className="bi bi-chevron-left" />
-                        </a>
-                      </li>
-                      <li>
-                        <a href="#">1</a>
-                      </li>
-                      <li>
-                        <a href="#" className="active">
-                          2
-                        </a>
-                      </li>
-                      <li>
-                        <a href="#">3</a>
-                      </li>
-                      <li>
-                        <a href="#">
-                          <i className="bi bi-three-dots" />
-                        </a>
-                      </li>
-                      <li>
-                        <a href="#">6</a>
-                      </li>
-                      <li>
-                        <a href="#" className="shop-pagi-btn">
-                          <i className="bi bi-chevron-right" />
-                        </a>
-                      </li>
-                    </ul>
-                  </nav>
-                </div>
-              </div> */}
             </div>
             <div className="col-lg-4">
               <div className="sidebar-area">
@@ -595,4 +593,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;
