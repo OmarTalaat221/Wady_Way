@@ -6,26 +6,234 @@ import Header from "@/components/header/Header";
 import Topbar from "@/components/topbar/Topbar";
 import SelectComponent from "@/uitils/SelectComponent";
 import Link from "next/link";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import "./style.css";
 import { base_url } from "../../uitils/base_url";
 import axios from "axios";
 import { useDispatch } from "react-redux";
-// import { addToast } from "@/";
 import { useWishlist } from "@/hooks/useWishlist";
 
 const Page = () => {
   const dispatch = useDispatch();
   const { toggleWishlist, isLoading } = useWishlist();
 
+  // Next.js router hooks
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [shareModalOpen, setShareModalOpen] = useState(null);
   const [trips, setTrips] = useState([]);
-  const [SortedArray, setSortedArray] = useState([]);
-  const [ActivityFilter, setActivityFilter] = useState("All Activities");
-  const [TourCountryFilter, setTourCountryFilter] = useState("All countries");
   const [animatedId, setAnimatedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
+
+  // ✅ Flag to prevent URL sync loop
+  const isUpdatingURL = useRef(false);
+
+  // ✅ Available countries from API
+  const [availableCountries, setAvailableCountries] = useState([]);
+
+  // ✅ Initialize filters from URL params - matching API params
+  const [activityFilter, setActivityFilter] = useState(() => {
+    return searchParams.get("activity") || "";
+  });
+
+  // ✅ country_id (integer)
+  const [countryId, setCountryId] = useState(() => {
+    const countryIdParam = searchParams.get("country_id");
+    return countryIdParam ? parseInt(countryIdParam) : 0;
+  });
+
+  // ✅ days (integer - exact days)
+  const [daysFilter, setDaysFilter] = useState(() => {
+    const daysParam = searchParams.get("days");
+    return daysParam ? parseInt(daysParam) : 0;
+  });
+
+  // ✅ price_min and price_max
+  const [priceMin, setPriceMin] = useState(() => {
+    const priceMinParam = searchParams.get("price_min");
+    return priceMinParam ? parseFloat(priceMinParam) : "";
+  });
+
+  const [priceMax, setPriceMax] = useState(() => {
+    const priceMaxParam = searchParams.get("price_max");
+    return priceMaxParam ? parseFloat(priceMaxParam) : "";
+  });
+
+  // Pagination states - Initialize from URL params
+  const [currentPage, setCurrentPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam) : 1;
+  });
+
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    const limitParam = searchParams.get("limit");
+    return limitParam ? parseInt(limitParam) : 10;
+  });
+
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // Create ref for share modals
+  const shareModalRefs = useRef({});
+
+  // ✅ Activity/Category options
+  const activityCategories = [
+    "Beaches",
+    "City Tours",
+    "Cruises",
+    "Hiking",
+    "Historical",
+    "Museum Tours",
+    "Adventure",
+  ];
+
+  // ✅ Duration options (days as integer)
+  const durationOptions = [
+    { days: 1, label: "1 Day Tour" },
+    { days: 2, label: "2 Days Tour" },
+    { days: 3, label: "3 Days Tour" },
+    { days: 4, label: "4 Days Tour" },
+    { days: 5, label: "5 Days Tour" },
+    { days: 6, label: "6 Days Tour" },
+    { days: 7, label: "7 Days Tour" },
+    { days: 8, label: "8 Days Tour" },
+    { days: 9, label: "9 Days Tour" },
+    { days: 10, label: "10+ Days Tour" },
+  ];
+
+  // ✅ Price range options
+  const priceRanges = [
+    { id: "under500", label: "Under $500", min: 0, max: 500 },
+    { id: "500to1000", label: "$500 - $1,000", min: 500, max: 1000 },
+    { id: "1000to2000", label: "$1,000 - $2,000", min: 1000, max: 2000 },
+    { id: "2000to5000", label: "$2,000 - $5,000", min: 2000, max: 5000 },
+    { id: "over5000", label: "$5,000+", min: 5000, max: 100000 },
+  ];
+
+  // ✅ Function to update URL without page reload
+  const updateURLParams = useCallback(
+    (options = {}) => {
+      const {
+        page = currentPage,
+        limit = itemsPerPage,
+        activity = activityFilter,
+        country_id = countryId,
+        days = daysFilter,
+        price_min = priceMin,
+        price_max = priceMax,
+      } = options;
+
+      const params = new URLSearchParams();
+
+      if (page && page !== 1) {
+        params.set("page", page.toString());
+      }
+
+      if (limit && limit !== 10) {
+        params.set("limit", limit.toString());
+      }
+
+      if (activity && activity !== "") {
+        params.set("activity", activity);
+      }
+
+      // ✅ country_id as integer
+      if (country_id && country_id !== 0) {
+        params.set("country_id", country_id.toString());
+      }
+
+      // ✅ days as integer
+      if (days && days !== 0) {
+        params.set("days", days.toString());
+      }
+
+      // ✅ price_min
+      if (price_min !== "" && price_min !== null && price_min >= 0) {
+        params.set("price_min", price_min.toString());
+      }
+
+      // ✅ price_max
+      if (price_max !== "" && price_max !== null && price_max > 0) {
+        params.set("price_max", price_max.toString());
+      }
+
+      const newURL = params.toString()
+        ? `${pathname}?${params.toString()}`
+        : pathname;
+
+      isUpdatingURL.current = true;
+      window.history.replaceState(null, "", newURL);
+
+      setTimeout(() => {
+        isUpdatingURL.current = false;
+      }, 100);
+    },
+    [
+      pathname,
+      currentPage,
+      itemsPerPage,
+      activityFilter,
+      countryId,
+      daysFilter,
+      priceMin,
+      priceMax,
+    ]
+  );
+
+  // Handle click outside to close share modal
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (shareModalOpen !== null) {
+        const modalRef = shareModalRefs.current[shareModalOpen];
+        if (modalRef && !modalRef.contains(event.target)) {
+          const shareBtn = event.target.closest(".share-btn");
+          if (!shareBtn) {
+            setShareModalOpen(null);
+          }
+        }
+      }
+    };
+
+    if (shareModalOpen !== null) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [shareModalOpen]);
+
+  // ✅ Sync state with URL params (for browser back/forward)
+  useEffect(() => {
+    if (isUpdatingURL.current) return;
+
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    const activityParam = searchParams.get("activity");
+    const countryIdParam = searchParams.get("country_id");
+    const daysParam = searchParams.get("days");
+    const priceMinParam = searchParams.get("price_min");
+    const priceMaxParam = searchParams.get("price_max");
+
+    const newPage = pageParam ? parseInt(pageParam) : 1;
+    const newLimit = limitParam ? parseInt(limitParam) : 10;
+    const newActivity = activityParam || "";
+    const newCountryId = countryIdParam ? parseInt(countryIdParam) : 0;
+    const newDays = daysParam ? parseInt(daysParam) : 0;
+    const newPriceMin = priceMinParam ? parseFloat(priceMinParam) : "";
+    const newPriceMax = priceMaxParam ? parseFloat(priceMaxParam) : "";
+
+    if (newPage !== currentPage) setCurrentPage(newPage);
+    if (newLimit !== itemsPerPage) setItemsPerPage(newLimit);
+    if (newActivity !== activityFilter) setActivityFilter(newActivity);
+    if (newCountryId !== countryId) setCountryId(newCountryId);
+    if (newDays !== daysFilter) setDaysFilter(newDays);
+    if (newPriceMin !== priceMin) setPriceMin(newPriceMin);
+    if (newPriceMax !== priceMax) setPriceMax(newPriceMax);
+  }, [searchParams]);
 
   // Get user ID from localStorage
   useEffect(() => {
@@ -40,110 +248,298 @@ const Page = () => {
     }
   }, []);
 
-  // Fetch tours from API
-  useEffect(() => {
-    const fetchTours = async () => {
-      try {
-        setLoading(true);
+  // ✅ Fetch countries from API
+  const fetchCountries = useCallback(async () => {
+    try {
+      const response = await axios.get(
+        `${base_url}/user/countries/select_countries.php`
+      );
 
-        // Prepare request body with user_id if available
-        const requestBody = {};
-        if (userId) {
-          requestBody.user_id = userId;
-        }
-
-        const response = await axios.post(
-          `${base_url}/user/tours/select_tours.php`,
-          requestBody
-        );
-
-        if (response?.data.status === "success") {
-          const transformedTrips = response?.data.message.map((tour) => ({
-            id: tour.id,
-            title: tour.title,
-            country: [tour.country_name, "All countries"],
-            images:
-              tour.gallery && tour.gallery.length > 0
-                ? tour.gallery
-                : [tour.image],
-            duration: tour.duration,
-            mainLocations: tour.route
-              ? tour.route
-                  .split("-")
-                  .slice(0, 2)
-                  .map((loc) => loc.trim())
-              : [],
-            additionalLocations: tour.route
-              ? tour.route.split("-").map((loc) => loc.trim())
-              : [],
-            activities: tour.category
-              ? [tour.category, "All Activities"]
-              : ["All Activities"],
-            price: parseFloat(tour.price_current),
-            oldPrice: tour.price_original
-              ? parseFloat(tour.price_original)
-              : null,
-            link: `/package/package-details/${tour.id}`,
-            image: tour?.image,
-            is_fav: tour?.is_fav || false, // Get is_fav from API
-          }));
-
-          setTrips(transformedTrips);
-          setSortedArray(transformedTrips);
-        }
-      } catch (error) {
-        console.error("Error fetching tours:", error);
-        // dispatch(
-        //   addToast({
-        //     type: "error",
-        //     title: "Error",
-        //     message: "Failed to load tours",
-        //   })
-        // );
-      } finally {
-        setLoading(false);
+      if (response?.data?.status === "success") {
+        setAvailableCountries(response.data.message || []);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+    }
+  }, []);
 
-    fetchTours();
-  }, [userId, dispatch]);
+  // Fetch countries on mount
+  useEffect(() => {
+    fetchCountries();
+  }, [fetchCountries]);
+
+  // ✅ Fetch tours from API with filters in GET params
+  const fetchTours = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      setLoading(true);
+
+      const params = new URLSearchParams();
+      params.set("user_id", userId);
+      params.set("page", currentPage.toString());
+      params.set("limit", itemsPerPage.toString());
+
+      // ✅ Add activity filter
+      if (activityFilter && activityFilter !== "") {
+        params.set("activity", activityFilter);
+      }
+
+      // ✅ Add country_id filter (integer)
+      if (countryId && countryId !== 0) {
+        params.set("country_id", countryId.toString());
+      }
+
+      // ✅ Add days filter (integer - exact)
+      if (daysFilter && daysFilter !== 0) {
+        params.set("days", daysFilter.toString());
+      }
+
+      // ✅ Add price_min filter
+      if (priceMin !== "" && priceMin !== null && priceMin >= 0) {
+        params.set("price_min", priceMin.toString());
+      }
+
+      // ✅ Add price_max filter
+      if (priceMax !== "" && priceMax !== null && priceMax > 0) {
+        params.set("price_max", priceMax.toString());
+      }
+
+      const apiUrl = `${base_url}/user/tours/select_tours.php?${params.toString()}`;
+      console.log("Fetching Tours:", apiUrl);
+
+      const response = await axios.get(apiUrl);
+
+      if (response?.data?.status === "success") {
+        const data = response.data;
+
+        setTotalPages(parseInt(data.total_pages) || 1);
+        setTotalItems(parseInt(data.total_items) || 0);
+
+        const transformedTrips = data.message.map((tour) => ({
+          id: tour.id,
+          title: tour.title,
+          country: tour.country_name,
+          country_id: parseInt(tour.country_id),
+          images:
+            tour.gallery && tour.gallery.length > 0
+              ? tour.gallery
+              : [tour.image],
+          duration: tour.duration,
+          mainLocations: tour.route
+            ? tour.route
+                .split("-")
+                .slice(0, 2)
+                .map((loc) => loc.trim())
+            : [],
+          additionalLocations: tour.route
+            ? tour.route.split("-").map((loc) => loc.trim())
+            : [],
+          activities: tour.category ? tour.category : "",
+          price: parseFloat(tour.price_current),
+          oldPrice: tour.price_original
+            ? parseFloat(tour.price_original)
+            : null,
+          link: `/package/package-details/${tour.id}`,
+          image: tour?.image,
+          is_fav: tour?.is_fav || false,
+        }));
+
+        setTrips(transformedTrips);
+      } else {
+        setTrips([]);
+        setTotalPages(1);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("Error fetching tours:", error);
+      setTrips([]);
+      setTotalPages(1);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    userId,
+    currentPage,
+    itemsPerPage,
+    activityFilter,
+    countryId,
+    daysFilter,
+    priceMin,
+    priceMax,
+  ]);
+
+  // ✅ Fetch tours when filters change
+  useEffect(() => {
+    if (userId) {
+      fetchTours();
+    }
+  }, [userId, fetchTours]);
+
+  // ✅ Handle page change
+  const handlePageChange = useCallback(
+    (page) => {
+      if (page >= 1 && page <= totalPages && page !== currentPage) {
+        setCurrentPage(page);
+        updateURLParams({ page });
+        window.scrollTo({ top: 300, behavior: "smooth" });
+      }
+    },
+    [totalPages, currentPage, updateURLParams]
+  );
+
+  // ✅ Handle activity filter change
+  const handleActivityFilterChange = useCallback(
+    (activity) => {
+      const newActivity = activity === activityFilter ? "" : activity;
+      setActivityFilter(newActivity);
+      setCurrentPage(1);
+      updateURLParams({ page: 1, activity: newActivity });
+    },
+    [activityFilter, updateURLParams]
+  );
+
+  // ✅ Handle country filter change (using country_id as integer)
+  const handleCountryFilterChange = useCallback(
+    (countryIdValue) => {
+      const newCountryId = countryIdValue === countryId ? 0 : countryIdValue;
+      setCountryId(newCountryId);
+      setCurrentPage(1);
+      updateURLParams({ page: 1, country_id: newCountryId });
+    },
+    [countryId, updateURLParams]
+  );
+
+  // ✅ Handle days filter change (integer)
+  const handleDaysFilterChange = useCallback(
+    (days) => {
+      const newDays = days === daysFilter ? 0 : days;
+      setDaysFilter(newDays);
+      setCurrentPage(1);
+      updateURLParams({ page: 1, days: newDays });
+    },
+    [daysFilter, updateURLParams]
+  );
+
+  // ✅ Handle price range change
+  const handlePriceRangeChange = useCallback(
+    (range) => {
+      if (priceMin === range.min && priceMax === range.max) {
+        // Toggle off
+        setPriceMin("");
+        setPriceMax("");
+        setCurrentPage(1);
+        updateURLParams({
+          page: 1,
+          price_min: "",
+          price_max: "",
+        });
+      } else {
+        // Select new range
+        setPriceMin(range.min);
+        setPriceMax(range.max);
+        setCurrentPage(1);
+        updateURLParams({
+          page: 1,
+          price_min: range.min,
+          price_max: range.max,
+        });
+      }
+    },
+    [priceMin, priceMax, updateURLParams]
+  );
+
+  // ✅ Clear all filters
+  const clearAllFilters = useCallback(() => {
+    setActivityFilter("");
+    setCountryId(0);
+    setDaysFilter(0);
+    setPriceMin("");
+    setPriceMax("");
+    setCurrentPage(1);
+
+    isUpdatingURL.current = true;
+    window.history.replaceState(null, "", pathname);
+    setTimeout(() => {
+      isUpdatingURL.current = false;
+    }, 100);
+  }, [pathname]);
+
+  // ✅ Get country name by ID
+  const getCountryNameById = (id) => {
+    const country = availableCountries.find(
+      (c) => parseInt(c.country_id) === id
+    );
+    return country ? country.country_name : "";
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters =
+    activityFilter !== "" ||
+    countryId !== 0 ||
+    daysFilter !== 0 ||
+    priceMin !== "" ||
+    priceMax !== "";
+
+  // Generate pagination numbers
+  const getPaginationNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+
+      if (currentPage > 3) {
+        pages.push("...");
+      }
+
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      for (let i = start; i <= end; i++) {
+        if (!pages.includes(i)) {
+          pages.push(i);
+        }
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push("...");
+      }
+
+      if (!pages.includes(totalPages)) {
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
 
   // Toggle favorite with API
   const handleToggleFavorite = async (tourId, currentStatus) => {
-    // Add animation
     setAnimatedId(tourId);
 
-    // Call API through hook
     const result = await toggleWishlist(tourId, "tour", currentStatus);
 
-    // Update local state if successful
     if (result.success) {
-      // Update the trips array with new is_fav status
       setTrips((prevTrips) =>
-        prevTrips.map((trip) =>
-          trip.id === tourId ? { ...trip, is_fav: result.is_fav } : trip
-        )
-      );
-
-      setSortedArray((prevTrips) =>
         prevTrips.map((trip) =>
           trip.id === tourId ? { ...trip, is_fav: result.is_fav } : trip
         )
       );
     }
 
-    // Remove animation after delay
     setTimeout(() => {
       setAnimatedId(null);
     }, 600);
   };
 
   const toggleShareModal = (id) => {
-    if (shareModalOpen === id) {
-      setShareModalOpen(null);
-    } else {
-      setShareModalOpen(id);
-    }
+    setShareModalOpen(shareModalOpen === id ? null : id);
   };
 
   const closeShareModal = () => {
@@ -169,61 +565,16 @@ const Page = () => {
   const copyToClipboard = (tour) => {
     const url = `${window.location.origin}/package/package-details/${tour.id}`;
     navigator.clipboard.writeText(url).then(() => {
-      // dispatch(
-      //   addToast({
-      //     type: "success",
-      //     title: "Link Copied!",
-      //     message: "Tour link has been copied to clipboard",
-      //   })
-      // );
       closeShareModal();
     });
   };
 
-  const handelSortPackages = (selectedSort) => {
-    console.log(selectedSort);
-
-    let sortedArray = [...trips];
-
-    if (selectedSort === "Price Low to High") {
-      sortedArray.sort((a, b) => a.price - b.price);
-    } else if (selectedSort === "Price High to Low") {
-      sortedArray.sort((a, b) => b.price - a.price);
-    }
-
-    setSortedArray(sortedArray);
-  };
-
-  const ActivitiesCategories = [
-    "All Activities",
-    "Beaches",
-    "City Tours",
-    "Cruises",
-    "Hiking",
-    "Historical",
-    "Museum Tours",
-    "Adventure",
-  ];
-
-  const TourCountry = ["All countries", "UAE", "Oman", "Australia"];
-
-  // Filter trips based on activity and country
-  const filteredTrips = SortedArray.filter((trip) => {
-    const activityMatch =
-      ActivityFilter === "All Activities" ||
-      trip.activities.some((activity) => activity === ActivityFilter);
-
-    const countryMatch =
-      TourCountryFilter === "All countries" ||
-      trip.country.some((country) => country === TourCountryFilter);
-
-    return activityMatch && countryMatch;
-  });
+  // Calculate showing range
+  const startItem = trips.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
     <>
-      {/* <Topbar /> */}
-      {/* <Header /> */}
       <Breadcrumb pagename="Package Grid" pagetitle="Package Grid" />
 
       <div className="package-grid-with-sidebar-section pt-120 mb-120">
@@ -231,17 +582,15 @@ const Page = () => {
           <div className="row g-lg-4 gy-5">
             <div className="col-lg-8">
               <div className="package-inner-title-section mb-10">
-                <p>
-                  Showing 1–{filteredTrips.length} of {trips?.length} results
-                </p>
+                <div className="d-flex flex-column gap-2">
+                  <p className="mb-0">
+                    Showing {startItem}–{endItem} of {totalItems} results
+                  </p>
+                  <small className="text-muted">
+                    Page {currentPage} of {totalPages}
+                  </small>
+                </div>
                 <div className="selector-and-grid">
-                  <div className="selector">
-                    <SelectComponent
-                      options={["Price Low to High", "Price High to Low"]}
-                      placeholder="Default Sorting"
-                      sortFunc={handelSortPackages}
-                    />
-                  </div>
                   <ul className="grid-view">
                     <li className="grid active">
                       <svg
@@ -272,16 +621,23 @@ const Page = () => {
                   </ul>
                 </div>
               </div>
+
               <div className="list-grid-product-wrap mb-[70px]">
                 {loading ? (
                   <div className="loading-spinner text-center py-5">
-                    <p>Loading tours...</p>
+                    <div
+                      className="spinner-border text-[#295557]"
+                      role="status"
+                    >
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2">Loading tours...</p>
                   </div>
                 ) : (
                   <div className="row gy-4">
-                    {filteredTrips.map((tour, index) => {
-                      return (
-                        <div className="col-md-6 item" key={index}>
+                    {trips.length > 0 ? (
+                      trips.map((tour) => (
+                        <div className="col-md-6 item" key={tour.id}>
                           <div className="package-card">
                             <div className="package-card-img-wrap">
                               <Link
@@ -325,6 +681,7 @@ const Page = () => {
                                 className="share-btn"
                                 onClick={(e) => {
                                   e.preventDefault();
+                                  e.stopPropagation();
                                   toggleShareModal(tour.id);
                                 }}
                               >
@@ -338,9 +695,13 @@ const Page = () => {
 
                               {/* Share Options Modal */}
                               <div
+                                ref={(el) =>
+                                  (shareModalRefs.current[tour.id] = el)
+                                }
                                 className={`share-options ${
                                   shareModalOpen === tour.id ? "show" : ""
                                 }`}
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 <div
                                   className="share-option facebook"
@@ -381,27 +742,18 @@ const Page = () => {
                                 </div>
                               </div>
 
-                              {/* Backdrop for closing modal when clicking outside */}
-                              {shareModalOpen === tour.id && (
-                                <div
-                                  className="share-backdrop show"
-                                  onClick={closeShareModal}
-                                ></div>
-                              )}
                               <div className="batch">
                                 <span className="date">{tour?.duration}</span>
                                 <div className="location">
                                   <ul className="location-list">
                                     {tour?.mainLocations?.map(
-                                      (mainLocat, index) => {
-                                        return (
-                                          <li key={index}>
-                                            <Link href="/package">
-                                              {mainLocat}
-                                            </Link>
-                                          </li>
-                                        );
-                                      }
+                                      (mainLocat, index) => (
+                                        <li key={index}>
+                                          <Link href="/package">
+                                            {mainLocat}
+                                          </Link>
+                                        </li>
+                                      )
                                     )}
                                   </ul>
                                 </div>
@@ -410,7 +762,10 @@ const Page = () => {
                             <div className="package-card-content">
                               <div className="card-content-top">
                                 <h5
-                                  style={{ height: "60px", overflow: "hidden" }}
+                                  style={{
+                                    height: "60px",
+                                    overflow: "hidden",
+                                  }}
                                 >
                                   <Link
                                     href={`/package/package-details/${tour?.id}`}
@@ -421,15 +776,13 @@ const Page = () => {
                                 <div className="location-area">
                                   <ul className="location-list scrollTextAni">
                                     {tour?.additionalLocations?.map(
-                                      (additLocat, index) => {
-                                        return (
-                                          <li key={index}>
-                                            <Link href="/package">
-                                              {additLocat}
-                                            </Link>
-                                          </li>
-                                        );
-                                      }
+                                      (additLocat, index) => (
+                                        <li key={index}>
+                                          <Link href="/package">
+                                            {additLocat}
+                                          </Link>
+                                        </li>
+                                      )
                                     )}
                                   </ul>
                                 </div>
@@ -456,130 +809,175 @@ const Page = () => {
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
+                      ))
+                    ) : (
+                      <div className="col-12 text-center py-5">
+                        <i className="bi bi-search fs-1 text-muted mb-3 d-block"></i>
+                        <h4>No tours found matching your criteria</h4>
+                        <p className="text-muted mb-4">
+                          Try adjusting your filters or clear all filters
+                        </p>
+                        {hasActiveFilters && (
+                          <button
+                            className="btn btn-primary"
+                            onClick={clearAllFilters}
+                          >
+                            Clear All Filters
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            </div>
-            <div className="col-lg-4">
-              <div className="sidebar-area">
-                <div className="single-widget mb-30">
-                  <h5 className="widget-title">Activity</h5>
-                  <ul className="category-list">
-                    {ActivitiesCategories.map((activity, index) => {
-                      return (
-                        <li
-                          key={index}
-                          className={
-                            ActivityFilter == activity ? "selected_filter" : ""
-                          }
-                          style={{ cursor: "pointer" }}
-                        >
+
+              {/* Pagination */}
+              {!loading && trips.length > 0 && totalPages > 1 && (
+                <div className="row">
+                  <div className="col-lg-12">
+                    <nav className="inner-pagination-area">
+                      <ul className="pagination-list">
+                        {/* Previous Button */}
+                        <li>
                           <a
-                            onClick={() => {
-                              setActivityFilter(activity);
-                              console.log(activity);
+                            href="#"
+                            className={`shop-pagi-btn ${
+                              currentPage === 1 ? "disabled" : ""
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (currentPage > 1) {
+                                handlePageChange(currentPage - 1);
+                              }
                             }}
                           >
-                            {activity}
+                            <i className="bi bi-chevron-left" />
+                          </a>
+                        </li>
+
+                        {/* Page Numbers */}
+                        {getPaginationNumbers().map((page, index) => (
+                          <li key={index}>
+                            {page === "..." ? (
+                              <span className="pagination-dots">
+                                <i className="bi bi-three-dots" />
+                              </span>
+                            ) : (
+                              <a
+                                href="#"
+                                className={currentPage === page ? "active" : ""}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handlePageChange(page);
+                                }}
+                              >
+                                {page}
+                              </a>
+                            )}
+                          </li>
+                        ))}
+
+                        {/* Next Button */}
+                        <li>
+                          <a
+                            href="#"
+                            className={`shop-pagi-btn ${
+                              currentPage === totalPages ? "disabled" : ""
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (currentPage < totalPages) {
+                                handlePageChange(currentPage + 1);
+                              }
+                            }}
+                          >
+                            <i className="bi bi-chevron-right" />
+                          </a>
+                        </li>
+                      </ul>
+                    </nav>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ✅ Sidebar with Filters */}
+            <div className="col-lg-4">
+              <div className="sidebar-area">
+                {/* ✅ Price Range Filter (price_min, price_max) */}
+                <div className="single-widget mb-30">
+                  <h5 className="widget-title">Price Range</h5>
+                  <ul className="category-list">
+                    {priceRanges.map((range) => {
+                      const isSelected =
+                        priceMin === range.min && priceMax === range.max;
+                      return (
+                        <li
+                          key={range.id}
+                          className={isSelected ? "selected_filter" : ""}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <a onClick={() => handlePriceRangeChange(range)}>
+                            {range.label}
                           </a>
                         </li>
                       );
                     })}
                   </ul>
                 </div>
+
+                {/* ✅ Destination/Country Filter (country_id as integer) */}
                 <div className="single-widget mb-30">
                   <h5 className="widget-title">Destination</h5>
                   <ul className="category-list two">
-                    {TourCountry.map((country, index) => {
-                      return (
-                        <li
-                          key={index}
-                          className={
-                            TourCountryFilter == country
-                              ? "selected_filter"
-                              : ""
-                          }
-                          style={{ cursor: "pointer" }}
-                        >
-                          <a
-                            onClick={() => {
-                              setTourCountryFilter(country);
-                              console.log(country);
-                            }}
+                    {availableCountries.length > 0 ? (
+                      availableCountries.map((country) => {
+                        const countryIdInt = parseInt(country.country_id);
+                        return (
+                          <li
+                            key={country.country_id}
+                            className={
+                              countryId === countryIdInt
+                                ? "selected_filter"
+                                : ""
+                            }
+                            style={{ cursor: "pointer" }}
                           >
-                            {country}
-                          </a>
-                        </li>
-                      );
-                    })}
+                            <a
+                              onClick={() =>
+                                handleCountryFilterChange(countryIdInt)
+                              }
+                            >
+                              {country.country_name}
+                            </a>
+                          </li>
+                        );
+                      })
+                    ) : (
+                      <li className="text-muted">Loading countries...</li>
+                    )}
                   </ul>
                 </div>
+
+                {/* ✅ Duration Filter (days as integer) */}
                 <div className="single-widget mb-30">
                   <h5 className="widget-title">Durations</h5>
                   <ul className="category-list">
-                    <li>
-                      <Link href="/blog">1 - 2 Days Tour</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">2 - 3 Days Tour</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">4 - 5 Days Tour</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">6 - 7 Days Tour</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">8 - 9 Days Tour</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">10 - 13 Days Tour</Link>
-                    </li>
-                  </ul>
-                </div>
-                <div className="single-widget mb-30">
-                  <h5 className="widget-title">Season</h5>
-                  <ul className="category-list">
-                    <li>
-                      <Link href="/blog">Winter</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Spring</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Summer</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Autumn</Link>
-                    </li>
-                  </ul>
-                </div>
-                <div className="single-widget mb-30">
-                  <h5 className="widget-title">Vibes</h5>
-                  <ul className="category-list">
-                    <li>
-                      <Link href="/blog">Nature & Escape</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Urban Adventure</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Beach & Chill</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Wanderlust & Exploration</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Cultural & Festive</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Wellness & Zen</Link>
-                    </li>
-                    <li>
-                      <Link href="/blog">Aesthetic & Instagrammable</Link>
-                    </li>
+                    {durationOptions.map((duration) => (
+                      <li
+                        key={duration.days}
+                        className={
+                          daysFilter === duration.days ? "selected_filter" : ""
+                        }
+                        style={{ cursor: "pointer" }}
+                      >
+                        <a
+                          onClick={() => handleDaysFilterChange(duration.days)}
+                        >
+                          {duration.label}
+                        </a>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
@@ -587,7 +985,7 @@ const Page = () => {
           </div>
         </div>
       </div>
-      <Newslatter />
+      {/* <Newslatter /> */}
       <Footer />
     </>
   );

@@ -6,11 +6,11 @@ import Footer from "@/components/footer/Footer";
 import Header from "@/components/header/Header";
 import Topbar from "@/components/topbar/Topbar";
 import Link from "next/link";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { base_url } from "../../uitils/base_url";
 import axios from "axios";
 import { useDispatch } from "react-redux";
-// import { addToast } from "@/store/notificationSlice";
 import { useWishlist } from "@/hooks/useWishlist";
 import "./style.css";
 
@@ -24,6 +24,7 @@ const ActivityCard = ({
   onCloseShare,
 }) => {
   const dispatch = useDispatch();
+  const shareModalRef = useRef(null);
 
   const {
     id,
@@ -69,19 +70,12 @@ const ActivityCard = ({
   const copyToClipboard = () => {
     const url = `${window.location.origin}/activities/activities-details?id=${id}`;
     navigator.clipboard.writeText(url).then(() => {
-      // dispatch(
-      //   addToast({
-      //     type: "success",
-      //     title: "Link Copied!",
-      //     message: "Activity link has been copied to clipboard",
-      //   })
-      // );
       onCloseShare();
     });
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-3xl bg-white shadow-xl hover:shadow-2xl transition-all duration-700  border border-gray-100">
+    <div className="activity-card group relative overflow-hidden rounded-3xl bg-white shadow-xl hover:shadow-2xl transition-all duration-700 border border-gray-100">
       {/* Image Container */}
       <div className="activity-card-img-wrapper relative overflow-hidden h-72">
         <img
@@ -164,6 +158,7 @@ const ActivityCard = ({
 
           {/* Share Options Modal */}
           <div
+            ref={shareModalRef}
             className={`share-options-activity ${
               shareModalOpen === id ? "show" : ""
             }`}
@@ -290,25 +285,110 @@ const ActivitiesPage = () => {
   const dispatch = useDispatch();
   const { toggleWishlist, isLoading } = useWishlist();
 
+  // Next.js router hooks
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [activities, setActivities] = useState([]);
-  const [filteredActivities, setFilteredActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeFilter, setActiveFilter] = useState("All Activities");
-  const [visibleCount, setVisibleCount] = useState(6);
   const [userId, setUserId] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(null);
   const [animatedId, setAnimatedId] = useState(null);
 
-  // Filter options based on activity types
-  const filterOptions = [
+  // ✅ Flag to prevent URL sync loop
+  const isUpdatingURL = useRef(false);
+
+  // ✅ Ref for category scroll container
+  const categoryScrollRef = useRef(null);
+
+  // ✅ Available categories (populated from API or static)
+  const [availableCategories, setAvailableCategories] = useState([
     "All Activities",
     "Adventure",
     "Water Sports",
     "Mountain",
     "Cultural",
     "Scuba Diving",
-  ];
+  ]);
+
+  // ✅ Initialize from URL params
+  const [activeFilter, setActiveFilter] = useState(() => {
+    return searchParams.get("category_type") || "";
+  });
+
+  const [currentPage, setCurrentPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam) : 1;
+  });
+
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    const limitParam = searchParams.get("limit");
+    return limitParam ? parseInt(limitParam) : 6;
+  });
+
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // ✅ Function to update URL without page reload
+  const updateURLParams = useCallback(
+    (options = {}) => {
+      const {
+        page = currentPage,
+        limit = itemsPerPage,
+        category_type = activeFilter,
+      } = options;
+
+      const params = new URLSearchParams();
+
+      if (page && page !== 1) {
+        params.set("page", page.toString());
+      }
+
+      if (limit && limit !== 6) {
+        params.set("limit", limit.toString());
+      }
+
+      // ✅ Category type filter
+      if (
+        category_type &&
+        category_type !== "" &&
+        category_type !== "All Activities"
+      ) {
+        params.set("category_type", category_type);
+      }
+
+      const newURL = params.toString()
+        ? `${pathname}?${params.toString()}`
+        : pathname;
+
+      isUpdatingURL.current = true;
+      window.history.replaceState(null, "", newURL);
+
+      setTimeout(() => {
+        isUpdatingURL.current = false;
+      }, 100);
+    },
+    [pathname, currentPage, itemsPerPage, activeFilter]
+  );
+
+  // ✅ Sync state with URL params (for browser back/forward)
+  useEffect(() => {
+    if (isUpdatingURL.current) return;
+
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    const categoryParam = searchParams.get("category_type");
+
+    const newPage = pageParam ? parseInt(pageParam) : 1;
+    const newLimit = limitParam ? parseInt(limitParam) : 6;
+    const newCategory = categoryParam || "";
+
+    if (newPage !== currentPage) setCurrentPage(newPage);
+    if (newLimit !== itemsPerPage) setItemsPerPage(newLimit);
+    if (newCategory !== activeFilter) setActiveFilter(newCategory);
+  }, [searchParams]);
 
   // Get user ID from localStorage
   useEffect(() => {
@@ -323,53 +403,183 @@ const ActivitiesPage = () => {
     }
   }, []);
 
-  // Fetch activities data
-  useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        setLoading(true);
+  // ✅ Fetch activities with filters in API GET params
+  const fetchActivities = useCallback(async () => {
+    if (!userId) return;
 
-        // Prepare request body with user_id if available
-        const requestBody = {};
-        if (userId) {
-          requestBody.user_id = userId;
-        }
+    try {
+      setLoading(true);
 
-        const response = await axios.post(
-          `${base_url}/user/activities/select_activities.php`,
-          requestBody
-        );
+      const params = new URLSearchParams();
+      params.set("user_id", userId);
+      params.set("page", currentPage.toString());
+      params.set("limit", itemsPerPage.toString());
 
-        if (response.data.status == "success") {
-          const activitiesWithFav = response.data.message.map((activity) => ({
-            ...activity,
-            is_fav: activity?.is_fav || false, // Get is_fav from API
-          }));
-          setActivities(activitiesWithFav);
-          setFilteredActivities(activitiesWithFav);
-        }
-      } catch (err) {
-        setError(err.message);
-        console.error("Error fetching activities:", err);
-      } finally {
-        setLoading(false);
+      // ✅ Add category_type filter
+      if (
+        activeFilter &&
+        activeFilter !== "" &&
+        activeFilter !== "All Activities"
+      ) {
+        params.set("category_type", activeFilter);
       }
-    };
 
-    fetchActivities();
+      const apiUrl = `${base_url}/user/activities/select_activities.php?${params.toString()}`;
+      console.log("Fetching Activities:", apiUrl);
+
+      const response = await axios.get(apiUrl);
+
+      if (response.data.status === "success") {
+        const data = response.data;
+
+        setTotalPages(parseInt(data.total_pages) || 1);
+        setTotalItems(parseInt(data.total) || 0);
+
+        const activitiesWithFav = data.data.map((activity) => ({
+          ...activity,
+          is_fav: activity?.is_fav || false,
+        }));
+
+        setActivities(activitiesWithFav);
+        setError(null);
+      } else {
+        setActivities([]);
+        setTotalPages(1);
+        setTotalItems(0);
+        setError("No activities available");
+      }
+    } catch (err) {
+      console.error("Error fetching activities:", err);
+      setError(err.message);
+      setActivities([]);
+      setTotalPages(1);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, currentPage, itemsPerPage, activeFilter]);
+
+  // ✅ Fetch available categories on mount
+  const fetchCategories = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const response = await axios.get(
+        `${base_url}/user/activities/select_activities.php?user_id=${userId}&page=1&limit=1000`
+      );
+
+      if (response.data.status === "success") {
+        const allActivities = response.data.data;
+
+        // Extract unique activity types/categories
+        const categoriesSet = new Set();
+        allActivities.forEach((activity) => {
+          if (activity.activity_type) {
+            categoriesSet.add(activity.activity_type);
+          }
+          // if (activity.category) {
+          //   categoriesSet.add(activity.category);
+          // }
+        });
+
+        const categories = [
+          "All Activities",
+          ...Array.from(categoriesSet).sort(),
+        ];
+        setAvailableCategories(categories);
+      }
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+    }
   }, [userId]);
 
-  // Toggle favorite with API
+  // Fetch categories on mount
+  useEffect(() => {
+    if (userId) {
+      fetchCategories();
+    }
+  }, [userId, fetchCategories]);
+
+  // ✅ Fetch activities when filters change
+  useEffect(() => {
+    if (userId) {
+      fetchActivities();
+    }
+  }, [userId, fetchActivities]);
+
+  // ✅ Handle filter click - NO page reload
+  const handleFilterClick = useCallback(
+    (filter) => {
+      const newFilter = filter === "All Activities" ? "" : filter;
+      setActiveFilter(newFilter);
+      setCurrentPage(1);
+      updateURLParams({
+        page: 1,
+        category_type: newFilter,
+      });
+
+      // ✅ Scroll to the selected category button
+      scrollToActiveCategory(filter);
+    },
+    [updateURLParams]
+  );
+
+  // ✅ Scroll to active category in snap scroll container
+  const scrollToActiveCategory = (filter) => {
+    if (categoryScrollRef.current) {
+      const container = categoryScrollRef.current;
+      const activeButton = container.querySelector(
+        `[data-category="${filter}"]`
+      );
+
+      if (activeButton) {
+        const containerRect = container.getBoundingClientRect();
+        const buttonRect = activeButton.getBoundingClientRect();
+
+        const scrollLeft =
+          activeButton.offsetLeft -
+          containerRect.width / 2 +
+          buttonRect.width / 2;
+
+        container.scrollTo({
+          left: scrollLeft,
+          behavior: "smooth",
+        });
+      }
+    }
+  };
+
+  // ✅ Handle page change
+  const handlePageChange = useCallback(
+    (page) => {
+      if (page >= 1 && page <= totalPages && page !== currentPage) {
+        setCurrentPage(page);
+        updateURLParams({ page });
+        window.scrollTo({ top: 300, behavior: "smooth" });
+      }
+    },
+    [totalPages, currentPage, updateURLParams]
+  );
+
+  // ✅ Clear all filters
+  const clearAllFilters = useCallback(() => {
+    setActiveFilter("");
+    setCurrentPage(1);
+
+    isUpdatingURL.current = true;
+    window.history.replaceState(null, "", pathname);
+    setTimeout(() => {
+      isUpdatingURL.current = false;
+    }, 100);
+  }, [pathname]);
+
+  // Toggle favorite
   const handleToggleFavorite = async (activityId, currentStatus) => {
-    // Add animation
     setAnimatedId(activityId);
 
-    // Call API through hook (type = "activity")
     const result = await toggleWishlist(activityId, "activity", currentStatus);
 
-    // Update local state if successful
     if (result.success) {
-      // Update the activities array with new is_fav status
       setActivities((prevActivities) =>
         prevActivities.map((activity) =>
           activity.id === activityId
@@ -377,17 +587,8 @@ const ActivitiesPage = () => {
             : activity
         )
       );
-
-      setFilteredActivities((prevActivities) =>
-        prevActivities.map((activity) =>
-          activity.id === activityId
-            ? { ...activity, is_fav: result.is_fav }
-            : activity
-        )
-      );
     }
 
-    // Remove animation after delay
     setTimeout(() => {
       setAnimatedId(null);
     }, 600);
@@ -395,88 +596,63 @@ const ActivitiesPage = () => {
 
   // Share Modal Functions
   const toggleShareModal = (id) => {
-    if (shareModalOpen === id) {
-      setShareModalOpen(null);
-    } else {
-      setShareModalOpen(id);
-    }
+    setShareModalOpen(shareModalOpen === id ? null : id);
   };
 
   const closeShareModal = () => {
     setShareModalOpen(null);
   };
 
-  // Filter activities based on selected filter
-  useEffect(() => {
-    if (activeFilter === "All Activities") {
-      setFilteredActivities(activities);
+  // Check if any filters are active
+  const hasActiveFilters =
+    activeFilter && activeFilter !== "" && activeFilter !== "All Activities";
+
+  // Generate pagination numbers
+  const getPaginationNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
     } else {
-      const filtered = activities.filter((activity) => {
-        const activityType = activity.activity_type?.toLowerCase() || "";
-        const category = activity.category?.toLowerCase() || "";
-        const title = activity.title?.toLowerCase() || "";
+      pages.push(1);
 
-        const filterLower = activeFilter.toLowerCase();
+      if (currentPage > 3) {
+        pages.push("...");
+      }
 
-        return (
-          activityType.includes(filterLower) ||
-          category.includes(filterLower) ||
-          title.includes(filterLower) ||
-          (filterLower === "adventure" &&
-            (activityType.includes("adventure") ||
-              title.includes("adventure"))) ||
-          (filterLower === "water sports" &&
-            (activityType.includes("diving") ||
-              activityType.includes("water") ||
-              title.includes("diving"))) ||
-          (filterLower === "mountain" &&
-            (title.includes("mountain") ||
-              title.includes("trek") ||
-              title.includes("hiking"))) ||
-          (filterLower === "cultural" &&
-            (activityType.includes("cultural") ||
-              category.includes("cultural")))
-        );
-      });
-      setFilteredActivities(filtered);
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      for (let i = start; i <= end; i++) {
+        if (!pages.includes(i)) {
+          pages.push(i);
+        }
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push("...");
+      }
+
+      if (!pages.includes(totalPages)) {
+        pages.push(totalPages);
+      }
     }
-    // Reset visible count when filter changes
-    setVisibleCount(6);
-  }, [activeFilter, activities]);
 
-  const handleFilterClick = (filter) => {
-    setActiveFilter(filter);
+    return pages;
   };
 
-  const loadMoreActivities = () => {
-    setVisibleCount((prev) => prev + 6);
-  };
+  // ✅ Handle horizontal scroll with mouse wheel
+  // const handleWheelScroll = (e) => {
+  //   if (categoryScrollRef.current) {
+  //     e.preventDefault();
+  //     categoryScrollRef.current.scrollLeft += e.deltaY;
+  //   }
+  // };
 
-  // Get visible activities based on current count
-  const visibleActivities = filteredActivities.slice(0, visibleCount);
-  const hasMoreActivities = visibleCount < filteredActivities.length;
-
-  if (loading) {
-    return (
-      <div className="bg-white min-h-screen">
-        <Breadcrumb pagename="Activities" pagetitle="Activities" />
-        <div className="container mx-auto px-4 py-16">
-          <div className="flex flex-col gap-2 justify-center items-center h-64">
-            <div
-              style={{
-                borderBottom: "2px solid #295557",
-              }}
-              className="animate-spin rounded-full h-12 w-12"
-            ></div>
-            Loading Activities
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (error) {
+  if (error && activities.length === 0) {
     return (
       <div className="bg-white min-h-screen">
         <Breadcrumb pagename="Activities" pagetitle="Activities" />
@@ -487,7 +663,7 @@ const ActivitiesPage = () => {
             </div>
             <p className="text-gray-600">{error}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => fetchActivities()}
               className="mt-4 px-6 py-2 bg-[#295557] text-white rounded-lg hover:bg-[#1f4042] transition-colors"
             >
               Try Again
@@ -500,7 +676,7 @@ const ActivitiesPage = () => {
   }
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white">
       <Breadcrumb pagename="Activities" pagetitle="Activities" />
 
       {/* Hero Section */}
@@ -530,48 +706,110 @@ const ActivitiesPage = () => {
       {/* Activities Grid */}
       <div className="bg-white pb-8">
         <div className="container mx-auto px-4">
-          {/* Filter Buttons */}
-          <div className="flex flex-wrap justify-center gap-3 mb-16">
-            {filterOptions.map((filter, index) => (
-              <button
-                key={filter}
-                onClick={() => handleFilterClick(filter)}
-                className={`group/filter relative px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 overflow-hidden ${
-                  activeFilter === filter
-                    ? "text-white shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                    : "bg-gray-50 hover:bg-gray-100 text-gray-700 shadow-sm hover:shadow-md border border-gray-200 hover:border-gray-300 transform hover:scale-105 active:scale-95"
-                }`}
-                style={
-                  activeFilter === filter
-                    ? {
-                        background:
-                          "linear-gradient(135deg, #295557 0%, #e8a355 100%)",
-                      }
-                    : {}
-                }
-              >
-                <span className="relative z-10">{filter}</span>
+          <div className="relative mb-8">
+            {/* <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none md:hidden" /> */}
 
-                {/* Active button hover effects */}
-                {activeFilter === filter && (
-                  <>
-                    <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/filter:scale-x-100 transition-transform duration-300 origin-left" />
-                    <div className="absolute inset-0 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/15 to-transparent transform -skew-x-12 -translate-x-full group-hover/filter:translate-x-full" />
-                  </>
-                )}
+            {/* <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none md:hidden" /> */}
 
-                {/* Inactive button hover effect */}
-                {activeFilter !== filter && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300" />
-                )}
-              </button>
-            ))}
+            {/* ✅ Snap Scroll Container */}
+            <div
+              ref={categoryScrollRef}
+              className="category-scroll-container flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                WebkitOverflowScrolling: "touch",
+              }}
+              // onWheel={handleWheelScroll}
+            >
+              {/* Spacer for centering on mobile */}
+              <div className="flex-shrink-0 w-4 md:hidden snap-start" />
+
+              {availableCategories.map((filter) => {
+                const isActive =
+                  (filter === "All Activities" &&
+                    (!activeFilter || activeFilter === "")) ||
+                  filter === activeFilter;
+
+                return (
+                  <button
+                    key={filter}
+                    data-category={filter}
+                    onClick={() => handleFilterClick(filter)}
+                    className={`category-filter-btn group/filter flex-shrink-0 snap-center relative px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 overflow-hidden whitespace-nowrap ${
+                      isActive
+                        ? "text-white shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                        : "bg-gray-50 hover:bg-gray-100 text-gray-700 shadow-sm hover:shadow-md border border-gray-200 hover:border-gray-300 transform hover:scale-105 active:scale-95"
+                    }`}
+                    style={
+                      isActive
+                        ? {
+                            background:
+                              "linear-gradient(135deg, #295557 0%, #e8a355 100%)",
+                          }
+                        : {}
+                    }
+                  >
+                    <span className="relative z-10">{filter}</span>
+
+                    {isActive && (
+                      <>
+                        <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/filter:scale-x-100 transition-transform duration-300 origin-left" />
+                        <div className="absolute inset-0 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/15 to-transparent transform -skew-x-12 -translate-x-full group-hover/filter:translate-x-full" />
+                      </>
+                    )}
+
+                    {!isActive && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300" />
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Spacer for centering on mobile */}
+              <div className="flex-shrink-0 w-4 md:hidden snap-end" />
+            </div>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="flex flex-col gap-2 justify-center items-center h-64">
+              <div
+                style={{
+                  borderBottom: "2px solid #295557",
+                }}
+                className="animate-spin rounded-full h-12 w-12"
+              ></div>
+              Loading Activities
+            </div>
+          )}
+
+          {/* Results info */}
+          {!loading && activities.length > 0 && (
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h5 className="text-gray-800 font-medium mb-1">
+                  {totalItems} {totalItems === 1 ? "Activity" : "Activities"}{" "}
+                  Found
+                </h5>
+                {totalPages > 1 && (
+                  <small className="text-gray-500">
+                    Page {currentPage} of {totalPages}
+                  </small>
+                )}
+              </div>
+              <div>
+                <small className="text-gray-500">
+                  Total: {totalItems} activities available
+                </small>
+              </div>
+            </div>
+          )}
+
           {/* Activities Grid */}
-          {visibleActivities.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {visibleActivities.map((activity) => (
+          {!loading && activities.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+              {activities?.map((activity) => (
                 <ActivityCard
                   key={activity.id}
                   activity={activity}
@@ -585,57 +823,85 @@ const ActivitiesPage = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <div className="text-gray-500 text-xl mb-4">
-                No activities found
+            !loading && (
+              <div className="text-center py-16">
+                <i className="bi bi-search text-6xl text-gray-300 mb-4 block"></i>
+                <div className="text-gray-500 text-xl mb-4">
+                  No activities found
+                </div>
+                <p className="text-gray-400 mb-4">
+                  {hasActiveFilters
+                    ? "Try selecting a different category or clear the filter."
+                    : "Check back later for new activities."}
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="px-6 py-2 bg-[#295557] text-white rounded-lg hover:bg-[#1f4042] transition-colors"
+                  >
+                    Clear Filter
+                  </button>
+                )}
               </div>
-              <p className="text-gray-400">
-                Try selecting a different filter or check back later for new
-                activities.
-              </p>
-            </div>
+            )
           )}
 
-          {/* Load More Button */}
-          {hasMoreActivities && (
-            <div className="text-center mt-16">
-              <button
-                onClick={loadMoreActivities}
-                className="group/load relative inline-flex items-center gap-2 text-white font-medium py-3 px-6 rounded-lg overflow-hidden transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #295557 0%, #e8a355 100%)",
-                }}
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  Load More Adventures
-                  <svg
-                    className="w-4 h-4 transition-transform duration-300 group-hover/load:rotate-180"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                    />
-                  </svg>
-                </span>
+          {/* Pagination */}
+          {!loading && activities.length > 0 && totalPages > 1 && (
+            <div className="flex justify-center mt-16">
+              <nav className="inline-flex items-center gap-2">
+                {/* Previous Button */}
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                    currentPage === 1
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-[#295557] border border-gray-300 hover:bg-[#295557] hover:text-white hover:shadow-lg transform hover:scale-105"
+                  }`}
+                >
+                  <i className="bi bi-chevron-left"></i>
+                </button>
 
-                {/* Hover overlay effect */}
-                <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/load:scale-x-100 transition-transform duration-300 origin-left" />
+                {/* Page Numbers */}
+                {getPaginationNumbers().map((page, index) => (
+                  <React.Fragment key={index}>
+                    {page === "..." ? (
+                      <span className="px-3 py-2 text-gray-400">...</span>
+                    ) : (
+                      <button
+                        onClick={() => handlePageChange(page)}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 ${
+                          currentPage === page
+                            ? "bg-gradient-to-r from-[#295557] to-[#e8a355] text-white shadow-lg"
+                            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:shadow-md"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )}
+                  </React.Fragment>
+                ))}
 
-                {/* Subtle shimmer effect */}
-                <div className="absolute inset-0 opacity-0 group-hover/load:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover/load:translate-x-full" />
-              </button>
+                {/* Next Button */}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                    currentPage === totalPages
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-[#295557] border border-gray-300 hover:bg-[#295557] hover:text-white hover:shadow-lg transform hover:scale-105"
+                  }`}
+                >
+                  <i className="bi bi-chevron-right"></i>
+                </button>
+              </nav>
             </div>
           )}
         </div>
       </div>
 
-      <Newslatter />
+      {/* <Newslatter /> */}
       <Footer />
     </div>
   );

@@ -431,14 +431,14 @@ const WishlistPage = () => {
                             </span>
 
                             {/* Location Badge */}
-                            <div className="wishlist-location-wrapper">
+                            {/* <div className="wishlist-location-wrapper">
                               <ul className="wishlist-location-items">
                                 <li>
                                   <i className="bi bi-geo-alt"></i>
                                   {getLocationText(item)}
                                 </li>
                               </ul>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                         <div className="package-card-content">

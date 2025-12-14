@@ -137,7 +137,7 @@
 }
 
 /* Share button styles */
-.share-btn {
+.package-card .share-btn {
   position: absolute;
   bottom: 15px;
   left: 15px;
@@ -155,20 +155,20 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.share-btn:hover {
+.package-card .share-btn:hover {
   transform: scale(1.1);
   background-color: white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.share-btn svg {
+.package-card .share-btn svg {
   width: 20px;
   height: 20px;
   fill: #295557;
   transition: all 0.3s ease;
 }
 
-.share-options {
+.package-card .share-options {
   position: absolute;
   bottom: 60px;
   left: 15px;
@@ -184,13 +184,13 @@
   min-width: 180px;
 }
 
-.share-options.show {
+.package-card .share-options.show {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
 }
 
-.share-option {
+.package-card .share-option {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -201,44 +201,44 @@
   margin-bottom: 4px;
 }
 
-.share-option:last-child {
+.package-card .share-option:last-child {
   margin-bottom: 0;
 }
 
-.share-option:hover {
+.package-card .share-option:hover {
   background-color: #f8f9fa;
   transform: translateX(4px);
 }
 
-.share-option svg {
+.package-card .share-option svg {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
 }
 
-.share-option.facebook svg {
+.package-card .share-option.facebook svg {
   fill: #1877f2;
 }
 
-.share-option.whatsapp svg {
+.package-card .share-option.whatsapp svg {
   fill: #25d366;
 }
 
-.share-option.twitter svg {
+.package-card .share-option.twitter svg {
   fill: #1da1f2;
 }
 
-.share-option.copy svg {
+.package-card .share-option.copy svg {
   fill: #295557;
 }
 
-.share-option span {
+.package-card .share-option span {
   font-size: 14px;
   font-weight: 500;
   color: #333;
 }
 
-.share-backdrop {
+.package-card .share-backdrop {
   position: fixed;
   top: 0;
   left: 0;
@@ -251,7 +251,7 @@
   transition: all 0.3s ease;
 }
 
-.share-backdrop.show {
+.package-card .share-backdrop.show {
   opacity: 1;
   visibility: visible;
 }
@@ -465,12 +465,12 @@
 
 /* Responsive styles */
 @media (max-width: 1024px) {
-  .share-btn {
+  .package-card .share-btn {
     width: 38px;
     height: 38px;
   }
 
-  .share-btn svg {
+  .package-card .share-btn svg {
     width: 18px;
     height: 18px;
   }
@@ -516,14 +516,14 @@
     height: 70px;
   }
 
-  .share-btn {
+  .package-card .share-btn {
     width: 36px;
     height: 36px;
     bottom: 12px;
     left: 12px;
   }
 
-  .share-btn svg {
+  .package-card .share-btn svg {
     width: 16px;
     height: 16px;
   }
@@ -540,22 +540,22 @@
     height: 18px;
   }
 
-  .share-options {
+  .package-card .share-options {
     bottom: 55px;
     left: 12px;
     min-width: 160px;
   }
 
-  .share-option {
+  .package-card .share-option {
     padding: 10px;
   }
 
-  .share-option svg {
+  .package-card .share-option svg {
     width: 18px;
     height: 18px;
   }
 
-  .share-option span {
+  .package-card .share-option span {
     font-size: 13px;
   }
 
@@ -606,13 +606,13 @@
     font-size: 13px;
   }
 
-  .share-btn,
+  .package-card .share-btn,
   .favorite-btn {
     width: 34px;
     height: 34px;
   }
 
-  .share-btn svg {
+  .package-card .share-btn svg {
     width: 15px;
     height: 15px;
   }
@@ -622,21 +622,21 @@
     height: 16px;
   }
 
-  .share-options {
+  .package-card .share-options {
     min-width: 150px;
   }
 
-  .share-option {
+  .package-card .share-option {
     padding: 8px;
     gap: 8px;
   }
 
-  .share-option svg {
+  .package-card .share-option svg {
     width: 16px;
     height: 16px;
   }
 
-  .share-option span {
+  .package-card .share-option span {
     font-size: 12px;
   }
 
@@ -714,13 +714,13 @@
 
 /* Make sure share options don't overflow on small screens */
 @media (max-width: 380px) {
-  .share-options {
+  .package-card .share-options {
     left: 50%;
     transform: translateX(-50%) translateY(10px);
     bottom: 60px;
   }
 
-  .share-options.show {
+  .package-card .share-options.show {
     transform: translateX(-50%) translateY(0);
   }
 

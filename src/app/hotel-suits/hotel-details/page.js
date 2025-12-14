@@ -490,8 +490,8 @@ const Page = () => {
 
           <div className="row g-xl-4 gy-5">
             <div className="col-xl-8">
-              <div className="location-and-review">
-                <div className="location">
+              <div className="location-and-review !justify-end">
+                {/* <div className="location">
                   <p>
                     <i className="bi bi-geo-alt" />{" "}
                     {hotelData?.location ||
@@ -499,7 +499,7 @@ const Page = () => {
                       "House 168/170, Road 02, Avenue 01, Mirpur DOHS, Dhaka, Bangladesh"}{" "}
                     - <a href="#map-section">See Map</a>
                   </p>
-                </div>
+                </div> */}
                 <div className="review-area">
                   <ul>
                     {[...Array(5)].map((_, i) => (
@@ -533,10 +533,10 @@ const Page = () => {
                   </div>
                 </div>
                 {/* Debug display - remove in production */}
-                <div className="text-muted small mt-2">
+                {/* <div className="text-muted small mt-2">
                   Debug: Adult Price: {hotelData?.adult_price}, Child Price:{" "}
                   {hotelData?.child_price}
-                </div>
+                </div> */}
               </div>
 
               <p>
@@ -707,8 +707,8 @@ const Page = () => {
                 </li>
               </ul>
 
-              <h4>Pets</h4>
-              <p>{hotelData?.pet_policy || "Pets not allowed"}</p>
+              {/* <h4>Pets</h4>
+              <p>{hotelData?.pet_policy || "Pets not allowed"}</p> */}
 
               <h4>Children and extra beds</h4>
               <p>
@@ -716,7 +716,7 @@ const Page = () => {
                   "Children are welcome! Kids stay free when using existing bedding. Additional bed charges may apply."}
               </p>
 
-              <div className="tour-location" id="map-section">
+              {/* <div className="tour-location" id="map-section">
                 <h4>Location Map</h4>
                 <div className="map-area mb-30">
                   <iframe
@@ -733,7 +733,7 @@ const Page = () => {
                     title="Hotel Location"
                   />
                 </div>
-              </div>
+              </div> */}
 
               {/* Reviews section */}
               <div className="review-wrapper mt-70">

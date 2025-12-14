@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import axios from "axios";
 // import { addToast } from "@/store/notificationSlice";
 import { base_url } from "@/uitils/base_url";
+import toast from "react-hot-toast";
 
 export const useWishlist = () => {
   const dispatch = useDispatch();
@@ -31,13 +32,7 @@ export const useWishlist = () => {
 
     // Check if user is logged in
     if (!userId) {
-      // dispatch(
-      //   addToast({
-      //     type: "warning",
-      //     title: "Login Required",
-      //     message: "Please login to add items to your wishlist",
-      //   })
-      // );
+      toast.info("Please login to add items to your wishlist");
       return { success: false, is_fav: currentStatus };
     }
 

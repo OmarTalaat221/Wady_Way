@@ -101,6 +101,8 @@ function mapItemToTransport(item) {
         }
       : null,
 
+    is_fav: item?.is_fav || false,
+
     ctaText: item?.cta_button_text || "View Details",
     colClass: item?.colClass || "col-lg-4 col-md-6",
   };

@@ -2,7 +2,6 @@
 
 import React from "react";
 import NotificationHeader from "./_components/NotificationHeader";
-import NotificationFilter from "./_components/NotificationFilter";
 import NotificationItem from "./_components/NotificationItem";
 import EmptyNotifications from "./_components/EmptyNotifications";
 import useNotifications from "../../../hooks/useNotifications";
@@ -10,15 +9,23 @@ import "./style.css";
 
 const Notifications = () => {
   const {
-    filter,
-    setFilter,
-    filteredNotifications,
+    notifications,
+    loading,
     hasUnreadNotifications,
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    toggleReadStatus,
   } = useNotifications();
+
+  if (loading) {
+    return (
+      <div className="w-full pt-4">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-gray-500">Loading notifications...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full pt-4">
@@ -28,22 +35,17 @@ const Notifications = () => {
         hasUnread={hasUnreadNotifications}
       />
 
-      <div className="flex items-center justify-end mb-4">
-        <NotificationFilter filter={filter} setFilter={setFilter} />
-      </div>
-
       {/* Notifications List */}
       <div className="notifications-container">
-        {filteredNotifications.length === 0 ? (
-          <EmptyNotifications filter={filter} />
+        {notifications.length === 0 ? (
+          <EmptyNotifications />
         ) : (
-          filteredNotifications.map((notification) => (
+          notifications.map((notification) => (
             <NotificationItem
               key={notification.id}
               notification={notification}
               markAsRead={markAsRead}
               deleteNotification={deleteNotification}
-              toggleReadStatus={toggleReadStatus}
             />
           ))
         )}

@@ -45,6 +45,7 @@ export const mapApiItemToTourCardItem = (apiItem) => {
       label,
       href: "/package",
     })),
+    is_fav: apiItem?.is_fav || false,
 
     price: money(apiItem?.price_currency, apiItem?.price_current),
     oldPrice: apiItem?.price_original

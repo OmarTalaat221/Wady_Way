@@ -45,6 +45,7 @@ export default function TourTab({ items = [] }) {
           ? formatMoney(currency, item?.price_original)
           : null,
         detailsHref: `/package/package-details/${item?.id}`,
+        is_fav: item?.is_fav || false,
       };
     });
   }, [items]);

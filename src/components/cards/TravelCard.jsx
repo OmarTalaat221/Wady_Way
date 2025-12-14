@@ -1,29 +1,99 @@
-import React from "react";
-import Link from "../link";
+import React, { useEffect } from "react";
+import Link from "next/link";
 
 const TravelCard = ({
   data: tour,
   type,
   status = "notStarted",
-  progress = 40,
+  progress = 0,
 }) => {
+  useEffect(() => {
+    console.log(tour, "tour");
+  }, [tour]);
+  // Get first image from images array or use fallback
+  const mainImage = tour?.image
+    ? tour?.image
+    : tour.images[0]?.split("//CAMP//")[0];
+
+  // Format price with currency
+  const formatPrice = (price, currency = "$") => {
+    if (!price) return "N/A";
+    return `${currency}${parseFloat(price).toLocaleString()}`;
+  };
+
+  const getDaysInfo = () => {
+    if (!tour?.startDate || !tour?.endDate) return null;
+
+    const now = new Date();
+    const start = new Date(tour.startDate);
+    const end = new Date(tour.endDate);
+
+    now.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    const daysUntilStart = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+    const daysUntilEnd = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilStart > 0) {
+      return `Starts in ${daysUntilStart} day${
+        daysUntilStart !== 1 ? "s" : ""
+      }`;
+    } else if (daysUntilEnd >= 0) {
+      return `${daysUntilEnd} day${daysUntilEnd !== 1 ? "s" : ""} remaining`;
+    } else {
+      const daysAgo = Math.abs(daysUntilEnd);
+      return `Ended ${daysAgo} day${daysAgo !== 1 ? "s" : ""} ago`;
+    }
+  };
+
+  const daysInfo = getDaysInfo();
+
+  // Get status display text and color
+  const getStatusDisplay = (status) => {
+    switch (status) {
+      case "noStarted":
+        return { text: "Not Started", color: "orange" };
+      case "started":
+        return { text: "In Progress", color: "green" };
+      case "finished":
+        return { text: "Completed", color: "#ef6161" };
+      default:
+        return { text: "Pending", color: "gray" };
+    }
+  };
+
+  const statusDisplay = getStatusDisplay(tour?.status || status);
+
   return (
     <div className="package-card">
       <div className="package-card-img-wrap">
-        <Link href={"/"} className="card-img">
-          <img src={tour?.images[0]} alt="Oman Tour" />
+        <Link
+          href={
+            type === "profile"
+              ? `/account/${tour?.id}`
+              : `/package/package-details/${tour?.tour_id || tour?.id}`
+          }
+          className="card-img"
+        >
+          <img
+            src={mainImage}
+            alt={tour?.title || "Tour"}
+            onError={(e) => {
+              e.target.src =
+                "https://via.placeholder.com/400x300?text=Tour+Image";
+            }}
+          />
         </Link>
         <div className="batch">
           <span className="date">{tour?.duration}</span>
           <div className="location">
             <ul className="location-list">
-              {tour?.mainLocations?.map((mainLocat, index) => {
-                return (
-                  <li key={index}>
-                    <Link href="/package">{mainLocat}</Link>
-                  </li>
-                );
-              })}
+              {tour?.mainLocations?.slice(0, 2).map((mainLocat, index) => (
+                <li key={index}>
+                  <Link href="/package">{mainLocat}</Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div
@@ -31,64 +101,103 @@ const TravelCard = ({
             style={{
               bottom: "0",
               top: "auto",
-              backgroundColor:
-                tour.status == "noStarted"
-                  ? "orange"
-                  : tour.status == "started"
-                  ? "green"
-                  : "#ef6161",
+              backgroundColor: statusDisplay.color,
             }}
           >
-            {tour.status == "noStarted"
-              ? "Not started"
-              : tour.status == "started"
-              ? "Started"
-              : "Finished"}
-            {/* Not Started */}
+            {statusDisplay.text}
           </div>
         </div>
       </div>
       <div className="package-card-content">
-        <div className="card-content-top">
-          <h5 style={{ height: "60px", overflow: "hidden" }}>
-            <Link href={`/package/package-details/${tour?.id}`}>
+        <div className="card-content-top pb-0">
+          <h5 style={{ minHeight: "50px", overflow: "hidden" }}>
+            <Link
+              href={
+                type === "profile"
+                  ? `/account/${tour?.id}`
+                  : `/package/package-details/${tour?.tour_id || tour?.id}`
+              }
+            >
               {tour?.title}
             </Link>
           </h5>
           <div className="location-area">
             <ul className="location-list scrollTextAni">
-              {tour?.additionalLocations?.map((additLocat, index) => {
-                return (
-                  <li key={index}>
-                    <Link href="/package">{additLocat}</Link>
-                  </li>
-                );
-              })}
+              {tour?.additionalLocations?.map((additLocat, index) => (
+                <li key={index}>
+                  <Link href="/package">{additLocat}</Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
+
+        {/* Progress Bar */}
         <div
-          className="progress"
+          className="progress-container"
           style={{
-            width: `${progress}%`,
+            width: "100%",
             height: "4px",
             marginTop: "10px",
-            backgroundColor: "#FFA63A",
+            backgroundColor: "#e9ecef",
+            borderRadius: "2px",
+            overflow: "hidden",
           }}
-        />
+        >
+          <div
+            className="progress-bar"
+            style={{
+              width: `${progress}%`,
+              height: "100%",
+              backgroundColor: "#FFA63A",
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
+
+        {/* Progress percentage */}
+        {type === "profile" && (
+          <div className="d-flex justify-content-between align-items-center mt-1">
+            <small className="text-muted">
+              {progress}% completed
+              {daysInfo && ` • ${daysInfo}`}
+            </small>
+            {tour?.startDate && tour?.endDate && (
+              <small className="text-muted">
+                {new Date(tour.startDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}{" "}
+                -{" "}
+                {new Date(tour.endDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </small>
+            )}
+          </div>
+        )}
 
         <div className="card-content-bottom">
           <div className="price-area">
-            <span>$2,898</span>
-            <p>TAXES INCL/PERS</p>
+            <span>
+              {formatPrice(
+                tour?.price || tour?.currentPrice,
+                tour?.priceCurrency
+              )}
+            </span>
+            <p>{tour?.priceNote || "TAXES INCL/PERS"}</p>
           </div>
           <Link
             href={
-              type == "profile" ? "/account/123" : "/package/package-details"
+              type === "profile"
+                ? `/account/${tour?.id}`
+                : `/package/package-details/${tour?.tour_id || tour?.id}`
             }
             className="primary-btn2"
           >
-            {type == "profile" ? "Show Details" : "Book a Trip"}
+            {type === "profile" ? "Show Details" : "Book a Trip"}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width={18}

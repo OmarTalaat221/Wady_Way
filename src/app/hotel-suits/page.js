@@ -1,7 +1,14 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import RoomSidebar from "@/components/sidebar/RoomSidebar";
 import Link from "next/link";
@@ -11,23 +18,107 @@ import { useDispatch } from "react-redux";
 import { useWishlist } from "@/hooks/useWishlist";
 import "./style.css";
 
+// ✅ Custom debounce hook
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 const Page = () => {
   const dispatch = useDispatch();
   const { toggleWishlist, isLoading } = useWishlist();
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [hotels, setHotels] = useState([]);
-  const [filteredHotels, setFilteredHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hotelsPerPage] = useState(6);
   const [userId, setUserId] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(null);
   const [animatedId, setAnimatedId] = useState(null);
 
+  // ✅ Flag to prevent URL sync loop
+  const isUpdatingURL = useRef(false);
+
+  // ✅ Available filter options (populated from initial fetch)
+  const [availableRatings, setAvailableRatings] = useState([]);
+  const [availableFacilities, setAvailableFacilities] = useState([]);
+
+  // Initialize pagination from URL params
+  const [currentPage, setCurrentPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam) : 1;
+  });
+
+  const [hotelsPerPage, setHotelsPerPage] = useState(() => {
+    const limitParam = searchParams.get("limit");
+    return limitParam ? parseInt(limitParam) : 10;
+  });
+
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // ✅ Filter states - Initialize from URL params
+  const [searchText, setSearchText] = useState(() => {
+    return searchParams.get("search") || "";
+  });
+
+  const [minPrice, setMinPrice] = useState(() => {
+    const minPriceParam = searchParams.get("min_price");
+    return minPriceParam ? parseFloat(minPriceParam) : "";
+  });
+
+  const [maxPrice, setMaxPrice] = useState(() => {
+    const maxPriceParam = searchParams.get("max_price");
+    return maxPriceParam ? parseFloat(maxPriceParam) : "";
+  });
+
+  const [selectedRatings, setSelectedRatings] = useState(() => {
+    const ratingsParam = searchParams.get("rating_min");
+    return ratingsParam ? ratingsParam.split(",").filter(Boolean) : [];
+  });
+
+  const [selectedFacilities, setSelectedFacilities] = useState(() => {
+    const facilitiesParam = searchParams.get("facilities");
+    return facilitiesParam ? facilitiesParam.split(",").filter(Boolean) : [];
+  });
+
+  const debouncedSearchText = useDebounce(searchText, 1500);
+
+  const shareModalRefs = useRef({});
+
+  const priceRanges = [
+    { id: "under100", label: "Under $100/night", min: 0, max: 100 },
+    { id: "100to200", label: "$100 - $200/night", min: 100, max: 200 },
+    { id: "200to500", label: "$200 - $500/night", min: 200, max: 500 },
+    { id: "over500", label: "$500+/night", min: 500, max: 10000 },
+  ];
+
+  // Rating options
+  const ratingOptions = [
+    { id: "5", label: "5 Stars", value: 5 },
+    { id: "4.5", label: "4.5 Stars", value: 4.5 },
+    { id: "4", label: "4 Stars", value: 4 },
+    { id: "3.5", label: "3.5 Stars", value: 3.5 },
+    { id: "3", label: "3 Stars", value: 3 },
+  ];
+
   const settings = useMemo(() => {
     return {
-      modules: [Autoplay, EffectFade, Pagination, Navigation],
+      modules: [EffectFade, Pagination, Navigation],
       slidesPerView: "auto",
       speed: 1500,
       spaceBetween: 25,
@@ -47,6 +138,129 @@ const Page = () => {
     };
   }, []);
 
+  const updateURLParams = useCallback(
+    (options = {}) => {
+      const {
+        page = currentPage,
+        limit = hotelsPerPage,
+        search = debouncedSearchText,
+        ratings = selectedRatings,
+        facilities = selectedFacilities,
+        min_price = minPrice,
+        max_price = maxPrice,
+      } = options;
+
+      const params = new URLSearchParams();
+
+      if (page && page !== 1) {
+        params.set("page", page.toString());
+      }
+
+      if (limit && limit !== 10) {
+        params.set("limit", limit.toString());
+      }
+
+      if (search && search.trim()) {
+        params.set("search", search.trim());
+      }
+
+      if (ratings && ratings.length > 0) {
+        params.set("rating_min", ratings.join(","));
+      }
+
+      if (facilities && facilities.length > 0) {
+        params.set("facilities", facilities.join(","));
+      }
+
+      if (min_price !== "" && min_price !== null && min_price >= 0) {
+        params.set("min_price", min_price.toString());
+      }
+
+      if (max_price !== "" && max_price !== null && max_price > 0) {
+        params.set("max_price", max_price.toString());
+      }
+
+      const newURL = params.toString()
+        ? `${pathname}?${params.toString()}`
+        : pathname;
+
+      isUpdatingURL.current = true;
+      window.history.replaceState(null, "", newURL);
+
+      setTimeout(() => {
+        isUpdatingURL.current = false;
+      }, 100);
+    },
+    [
+      pathname,
+      currentPage,
+      hotelsPerPage,
+      debouncedSearchText,
+      selectedRatings,
+      selectedFacilities,
+      minPrice,
+      maxPrice,
+    ]
+  );
+
+  useEffect(() => {
+    if (isUpdatingURL.current) return;
+
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+    const searchParam = searchParams.get("search");
+    const ratingsParam = searchParams.get("rating_min");
+    const facilitiesParam = searchParams.get("facilities");
+    const minPriceParam = searchParams.get("min_price");
+    const maxPriceParam = searchParams.get("max_price");
+
+    const newPage = pageParam ? parseInt(pageParam) : 1;
+    const newLimit = limitParam ? parseInt(limitParam) : 10;
+    const newSearch = searchParam || "";
+    const newRatings = ratingsParam
+      ? ratingsParam.split(",").filter(Boolean)
+      : [];
+    const newFacilities = facilitiesParam
+      ? facilitiesParam.split(",").filter(Boolean)
+      : [];
+    const newMinPrice = minPriceParam ? parseFloat(minPriceParam) : "";
+    const newMaxPrice = maxPriceParam ? parseFloat(maxPriceParam) : "";
+
+    if (newPage !== currentPage) setCurrentPage(newPage);
+    if (newLimit !== hotelsPerPage) setHotelsPerPage(newLimit);
+    if (newSearch !== searchText) setSearchText(newSearch);
+    if (JSON.stringify(newRatings) !== JSON.stringify(selectedRatings)) {
+      setSelectedRatings(newRatings);
+    }
+    if (JSON.stringify(newFacilities) !== JSON.stringify(selectedFacilities)) {
+      setSelectedFacilities(newFacilities);
+    }
+    if (newMinPrice !== minPrice) setMinPrice(newMinPrice);
+    if (newMaxPrice !== maxPrice) setMaxPrice(newMaxPrice);
+  }, [searchParams]);
+
+  // Handle click outside to close share modal
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (shareModalOpen !== null) {
+        const modalRef = shareModalRefs.current[shareModalOpen];
+        if (modalRef && !modalRef.contains(event.target)) {
+          const shareBtn = event.target.closest(".share-btn");
+          if (!shareBtn) {
+            setShareModalOpen(null);
+          }
+        }
+      }
+    };
+
+    if (shareModalOpen !== null) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [shareModalOpen]);
+
   // Get user ID from localStorage
   useEffect(() => {
     const userDataString = localStorage.getItem("user");
@@ -60,72 +274,269 @@ const Page = () => {
     }
   }, []);
 
-  // Fetch hotels data
-  useEffect(() => {
-    const fetchHotels = async () => {
-      try {
-        setLoading(true);
+  // ✅ Fetch hotels with filters in API GET params
+  const fetchHotels = useCallback(async () => {
+    if (!userId) return;
 
-        // Prepare request body with user_id if available
-        const requestBody = {};
-        if (userId) {
-          requestBody.user_id = userId;
-        }
+    try {
+      setLoading(true);
 
-        const response = await axios.post(
-          `${base_url}/user/hotels/get_all_hotels.php`,
-          requestBody
-        );
+      const params = new URLSearchParams();
+      params.set("user_id", userId);
+      params.set("page", currentPage.toString());
+      params.set("limit", hotelsPerPage.toString());
 
-        if (response?.data?.status == "success") {
-          const hotelsWithFav = response.data?.message.map((hotel) => ({
-            ...hotel,
-            is_fav: hotel?.is_fav || false, // Get is_fav from API
-          }));
-          setHotels(hotelsWithFav || []);
-          setError(null);
-        }
-      } catch (err) {
-        console.error("Error fetching hotels:", err);
-        setError("Failed to load hotels");
-      } finally {
-        setLoading(false);
+      // ✅ Add search filter
+      if (debouncedSearchText && debouncedSearchText.trim()) {
+        params.set("search", debouncedSearchText.trim());
       }
-    };
 
-    fetchHotels();
-  }, [userId]);
+      if (selectedRatings.length > 0) {
+        params.set("rating_min", selectedRatings.join(","));
+      }
 
-  // Update filtered hotels when hotels data changes
-  useEffect(() => {
-    setFilteredHotels(hotels);
-  }, [hotels]);
+      // ✅ Add facilities filter (comma-separated)
+      if (selectedFacilities.length > 0) {
+        params.set("facilities", selectedFacilities.join(","));
+      }
 
-  // Toggle favorite with API
-  const handleToggleFavorite = async (hotelId, currentStatus) => {
-    // Add animation
-    setAnimatedId(hotelId);
+      // ✅ Add price filters
+      if (minPrice !== "" && minPrice !== null && minPrice >= 0) {
+        params.set("min_price", minPrice.toString());
+      }
 
-    // Call API through hook (type = "hotel")
-    const result = await toggleWishlist(hotelId, "hotel", currentStatus);
+      if (maxPrice !== "" && maxPrice !== null && maxPrice > 0) {
+        params.set("max_price", maxPrice.toString());
+      }
 
-    // Update local state if successful
-    if (result.success) {
-      // Update the hotels array with new is_fav status
-      setHotels((prevHotels) =>
-        prevHotels.map((hotel) =>
-          hotel.id === hotelId ? { ...hotel, is_fav: result.is_fav } : hotel
-        )
+      const apiUrl = `${base_url}/user/hotels/get_all_hotels.php?${params.toString()}`;
+      console.log("Fetching Hotels:", apiUrl);
+
+      const response = await axios.get(apiUrl);
+
+      if (response?.data?.status === "success") {
+        const data = response.data;
+
+        setTotalPages(parseInt(data.total_pages) || 1);
+        setTotalItems(parseInt(data.total_items) || 0);
+
+        const hotelsWithFav = data.message.map((hotel) => ({
+          ...hotel,
+          is_fav: hotel?.is_fav || false,
+        }));
+
+        setHotels(hotelsWithFav || []);
+        setError(null);
+      } else {
+        setHotels([]);
+        setTotalPages(1);
+        setTotalItems(0);
+        setError("No hotels available at the moment");
+      }
+    } catch (err) {
+      console.error("Error fetching hotels:", err);
+      setError("Failed to load hotels");
+      setHotels([]);
+      setTotalPages(1);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    userId,
+    currentPage,
+    hotelsPerPage,
+    debouncedSearchText,
+    selectedRatings,
+    selectedFacilities,
+    minPrice,
+    maxPrice,
+  ]);
+
+  // ✅ Fetch filter options on mount (all hotels without filters)
+  const fetchFilterOptions = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const response = await axios.get(
+        `${base_url}/user/hotels/get_all_hotels.php?user_id=${userId}&page=1&limit=1000`
       );
 
-      setFilteredHotels((prevHotels) =>
+      if (response?.data?.status === "success") {
+        const allHotels = response.data.message;
+
+        // Extract unique ratings
+        const ratingsSet = new Set();
+        allHotels.forEach((hotel) => {
+          if (hotel.ratings && hotel.ratings.length > 0) {
+            const score = hotel.ratings[0].score;
+            // Round to nearest 0.5
+            const rounded = Math.round(score * 2) / 2;
+            ratingsSet.add(rounded.toString());
+          }
+        });
+        setAvailableRatings(
+          Array.from(ratingsSet).sort((a, b) => parseFloat(b) - parseFloat(a))
+        );
+
+        // Extract unique facilities
+        const facilitiesSet = new Set();
+        allHotels.forEach((hotel) => {
+          if (hotel.amenities && hotel.amenities.length > 0) {
+            hotel.amenities.forEach((amenity) => {
+              if (amenity.id && amenity.name) {
+                facilitiesSet.add(
+                  JSON.stringify({ id: amenity.id, name: amenity.name })
+                );
+              }
+            });
+          }
+        });
+        setAvailableFacilities(
+          Array.from(facilitiesSet).map((item) => JSON.parse(item))
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching filter options:", err);
+    }
+  }, [userId]);
+
+  // Fetch filter options on mount
+  useEffect(() => {
+    if (userId) {
+      fetchFilterOptions();
+    }
+  }, [userId, fetchFilterOptions]);
+
+  // ✅ Fetch hotels when filters change
+  useEffect(() => {
+    if (userId) {
+      fetchHotels();
+    }
+  }, [userId, fetchHotels]);
+
+  // ✅ Update URL when debounced search changes
+  useEffect(() => {
+    if (userId) {
+      updateURLParams({ search: debouncedSearchText, page: 1 });
+    }
+  }, [debouncedSearchText]);
+
+  // ✅ Handle search input change
+  const handleSearchChange = (e) => {
+    setSearchText(e.target.value);
+    setCurrentPage(1);
+  };
+
+  // ✅ Handle price range change
+  const handlePriceRangeChange = useCallback(
+    (range) => {
+      if (minPrice === range.min && maxPrice === range.max) {
+        // Toggle off
+        setMinPrice("");
+        setMaxPrice("");
+        setCurrentPage(1);
+        updateURLParams({
+          page: 1,
+          min_price: "",
+          max_price: "",
+        });
+      } else {
+        // Select new range
+        setMinPrice(range.min);
+        setMaxPrice(range.max);
+        setCurrentPage(1);
+        updateURLParams({
+          page: 1,
+          min_price: range.min,
+          max_price: range.max,
+        });
+      }
+    },
+    [minPrice, maxPrice, updateURLParams]
+  );
+
+  // ✅ Handle rating change
+  const handleRatingChange = useCallback(
+    (rating) => {
+      const ratingStr = rating.toString();
+      const newRatings = selectedRatings.includes(ratingStr)
+        ? selectedRatings.filter((r) => r !== ratingStr)
+        : [...selectedRatings, ratingStr];
+
+      setSelectedRatings(newRatings);
+      setCurrentPage(1);
+      updateURLParams({
+        page: 1,
+        ratings: newRatings,
+      });
+    },
+    [selectedRatings, updateURLParams]
+  );
+
+  // ✅ Handle facility change
+  const handleFacilityChange = useCallback(
+    (facilityId) => {
+      const newFacilities = selectedFacilities.includes(facilityId)
+        ? selectedFacilities.filter((f) => f !== facilityId)
+        : [...selectedFacilities, facilityId];
+
+      setSelectedFacilities(newFacilities);
+      setCurrentPage(1);
+      updateURLParams({
+        page: 1,
+        facilities: newFacilities,
+      });
+    },
+    [selectedFacilities, updateURLParams]
+  );
+
+  // ✅ Clear all filters
+  const clearAllFilters = useCallback(() => {
+    setSearchText("");
+    setSelectedRatings([]);
+    setSelectedFacilities([]);
+    setMinPrice("");
+    setMaxPrice("");
+    setCurrentPage(1);
+
+    isUpdatingURL.current = true;
+    window.history.replaceState(null, "", pathname);
+    setTimeout(() => {
+      isUpdatingURL.current = false;
+    }, 100);
+  }, [pathname]);
+
+  // Handle page change
+  const handlePageChange = useCallback(
+    (pageNumber) => {
+      if (
+        pageNumber >= 1 &&
+        pageNumber <= totalPages &&
+        pageNumber !== currentPage
+      ) {
+        setCurrentPage(pageNumber);
+        updateURLParams({ page: pageNumber });
+        window.scrollTo({ top: 300, behavior: "smooth" });
+      }
+    },
+    [totalPages, currentPage, updateURLParams]
+  );
+
+  // Toggle favorite
+  const handleToggleFavorite = async (hotelId, currentStatus) => {
+    setAnimatedId(hotelId);
+
+    const result = await toggleWishlist(hotelId, "hotel", currentStatus);
+
+    if (result.success) {
+      setHotels((prevHotels) =>
         prevHotels.map((hotel) =>
           hotel.id === hotelId ? { ...hotel, is_fav: result.is_fav } : hotel
         )
       );
     }
 
-    // Remove animation after delay
     setTimeout(() => {
       setAnimatedId(null);
     }, 600);
@@ -133,11 +544,7 @@ const Page = () => {
 
   // Share Modal Functions
   const toggleShareModal = (id) => {
-    if (shareModalOpen === id) {
-      setShareModalOpen(null);
-    } else {
-      setShareModalOpen(id);
-    }
+    setShareModalOpen(shareModalOpen === id ? null : id);
   };
 
   const closeShareModal = () => {
@@ -163,102 +570,8 @@ const Page = () => {
   const copyToClipboard = (hotel) => {
     const url = `${window.location.origin}/hotel-suits/hotel-details?hotel=${hotel.id}`;
     navigator.clipboard.writeText(url).then(() => {
-      // dispatch(
-      //   addToast({
-      //     type: "success",
-      //     title: "Link Copied!",
-      //     message: "Hotel link has been copied to clipboard",
-      //   })
-      // );
       closeShareModal();
     });
-  };
-
-  // Handle filter changes from sidebar
-  const handleFiltersChange = (filters) => {
-    let filtered = [...hotels];
-
-    // Apply search filter
-    if (filters.searchTerm) {
-      filtered = filtered.filter(
-        (hotel) =>
-          hotel.title
-            .toLowerCase()
-            .includes(filters.searchTerm.toLowerCase()) ||
-          hotel.description
-            .toLowerCase()
-            .includes(filters.searchTerm.toLowerCase()) ||
-          (hotel.country_name &&
-            hotel.country_name
-              .toLowerCase()
-              .includes(filters.searchTerm.toLowerCase())) ||
-          (hotel.location &&
-            hotel.location
-              .toLowerCase()
-              .includes(filters.searchTerm.toLowerCase()))
-      );
-    }
-
-    // Apply star rating filters
-    const selectedRatings = [];
-    if (filters.starRatings.fiveStar) selectedRatings.push(5);
-    if (filters.starRatings.fourHalfStar) selectedRatings.push(4.5);
-    if (filters.starRatings.fourStar) selectedRatings.push(4);
-    if (filters.starRatings.threeHalfStar) selectedRatings.push(3.5);
-    if (filters.starRatings.threeStar) selectedRatings.push(3);
-    if (filters.starRatings.twoHalfStar) selectedRatings.push(2.5);
-    if (filters.starRatings.twoStar) selectedRatings.push(2);
-    if (filters.starRatings.oneStar) selectedRatings.push(1);
-
-    if (selectedRatings.length > 0) {
-      filtered = filtered.filter((hotel) => {
-        if (hotel.ratings && hotel.ratings.length > 0) {
-          return selectedRatings.some(
-            (rating) => Math.abs(hotel.ratings[0].score - rating) < 0.3
-          );
-        }
-        return false;
-      });
-    }
-
-    // Apply facilities filters
-    const selectedFacilities = [];
-    Object.keys(filters.facilities).forEach((key) => {
-      if (filters.facilities[key]) {
-        const facilityMap = {
-          restaurant: "restaurant",
-          gym: "gym",
-          spa: "spa",
-          parking: "parking",
-          wifi: "wifi",
-          swimmingPool: "pool",
-          petFriendly: "pet",
-          airportShuttle: "shuttle",
-          locker: "locker",
-        };
-        if (facilityMap[key]) {
-          selectedFacilities.push(facilityMap[key]);
-        }
-      }
-    });
-
-    if (selectedFacilities.length > 0) {
-      filtered = filtered.filter((hotel) => {
-        if (hotel.amenities && hotel.amenities.length > 0) {
-          return selectedFacilities.some((facility) =>
-            hotel.amenities.some(
-              (amenity) =>
-                amenity.id.toLowerCase().includes(facility) ||
-                amenity.name.toLowerCase().includes(facility)
-            )
-          );
-        }
-        return false;
-      });
-    }
-
-    setFilteredHotels(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
   };
 
   // Render star ratings
@@ -280,91 +593,17 @@ const Page = () => {
     return stars;
   };
 
-  // Render amenity icon
-  const renderAmenityIcon = (amenity) => {
-    const iconMap = {
-      restaurant: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width={16}
-          height={16}
-          viewBox="0 0 18 18"
-        >
-          <g>
-            <path d="M2.96092 0.994803C2.83436 1.06512 2.63748 1.34637 2.56365 1.56433C2.44412 1.9159 2.48631 2.38347 2.66561 2.67175C2.69373 2.72097 2.77811 2.83347 2.85193 2.92136C3.12615 3.25886 3.12967 3.53308 2.86248 3.8987C2.72537 4.08855 2.76404 4.31706 2.95389 4.4155C3.21053 4.54558 3.43553 4.39441 3.64646 3.94792C3.72732 3.77214 3.74139 3.70183 3.74139 3.41003C3.74139 3.11824 3.72732 3.04792 3.64646 2.87214C3.59373 2.75613 3.48475 2.59089 3.4074 2.49597C3.12615 2.15847 3.11912 1.88425 3.38982 1.51511C3.43904 1.44832 3.47771 1.36043 3.47771 1.31472C3.47771 1.04402 3.18943 0.868241 2.96092 0.994803Z" />
-          </g>
-        </svg>
-      ),
-      wifi: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width={16}
-          height={16}
-          viewBox="0 0 18 18"
-        >
-          <path d="M9.20926 0.0478783C9.16707 0.076004 9.09676 0.181473 9.05106 0.283426C8.98075 0.438112 8.96668 0.529518 8.96668 0.803738C8.96668 1.15882 9.01239 1.29592 9.20926 1.53147L9.29364 1.63342L9.15653 1.91116C8.91395 2.39983 8.8577 2.86389 8.98426 3.34905C9.10731 3.83069 9.40614 4.28772 9.78934 4.576L9.99676 4.73068L9.65574 5.26506L9.31824 5.79592L9.037 5.78889L8.75575 5.77834L8.42176 5.2967C8.01395 4.70959 7.9577 4.64983 7.73622 4.54436C7.53231 4.44943 7.21942 4.43537 7.00497 4.5092C6.56551 4.6674 6.29481 5.19475 6.42489 5.64474C6.46005 5.76076 6.63583 6.04553 6.9452 6.48498C7.85926 7.77873 7.76083 7.7049 8.60809 7.72248L9.1952 7.73654V8.24982V8.7631L8.51317 9.44865C7.60614 10.3697 7.67294 10.1799 7.65536 11.8252L7.64129 13.0908L7.40926 13.1963C6.89598 13.4283 6.55145 13.8502 6.43895 14.3811L6.41786 14.4795H5.87645H5.33153L5.31044 14.2756C5.20849 13.3229 4.65653 12.6971 3.73896 12.4967L3.64052 12.4756V10.1026C3.64052 8.79826 3.64755 7.72951 3.6581 7.72951C3.66513 7.72951 3.83388 7.81388 4.02724 7.91232C4.35771 8.08459 4.39989 8.09865 4.61786 8.09513C5.01864 8.09162 5.34559 7.89123 5.51786 7.5467C5.69364 7.19513 5.60927 6.73107 5.3245 6.48146C5.17684 6.35139 1.45732 4.2385 1.27099 4.17873C1.08466 4.11897 0.704976 4.15061 0.529195 4.24201C0.363961 4.32639 0.160055 4.53381 0.0686488 4.70607C-0.026273 4.88889 -0.0227574 5.31076 0.0791956 5.49709C0.198727 5.71857 0.335836 5.82404 0.996772 6.20373L1.61904 6.55529L1.63662 7.91935L1.65419 9.28341L1.75263 9.36779C1.87216 9.46974 1.94951 9.47326 2.07255 9.37833L2.16396 9.30802V8.09162C2.16396 7.36037 2.17802 6.88576 2.1956 6.89279C2.21318 6.89631 2.42763 7.01232 2.67021 7.14943L3.11318 7.39552V9.93732V12.4791L2.64911 12.4686L2.18154 12.458L2.16396 11.3928C2.14638 10.3873 2.14286 10.324 2.07958 10.2748C1.97763 10.201 1.79833 10.2115 1.72099 10.2994C1.65771 10.3697 1.65419 10.4471 1.64365 11.4209L1.6331 12.4721L1.07412 12.4826C0.574898 12.4932 0.504586 12.5002 0.420211 12.567C0.279586 12.669 0.195211 12.7955 0.160055 12.9537C0.117867 13.133 0.117867 17.0564 0.160055 17.2357C0.202242 17.4256 0.293648 17.5416 0.476461 17.633L0.631148 17.7139H8.56942C14.212 17.7139 16.5569 17.7033 16.6905 17.6752C17.1546 17.5803 17.6221 17.2146 17.819 16.7928C18.2444 15.8928 17.7839 14.8416 16.8346 14.5498C16.6413 14.49 16.5077 14.4795 15.9944 14.4795C15.6569 14.4795 15.3827 14.4725 15.3827 14.4619C15.3827 14.4514 15.5444 14.0119 15.7378 13.4846C16.1104 12.4861 16.1526 12.2998 16.0542 12.11C16.026 12.0572 15.9522 11.9869 15.896 11.9483C15.7694 11.8744 14.8202 11.5299 13.8534 11.21C13.4878 11.0869 13.1819 10.985 13.1749 10.9815C13.1714 10.9779 13.0729 10.5033 12.9604 9.93029L12.7565 8.88615L12.8936 8.17599C12.971 7.78576 13.0378 7.46232 13.0448 7.45529C13.0518 7.44826 13.1046 7.45177 13.1643 7.46584L13.2663 7.48693L13.2803 8.16193C13.2909 8.83341 13.2909 8.83693 13.3928 9.02326C13.5827 9.36427 13.9096 9.54357 14.2858 9.51544C14.5389 9.49786 14.7288 9.40646 14.9151 9.21661C15.1647 8.95646 15.1788 8.87912 15.1647 7.63459C15.1542 6.41467 15.1542 6.41818 14.8624 6.13693C14.7147 5.99279 14.4968 5.9049 13.3155 5.51115L12.7811 5.33185L12.5702 5.03654C12.4542 4.87482 12.3593 4.73068 12.3593 4.72014C12.3593 4.70959 12.4401 4.62522 12.5421 4.53732C13.0378 4.09084 13.3155 3.34553 13.312 2.45608C13.312 2.19944 13.2944 1.97444 13.2557 1.84085C13.08 1.16585 12.63 0.691236 11.9233 0.427567C11.8249 0.388893 11.5542 0.364285 11.0585 0.343191C10.2956 0.315065 10.1233 0.283426 9.66278 0.100613C9.36395 -0.0189171 9.31121 -0.0259495 9.20926 0.0478783Z" />
-        </svg>
-      ),
-      gym: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width={16}
-          height={16}
-          viewBox="0 0 18 18"
-        >
-          <g>
-            <path d="M0.683593 0.0562801C0.490234 0.123077 0.30039 0.288311 0.180859 0.485186L0.0859375 0.650419V7.20705V13.7637L0.163281 13.9043C0.251172 14.0695 0.423437 14.2383 0.595702 14.3297C0.711718 14.393 0.848827 14.3965 2.87382 14.407L5.02538 14.4176L5.11327 14.3297C5.21874 14.2242 5.22577 14.1012 5.13437 13.9887L5.06757 13.9043L2.93711 13.8867L0.80664 13.8691L0.711718 13.7707L0.61328 13.6758L0.602734 10.582L0.595702 7.4883H3.79492H6.99413V10.6875V13.8867H6.55468C6.30507 13.8867 6.08007 13.9043 6.03085 13.9254C5.85155 14.0063 5.83749 14.2875 6.00624 14.3754C6.05194 14.4035 6.8289 14.4141 8.39686 14.4141H10.7172L10.7277 15.8801C10.7383 17.3109 10.7418 17.3531 10.8156 17.4902C10.9035 17.6555 11.0758 17.8242 11.248 17.9156C11.364 17.9789 11.5117 17.9824 14.3242 17.9824H17.2773L17.4179 17.9051C17.6043 17.8066 17.766 17.6309 17.8539 17.4375C17.9242 17.2863 17.9277 17.2125 17.9277 15.3949C17.9277 13.2645 17.9312 13.2891 17.664 13.0254C17.5832 12.9445 17.4461 12.8496 17.3582 12.8145L17.1965 12.7547L17.1824 11.9215C17.1683 11.1797 17.1578 11.0672 17.0875 10.8457C16.8344 10.0582 16.2683 9.41486 15.5371 9.07736C15.2383 8.93673 14.8551 8.82423 14.6863 8.82423C14.4648 8.82423 14.4824 9.17228 14.4824 4.78479C14.4824 0.260185 14.5035 0.580107 14.2012 0.281281C13.8988 -0.02458 14.5246 3.05176e-05 7.26132 0.00354576C1.7664 0.00354576 0.803124 0.0140934 0.683593 0.0562801Z" />
-          </g>
-        </svg>
-      ),
-      spa: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width={16}
-          height={16}
-          viewBox="0 0 18 18"
-        >
-          <g>
-            <path d="M1.88029 3.66674C1.30022 3.8601 0.92053 4.33823 0.885373 4.92182C0.811545 6.21908 2.35139 6.92221 3.26193 6.00463C3.4799 5.78666 3.61349 5.52651 3.66271 5.22768C3.76115 4.64057 3.43068 4.01479 2.88576 3.75463C2.68889 3.65971 2.60803 3.64213 2.33732 3.63159C2.14045 3.62456 1.96818 3.63862 1.88029 3.66674Z" />
-          </g>
-        </svg>
-      ),
-      parking: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width={16}
-          height={16}
-          viewBox="0 0 18 16"
-        >
-          <path d="M12.0937 0.0562334C11.9531 0.126546 11.8371 0.239046 11.7668 0.369123C11.714 0.46053 11.707 0.615218 11.707 1.55037C11.707 2.56287 11.7105 2.63318 11.7738 2.7035C11.8652 2.80545 12.041 2.80193 12.1394 2.69646C12.2168 2.61561 12.2168 2.591 12.2168 1.61365C12.2168 1.06522 12.2308 0.594124 12.2449 0.569514C12.2695 0.534358 12.8144 0.527327 14.857 0.534358L17.4375 0.544905L17.448 3.10779C17.4515 4.97107 17.4445 5.68474 17.4164 5.71638C17.3601 5.78318 12.3258 5.79021 12.259 5.72341C12.2273 5.69177 12.2168 5.46326 12.2168 4.9113C12.2168 4.4367 12.2027 4.11677 12.1781 4.07459C12.1254 3.96912 11.9777 3.92693 11.8582 3.97615C11.7035 4.03943 11.6824 4.18006 11.6965 5.02732C11.707 5.75857 11.7105 5.79021 11.7949 5.94138C11.8476 6.0363 11.939 6.12771 12.0234 6.17693C12.1605 6.25427 12.1887 6.25779 13.2293 6.25779H14.291V7.80466C14.291 9.05622 14.284 9.35153 14.2453 9.35153C14.0941 9.35153 13.5597 9.17927 13.2926 9.04567C13.1203 8.9613 12.5051 8.56755 11.9215 8.17732C10.6137 7.29138 10.3183 7.14021 9.61522 6.97497C9.39022 6.92575 9.09842 6.91169 7.59374 6.90114C6.42304 6.8906 5.69179 6.89763 5.40351 6.92575C4.46835 7.01013 3.77578 7.32302 3.02343 8.00153C2.41875 8.54294 1.96875 8.782 1.20234 8.9613C0.956249 9.02106 0.692577 9.10192 0.611718 9.14059C0.418359 9.24255 0.214453 9.46052 0.0984373 9.69606L0 9.89645V11.3906C0 12.7441 0.00703124 12.8953 0.0597655 12.9972C0.175781 13.2047 0.323437 13.3066 0.878905 13.5527L1.43086 13.8023L1.5082 14.0132C1.62422 14.3261 1.74375 14.5125 1.96523 14.7234C2.78789 15.5004 4.14843 15.2437 4.64062 14.2207L4.76718 13.957H9.01756H13.2644L13.391 14.2242C13.5914 14.6496 13.9957 14.9906 14.4492 15.1207C14.6988 15.191 15.2086 15.1769 15.4511 15.0925C15.8836 14.9449 16.2527 14.6109 16.4461 14.1996L16.5551 13.964L16.9066 13.95C17.114 13.9394 17.3144 13.9078 17.3918 13.8761C17.6097 13.7847 17.8312 13.5527 17.9121 13.3312C17.9824 13.1449 17.9859 13.0781 17.9754 12.2343C17.9613 11.2078 17.9472 11.1515 17.6273 10.6699C17.2371 10.0898 16.8468 9.87184 15.8308 9.66794L15.6269 9.62927V7.94528V6.2613L16.6043 6.25076L17.5851 6.24021L17.7152 6.13826C17.789 6.08201 17.8804 5.96951 17.9156 5.88513C17.9824 5.74099 17.9824 5.62498 17.9754 3.08318L17.9648 0.435921L17.8699 0.29178C17.8136 0.207405 17.7152 0.119514 17.6238 0.0738115C17.4691 -1.62125e-05 17.448 -1.62125e-05 14.8324 -1.62125e-05C12.5156 -1.62125e-05 12.1851 0.00701523 12.0937 0.0562334Z" />
-        </svg>
-      ),
-    };
+  // Check if any filters are active
+  const hasActiveFilters =
+    searchText ||
+    selectedRatings.length > 0 ||
+    selectedFacilities.length > 0 ||
+    minPrice !== "" ||
+    maxPrice !== "";
 
-    return (
-      iconMap[amenity.id] || (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width={16}
-          height={16}
-          viewBox="0 0 18 18"
-        >
-          <circle cx="9" cy="9" r="8" fill="currentColor" />
-        </svg>
-      )
-    );
-  };
-
-  // Pagination logic
+  // Pagination
   const indexOfLastHotel = currentPage * hotelsPerPage;
   const indexOfFirstHotel = indexOfLastHotel - hotelsPerPage;
-  const currentHotels = filteredHotels.slice(
-    indexOfFirstHotel,
-    indexOfLastHotel
-  );
-  const totalPages = Math.ceil(filteredHotels.length / hotelsPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   // Generate pagination numbers
   const renderPaginationNumbers = () => {
@@ -386,7 +625,7 @@ const Page = () => {
             className={currentPage === i ? "active" : ""}
             onClick={(e) => {
               e.preventDefault();
-              paginate(i);
+              handlePageChange(i);
             }}
           >
             {i}
@@ -398,41 +637,6 @@ const Page = () => {
     return pageNumbers;
   };
 
-  if (loading) {
-    return (
-      <>
-        <Breadcrumb pagename="Room & Suits" pagetitle="Room & Suits" />
-        <div className="room-suits-page pt-120 mb-120">
-          <div className="container">
-            <div className="text-center">
-              <div className="spinner-border" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p className="mt-3">Loading hotels...</p>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (error) {
-    return (
-      <>
-        <Breadcrumb pagename="Room & Suits" pagetitle="Room & Suits" />
-        <div className="room-suits-page pt-120 mb-120">
-          <div className="container">
-            <div className="text-center">
-              <div className="alert alert-danger" role="alert">
-                {error}
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <Breadcrumb pagename="Room & Suits" pagetitle="Room & Suits" />
@@ -440,257 +644,434 @@ const Page = () => {
         <div className="container">
           <div className="row g-lg-4 gy-5">
             <div className="col-xl-4 order-lg-1 order-2">
-              <RoomSidebar onFiltersChange={handleFiltersChange} />
+              <div className="sidebar-area">
+                {/* ✅ Search Box with Debounce */}
+                <div className="single-widget mb-30">
+                  <h5 className="widget-title">Search Hotels</h5>
+                  <div className="search-box">
+                    <input
+                      type="text"
+                      placeholder="Search by name, location..."
+                      value={searchText}
+                      onChange={handleSearchChange}
+                    />
+                    <button type="button">
+                      <i className="bx bx-search" />
+                    </button>
+                  </div>
+                  {searchText && (
+                    <small className="text-muted mt-1 d-block">
+                      Searching for "{searchText}"...
+                    </small>
+                  )}
+                </div>
+
+                {/* ✅ Clear Filters Button */}
+                {hasActiveFilters && (
+                  <div className="single-widget mb-30">
+                    <button
+                      onClick={clearAllFilters}
+                      className="btn btn-outline-danger w-100"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
+                )}
+
+                {/* ✅ Price Range Filter */}
+                <div className="single-widget mb-30">
+                  <h5 className="widget-title">Filter by Price</h5>
+                  <div className="checkbox-container">
+                    <ul>
+                      {priceRanges.map((range) => {
+                        const isSelected =
+                          minPrice === range.min && maxPrice === range.max;
+                        return (
+                          <li key={range.id}>
+                            <label className="containerss">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handlePriceRangeChange(range)}
+                              />
+                              <span className="checkmark" />
+                              <span className="text">{range.label}</span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* ✅ Rating Filter */}
+                <div className="single-widget mb-30">
+                  <h5 className="widget-title">Star Rating</h5>
+                  <div className="checkbox-container">
+                    <ul>
+                      {ratingOptions.map((rating) => {
+                        const isSelected = selectedRatings.includes(rating.id);
+                        return (
+                          <li key={rating.id}>
+                            <label className="containerss">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleRatingChange(rating.id)}
+                              />
+                              <span className="checkmark" />
+                              <span className="text">
+                                {rating.label}
+                                <span className="ms-2">
+                                  {[...Array(Math.floor(rating.value))].map(
+                                    (_, i) => (
+                                      <i
+                                        key={i}
+                                        className="bi bi-star-fill text-warning"
+                                        style={{ fontSize: "12px" }}
+                                      />
+                                    )
+                                  )}
+                                  {rating.value % 1 !== 0 && (
+                                    <i
+                                      className="bi bi-star-half text-warning"
+                                      style={{ fontSize: "12px" }}
+                                    />
+                                  )}
+                                </span>
+                              </span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* ✅ Facilities Filter */}
+                {/* {availableFacilities.length > 0 && (
+                  <div className="single-widget mb-30">
+                    <h5 className="widget-title">Facilities</h5>
+                    <div className="checkbox-container">
+                      <ul>
+                        {availableFacilities.map((facility) => {
+                          const isSelected = selectedFacilities.includes(
+                            facility.id
+                          );
+                          return (
+                            <li key={facility.id}>
+                              <label className="containerss">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() =>
+                                    handleFacilityChange(facility.id)
+                                  }
+                                />
+                                <span className="checkmark" />
+                                <span className="text">{facility.name}</span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </div>
+                )} */}
+              </div>
             </div>
+
             <div className="col-xl-8 order-lg-2 order-1">
-              {currentHotels.length === 0 ? (
-                <div className="text-center">
-                  <p>No hotels found matching your criteria.</p>
-                  <p className="text-muted">
-                    {filteredHotels.length === 0
-                      ? "Try adjusting your filters to see more results."
-                      : `Showing 0 of ${filteredHotels.length} hotels.`}
+              {/* Loading State */}
+              {loading && (
+                <div className="text-center py-5">
+                  <div className="spinner-border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-3">Loading hotels...</p>
+                </div>
+              )}
+
+              {/* Error State */}
+              {!loading && error && hotels.length === 0 && (
+                <div className="text-center py-5">
+                  <div className="alert alert-warning" role="alert">
+                    {error}
+                  </div>
+                  <button
+                    className="btn btn-warning"
+                    onClick={() => fetchHotels()}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
+              {/* Results Info */}
+              {!loading && (
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <div>
+                    <h5 className="mb-0">
+                      {hotels.length} {hotels.length === 1 ? "Hotel" : "Hotels"}{" "}
+                      Found
+                    </h5>
+                    <small className="text-muted">
+                      Page {currentPage} of {totalPages}
+                    </small>
+                  </div>
+                  <div>
+                    <small className="text-muted">
+                      Total: {totalItems} hotels available
+                    </small>
+                  </div>
+                </div>
+              )}
+
+              {/* Hotels List */}
+              {!loading && hotels.length === 0 ? (
+                <div className="text-center py-5">
+                  <i className="bi bi-search fs-1 text-muted mb-3 d-block"></i>
+                  <h4>No hotels found matching your criteria</h4>
+                  <p className="text-muted mb-4">
+                    Try adjusting your filters to see more results.
                   </p>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearAllFilters}
+                      className="btn btn-primary"
+                    >
+                      Clear All Filters
+                    </button>
+                  )}
                 </div>
               ) : (
-                <>
-                  <div className="mb-4">
-                    <p className="text-muted">
-                      Showing {indexOfFirstHotel + 1}-
-                      {Math.min(indexOfLastHotel, filteredHotels.length)} of{" "}
-                      {filteredHotels.length} hotels
-                    </p>
-                  </div>
-
-                  {currentHotels.map((hotel, index) => (
-                    <div key={hotel.id} className="room-suits-card mb-30">
-                      <div className="row g-0">
-                        <div className="col-md-4">
-                          <div className="hotel-img-wrapper h-full">
-                            <Swiper
-                              {...settings}
-                              className="swiper hotel-img-slider"
-                            >
-                              <span className="batch">
-                                {hotel.duration || "Breakfast included"}
-                              </span>
-                              <div className="swiper-wrapper">
-                                <SwiperSlide className="swiper-slide">
-                                  <div className="room-img">
-                                    <img
-                                      src={hotel.image?.split("//CAMP//")[0]}
-                                      alt={hotel.title}
-                                      onError={(e) => {
-                                        e.target.src =
-                                          "https://via.placeholder.com/400x300/f0f0f0/666666?text=Hotel+Image";
-                                      }}
-                                    />
-                                  </div>
-                                </SwiperSlide>
-                                {hotel.background_image &&
-                                  hotel.background_image !== hotel.image && (
-                                    <SwiperSlide className="swiper-slide">
-                                      <div className="room-img">
-                                        <img
-                                          src={
-                                            hotel.image?.split("//CAMP//")[0]
-                                          }
-                                          alt={hotel.title}
-                                          onError={(e) => {
-                                            e.target.src =
-                                              "https://via.placeholder.com/400x300/f0f0f0/666666?text=Hotel+Image";
-                                          }}
-                                        />
-                                      </div>
-                                    </SwiperSlide>
-                                  )}
-                              </div>
-                              <div className="swiper-pagination5" />
-                            </Swiper>
-
-                            {/* Favorite Button */}
-                            <div
-                              className={`favorite-btn ${
-                                hotel.is_fav ? "active" : ""
-                              } ${animatedId === hotel.id ? "animate" : ""} ${
-                                isLoading(hotel.id) ? "loading" : ""
-                              }`}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                if (!isLoading(hotel.id)) {
-                                  handleToggleFavorite(hotel.id, hotel.is_fav);
-                                }
-                              }}
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
+                !loading && (
+                  <>
+                    {hotels.map((hotel) => (
+                      <div key={hotel.id} className="room-suits-card mb-30">
+                        <div className="row g-0">
+                          <div className="col-md-4">
+                            <div className="hotel-img-wrapper h-full">
+                              <Swiper
+                                {...settings}
+                                className="swiper hotel-img-slider"
                               >
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                              </svg>
-                            </div>
-
-                            {/* Share Button */}
-                            <div
-                              className="share-btn"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                toggleShareModal(hotel.id);
-                              }}
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
-                              </svg>
-                            </div>
-
-                            {/* Share Options Modal */}
-                            <div
-                              className={`share-options ${
-                                shareModalOpen === hotel.id ? "show" : ""
-                              }`}
-                            >
-                              <div
-                                className="share-option facebook"
-                                onClick={() => shareOnFacebook(hotel)}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96C15.9164 21.5878 18.0622 20.3855 19.6099 18.57C21.1576 16.7546 22.0054 14.4456 22 12.06C22 6.53 17.5 2.04 12 2.04Z" />
-                                </svg>
-                                <span>Facebook</span>
-                              </div>
-                              <div
-                                className="share-option whatsapp"
-                                onClick={() => shareOnWhatsapp(hotel)}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                </svg>
-                                <span>WhatsApp</span>
-                              </div>
-
-                              <div
-                                className="share-option copy"
-                                onClick={() => copyToClipboard(hotel)}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-                                </svg>
-                                <span>Copy Link</span>
-                              </div>
-                            </div>
-
-                            {/* Backdrop for closing modal when clicking outside */}
-                            {shareModalOpen === hotel.id && (
-                              <div
-                                className="share-backdrop show"
-                                onClick={closeShareModal}
-                              ></div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="col-md-8">
-                          <div className="room-content">
-                            <div className="content-top">
-                              <div className="reviews">
-                                <ul>
-                                  {hotel.ratings && hotel.ratings.length > 0 ? (
-                                    renderStarRating(hotel.ratings[0].score)
-                                  ) : (
-                                    <>
-                                      <li>
-                                        <i className="bi bi-star-fill" />
-                                      </li>
-                                      <li>
-                                        <i className="bi bi-star-fill" />
-                                      </li>
-                                      <li>
-                                        <i className="bi bi-star-fill" />
-                                      </li>
-                                      <li>
-                                        <i className="bi bi-star-fill" />
-                                      </li>
-                                      <li>
-                                        <i className="bi bi-star-half" />
-                                      </li>
-                                    </>
-                                  )}
-                                </ul>
-                                <span>
-                                  {hotel.ratings && hotel.ratings.length > 0
-                                    ? `${hotel.ratings[0].score} reviews`
-                                    : "4.5 reviews"}
+                                <span className="batch">
+                                  {hotel.duration || "Breakfast included"}
                                 </span>
-                              </div>
-                              <h5>
-                                <Link
-                                  href={`hotel-suits/hotel-details?hotel=${hotel.id}`}
+                                <div className="swiper-wrapper">
+                                  <SwiperSlide className="swiper-slide">
+                                    <div className="room-img">
+                                      <img
+                                        src={hotel.image?.split("//CAMP//")[0]}
+                                        alt={hotel.title}
+                                        onError={(e) => {
+                                          e.target.src =
+                                            "https://via.placeholder.com/400x300/f0f0f0/666666?text=Hotel+Image";
+                                        }}
+                                      />
+                                    </div>
+                                  </SwiperSlide>
+                                </div>
+                                <div className="swiper-pagination5" />
+                              </Swiper>
+
+                              {/* Favorite Button */}
+                              <div
+                                className={`favorite-btn ${
+                                  hotel.is_fav ? "active" : ""
+                                } ${animatedId === hotel.id ? "animate" : ""} ${
+                                  isLoading(hotel.id) ? "loading" : ""
+                                }`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (!isLoading(hotel.id)) {
+                                    handleToggleFavorite(
+                                      hotel.id,
+                                      hotel.is_fav
+                                    );
+                                  }
+                                }}
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  xmlns="http://www.w3.org/2000/svg"
                                 >
-                                  {hotel.title}
-                                </Link>
-                              </h5>
-                              <ul className="loaction-area">
-                                <li>
-                                  <i className="bi bi-geo-alt" />
-                                  {hotel.location ||
-                                    hotel.country_name ||
-                                    "Location not specified"}
-                                </li>
-                              </ul>
+                                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                                </svg>
+                              </div>
+
+                              {/* Share Button */}
+                              <div
+                                className="share-btn"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  toggleShareModal(hotel.id);
+                                }}
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
+                                </svg>
+                              </div>
+
+                              {/* Share Options Modal */}
+                              <div
+                                ref={(el) =>
+                                  (shareModalRefs.current[hotel.id] = el)
+                                }
+                                className={`share-options ${
+                                  shareModalOpen === hotel.id ? "show" : ""
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div
+                                  className="share-option facebook"
+                                  onClick={() => shareOnFacebook(hotel)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96C15.9164 21.5878 18.0622 20.3855 19.6099 18.57C21.1576 16.7546 22.0054 14.4456 22 12.06C22 6.53 17.5 2.04 12 2.04Z" />
+                                  </svg>
+                                  <span>Facebook</span>
+                                </div>
+                                <div
+                                  className="share-option whatsapp"
+                                  onClick={() => shareOnWhatsapp(hotel)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                  </svg>
+                                  <span>WhatsApp</span>
+                                </div>
+                                <div
+                                  className="share-option copy"
+                                  onClick={() => copyToClipboard(hotel)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                                  </svg>
+                                  <span>Copy Link</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="content-bottom">
-                              <div className="room-type"></div>
-                              <div className="price-and-book">
-                                <div className="price-area">
-                                  <p>
-                                    {`1 night , ${hotel.adults_num} adults` ||
-                                      "1 night, 2 adults"}
-                                  </p>
+                          </div>
+                          <div className="col-md-8">
+                            <div className="room-content">
+                              <div className="content-top">
+                                <div className="reviews">
+                                  <ul>
+                                    {hotel.ratings && hotel.ratings.length > 0
+                                      ? renderStarRating(hotel.ratings[0].score)
+                                      : renderStarRating(4.5)}
+                                  </ul>
                                   <span>
-                                    {hotel.price_currency}
-                                    {hotel.price_current}
-                                    {hotel.price_original &&
-                                      hotel.price_original !==
-                                        hotel.price_current && (
-                                        <del>
-                                          {" "}
-                                          {hotel.price_currency}
-                                          {hotel.price_original}
-                                        </del>
-                                      )}
+                                    {hotel.ratings && hotel.ratings.length > 0
+                                      ? `${hotel.ratings[0].score} reviews`
+                                      : "4.5 reviews"}
                                   </span>
                                 </div>
-                                <div className="book-btn">
+                                <h5>
                                   <Link
                                     href={`hotel-suits/hotel-details?hotel=${hotel.id}`}
-                                    className="primary-btn2"
                                   >
-                                    {"Check Availability"}
-                                    <i className="bi bi-arrow-right" />
+                                    {hotel.title}
                                   </Link>
+                                </h5>
+                                <ul className="loaction-area">
+                                  <li>
+                                    <i className="bi bi-geo-alt" />
+                                    {hotel.location ||
+                                      hotel.country_name ||
+                                      "Location not specified"}
+                                  </li>
+                                </ul>
+
+                                {/* Display amenities */}
+                                {hotel.amenities &&
+                                  hotel.amenities.length > 0 && (
+                                    <div className="amenities-tags mt-2">
+                                      {hotel.amenities
+                                        .filter((a) => a.name)
+                                        .slice(0, 4)
+                                        .map((amenity, idx) => (
+                                          <span
+                                            key={idx}
+                                            className="badge bg-light text-dark me-1 mb-1"
+                                            style={{ fontSize: "0.75rem" }}
+                                          >
+                                            {amenity.name}
+                                          </span>
+                                        ))}
+                                      {hotel.amenities.filter((a) => a.name)
+                                        .length > 4 && (
+                                        <span
+                                          className="badge bg-secondary"
+                                          style={{ fontSize: "0.75rem" }}
+                                        >
+                                          +
+                                          {hotel.amenities.filter((a) => a.name)
+                                            .length - 4}{" "}
+                                          more
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                              </div>
+                              <div className="content-bottom">
+                                <div className="room-type"></div>
+                                <div className="price-and-book">
+                                  <div className="price-area">
+                                    <p>
+                                      {`1 night, ${hotel.adults_num} adults` ||
+                                        "1 night, 2 adults"}
+                                    </p>
+                                    <span>
+                                      {hotel.price_currency}
+                                      {hotel.price_current}
+                                      {hotel.price_original &&
+                                        hotel.price_original >
+                                          hotel.price_current && (
+                                          <del>
+                                            {" "}
+                                            {hotel.price_currency}
+                                            {hotel.price_original}
+                                          </del>
+                                        )}
+                                    </span>
+                                  </div>
+                                  <div className="book-btn">
+                                    <Link
+                                      href={`hotel-suits/hotel-details?hotel=${hotel.id}`}
+                                      className="primary-btn2"
+                                    >
+                                      Check Availability
+                                      <i className="bi bi-arrow-right" />
+                                    </Link>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </>
+                    ))}
+                  </>
+                )
               )}
 
-              {totalPages > 1 && (
+              {/* Pagination */}
+              {!loading && hotels.length > 0 && totalPages > 1 && (
                 <div className="row mt-70">
                   <div className="col-lg-12">
                     <nav className="inner-pagination-area">
@@ -698,12 +1079,14 @@ const Page = () => {
                         <li>
                           <a
                             href="#"
-                            className="shop-pagi-btn"
+                            className={`shop-pagi-btn ${
+                              currentPage === 1 ? "disabled" : ""
+                            }`}
                             onClick={(e) => {
                               e.preventDefault();
-                              if (currentPage > 1) paginate(currentPage - 1);
+                              if (currentPage > 1)
+                                handlePageChange(currentPage - 1);
                             }}
-                            style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
                           >
                             <i className="bi bi-chevron-left" />
                           </a>
@@ -713,23 +1096,22 @@ const Page = () => {
 
                         {totalPages > 5 && currentPage < totalPages - 2 && (
                           <li>
-                            <a href="#">
+                            <span className="pagination-dots">
                               <i className="bi bi-three-dots" />
-                            </a>
+                            </span>
                           </li>
                         )}
 
                         <li>
                           <a
                             href="#"
-                            className="shop-pagi-btn"
+                            className={`shop-pagi-btn ${
+                              currentPage === totalPages ? "disabled" : ""
+                            }`}
                             onClick={(e) => {
                               e.preventDefault();
                               if (currentPage < totalPages)
-                                paginate(currentPage + 1);
-                            }}
-                            style={{
-                              opacity: currentPage === totalPages ? 0.5 : 1,
+                                handlePageChange(currentPage + 1);
                             }}
                           >
                             <i className="bi bi-chevron-right" />

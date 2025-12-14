@@ -44,11 +44,8 @@ import SelfDeriveModal from "./_components/SelfDriveModal/SelfDeriveModal";
 const ProfileTravelDetailsClient = ({ lang }) => {
   const [isOpen, setOpen] = useState(false);
   const [currentDay, setCurrentDay] = useState(0);
-  const [rowData, setRowData] = useState({});
   const [learnModal, setLearnModal] = useState(false);
   const [mapModal, setMapModal] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(0);
-  const position = [51.505, -0.09]; // Example: London coordinates
   const [selfDriveModal, setSelfDriveModal] = useState(false);
 
   const [people, setPeople] = useState({

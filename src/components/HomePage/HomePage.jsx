@@ -1,3 +1,4 @@
+// HomePage.jsx
 "use client";
 import React from "react";
 import Banner1 from "../banner/Banner1";
@@ -13,6 +14,7 @@ import Home1Blog from "../blog/Home1Blog";
 import Newslatter from "../common/Newslatter";
 import Footer from "../footer/Footer";
 import useGetHomeData from "../../ApiCalling/useGetHomeData";
+import "./style.css";
 
 export default function HomePage() {
   const { data, isLoading } = useGetHomeData();
@@ -21,14 +23,12 @@ export default function HomePage() {
     <>
       <Banner1 />
       <About1 />
-      {/*   <Destination1 /> */}
       <Home1Fecilities2 data={data?.message} />
       <Home1FacilitySlide />
       <Home1TourPackage data={data?.message} />
       <Home1WhyChoose />
       <Home1Activities />
       <Home1Banner2 data={data?.message?.offers} />
-
       <Home1Testimonail />
       <Home1Blog data={data?.message} />
       <Newslatter />
