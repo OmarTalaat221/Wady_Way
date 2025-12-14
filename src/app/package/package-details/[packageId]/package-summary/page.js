@@ -5,14 +5,14 @@ import "./_components/style.css";
 import PageSummaryClient from "./_components/page_summary_client";
 import { cookies } from "next/headers";
 
-const Page = () => {
-  const cookiesStore = cookies();
+const Page = async () => {
+  const cookiesStore = await cookies();
 
-  const lang = cookiesStore.get("lang") || "en";
+  const lang = cookiesStore.get("lang")?.value || "en";
 
   return (
     <>
-      <PageSummaryClient lang={lang.value} />
+      <PageSummaryClient lang={lang} />
     </>
   );
 };
