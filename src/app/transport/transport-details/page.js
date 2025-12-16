@@ -16,6 +16,8 @@ import { FaCarSide } from "react-icons/fa6";
 import { FreeCancellation, PayAtPickup, ReplyRev } from "../../../uitils/icnos";
 import axios from "axios";
 import { base_url } from "../../../uitils/base_url";
+import ReviewModal from "@/components/reviews/ReviewModal"; // Import ReviewModal
+import toast from "react-hot-toast";
 
 const faqData = [
   {
@@ -57,7 +59,7 @@ const Page = () => {
     moment().add(1, "day").toDate(),
   ]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [nightCount, setNightCount] = useState(1); // Default to 1 day
+  const [nightCount, setNightCount] = useState(1);
   const [carData, setCarData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -72,7 +74,12 @@ const Page = () => {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState(null);
 
+  // Review modal state
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
   const calendarRef = useRef(null);
+  const confirmModalRef = useRef(null);
+  const bookingModalRef = useRef(null);
   const searchParams = useSearchParams();
 
   const settings = useMemo(() => {
@@ -132,7 +139,7 @@ const Page = () => {
   useEffect(() => {
     if (dateRange[0] && dateRange[1]) {
       const days = moment(dateRange[1]).diff(moment(dateRange[0]), "days");
-      setNightCount(days > 0 ? days : 1); // Ensure minimum 1 day
+      setNightCount(days > 0 ? days : 1);
     }
   }, [dateRange]);
 
@@ -150,6 +157,13 @@ const Page = () => {
     };
   }, []);
 
+  // Handle outside clicks for modals
+  const handleModalOutsideClick = (e, modalRef, closeFunction) => {
+    if (modalRef.current && !modalRef.current.contains(e.target)) {
+      closeFunction();
+    }
+  };
+
   const formatDate = (date, locale) => {
     if (!date) return "";
     if (locale === "ar") {
@@ -163,18 +177,34 @@ const Page = () => {
     setIsCalendarOpen(false);
   };
 
-  // Handle initial form submission (show confirmation modal)
+  // Handle review submission success
+  const handleReviewSuccess = (reviewData) => {
+    console.log("Review submitted:", reviewData);
+    // toast.success("Thank you for your review!");
+    // fetchCarData();
+  };
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
 
+    // Get user data
+    const userData = localStorage.getItem("user");
+    if (!userData) {
+      toast.error("Please login to make a booking");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1500);
+      return;
+    }
+
     // Validation
     if (!dateRange[0] || !dateRange[1]) {
-      alert("Please select booking dates");
+      toast.error("Please select booking dates");
       return;
     }
 
     if (nightCount <= 0) {
-      alert("Please select valid date range");
+      toast.error("Please select valid date range");
       return;
     }
 
@@ -184,7 +214,6 @@ const Page = () => {
 
   // Handle confirmation and proceed with booking
   const handleConfirmBooking = async () => {
-    // Close confirmation modal and open booking modal
     setIsConfirmModalOpen(false);
     setIsBookingModalOpen(true);
     setBookingLoading(true);
@@ -192,8 +221,10 @@ const Page = () => {
     setBookingError(null);
 
     try {
-      // Get user ID (you might want to get this from context or auth)
-      const userId = 1; // Replace with actual user ID
+      // Get user ID
+      const userData = localStorage.getItem("user");
+      const user = JSON.parse(userData);
+      const userId = user.user_id || user.id;
 
       const bookingData = {
         user_id: userId,
@@ -224,7 +255,8 @@ const Page = () => {
     } catch (err) {
       console.error("Booking error:", err);
       setBookingError(
-        "Network error. Please check your connection and try again."
+        err.response?.data?.message ||
+          "Network error. Please check your connection and try again."
       );
     } finally {
       setBookingLoading(false);
@@ -249,7 +281,6 @@ const Page = () => {
   const carImages = useMemo(() => {
     if (!carData?.image) return [];
 
-    // Split by //CAMP// to get multiple images
     const imageUrls = carData.image.split("//CAMP//");
 
     return imageUrls.map((url, index) => ({
@@ -274,7 +305,7 @@ const Page = () => {
                   style={{
                     borderBottom: "2px solid #e8a355",
                   }}
-                  className="animate-spin rounded-full h-16 w-16  mx-auto"
+                  className="animate-spin rounded-full h-16 w-16 mx-auto"
                 ></div>
                 <p className="mt-4 text-lg">Loading car details...</p>
               </div>
@@ -476,195 +507,39 @@ const Page = () => {
                 <Accordion items={faqData} />
               </div>
 
+              {/* Review Section */}
               <div className="review-wrapper">
                 <h4>Customer Review</h4>
                 <div className="review-box">
                   <div className="total-review">
-                    <h2>9.5</h2>
+                    <h2>{carData?.rating || "9.5"}</h2>
                     <div className="review-wrap">
                       <ul className="star-list">
-                        <li>
-                          <i className="bi bi-star-fill" />
-                        </li>
-                        <li>
-                          <i className="bi bi-star-fill" />
-                        </li>
-                        <li>
-                          <i className="bi bi-star-fill" />
-                        </li>
-                        <li>
-                          <i className="bi bi-star-fill" />
-                        </li>
-                        <li>
-                          <i className="bi bi-star-half" />
-                        </li>
+                        {[...Array(5)].map((_, i) => (
+                          <li key={i}>
+                            <i
+                              className={
+                                i < 4 ? "bi bi-star-fill" : "bi bi-star-half"
+                              }
+                            />
+                          </li>
+                        ))}
                       </ul>
-                      <span>2590 Reviews</span>
+                      <span>{carData?.reviews_count || "2590"} Reviews</span>
                     </div>
                   </div>
-                  {/* modal for review */}
-                  <div
-                    className="modal fade"
-                    id="exampleModalToggle"
-                    aria-hidden="true"
-                    tabIndex={-1}
-                  >
-                    <div className="modal-dialog modal-dialog-centered">
-                      <div className="modal-content">
-                        <div className="modal-body">
-                          <button
-                            type="button"
-                            className="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                          >
-                            <i className="bi bi-x-lg" />
-                          </button>
-                          <div className="row g-2">
-                            <div className="col-lg-8">
-                              <div className="review-from-wrapper">
-                                <h4>Write Your Review</h4>
-                                <form>
-                                  <div className="row">
-                                    <div className="col-md-6 mb-[20px]">
-                                      <div className="form-inner">
-                                        <label>Name</label>
-                                        <input
-                                          type="text"
-                                          placeholder="Enter Your Name:"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="col-md-6 mb-[20px]">
-                                      <div className="form-inner">
-                                        <label>Email</label>
-                                        <input
-                                          type="email"
-                                          placeholder="Enter Your Email:"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="col-lg-12 mb-[20px]">
-                                      <div className="form-inner">
-                                        <label>Review*</label>
-                                        <textarea
-                                          name="message"
-                                          placeholder="Enter Your Review..."
-                                          defaultValue={""}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="col-lg-12 mb-10">
-                                      <div className="star-rating-wrapper">
-                                        <ul className="star-rating-list">
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Equipment</span>
-                                          </li>
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Comfortable</span>
-                                          </li>
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Climate Control</span>
-                                          </li>
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Facility</span>
-                                          </li>
-                                          <li>
-                                            <div
-                                              className="rating-container"
-                                              data-rating={0}
-                                            >
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                              <i className="bi bi-star-fill star-icon" />
-                                            </div>
-                                            <span>Aftercare</span>
-                                          </li>
-                                        </ul>
-                                      </div>
-                                    </div>
-                                    <div className="col-lg-12">
-                                      <button
-                                        type="submit"
-                                        className="primary-btn1"
-                                      >
-                                        Submit Now
-                                      </button>
-                                    </div>
-                                  </div>
-                                </form>
-                              </div>
-                            </div>
-                            <div className="col-lg-4 d-lg-flex d-none">
-                              <div className="modal-form-image">
-                                <img
-                                  src="/assets/img/innerpage/form-image.jpg"
-                                  alt="image"
-                                  className="img-fluid"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <a
+
+                  {/* Replace the old modal button with new ReviewModal button */}
+                  <button
                     className="primary-btn1"
-                    data-bs-toggle="modal"
-                    href="#exampleModalToggle"
-                    role="button"
+                    onClick={() => setIsReviewModalOpen(true)}
                   >
                     GIVE A RATING
-                  </a>
-                </div>
-                <div className="review-area">
-                  {/* Reviews content remains the same */}
+                  </button>
                 </div>
               </div>
             </div>
+
             <div className="col-lg-4">
               <div className="transport-sidebar">
                 <div className="booking-form-wrap">
@@ -812,63 +687,10 @@ const Page = () => {
 
                           <button
                             type="submit"
-                            className="w-full py-4 px-6 text-white font-semibold primary-btn1  rounded-lg transition duration-300 focus:outline-none focus:ring-2  focus:ring-opacity-50"
+                            className="w-full py-4 px-6 text-white font-semibold primary-btn1 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-opacity-50"
                           >
                             Book Now
                           </button>
-                        </form>
-                      </div>
-                    </div>
-
-                    <div
-                      className="tab-pane fade"
-                      id="v-pills-contact"
-                      role="tabpanel"
-                      aria-labelledby="v-pills-contact-tab"
-                    >
-                      <div className="sidebar-booking-form">
-                        <form>
-                          <div className="form-inner mb-[20px]">
-                            <label>
-                              Full Name <span>*</span>
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Enter your full name"
-                            />
-                          </div>
-                          <div className="form-inner mb-[20px]">
-                            <label>
-                              Email Address <span>*</span>
-                            </label>
-                            <input
-                              type="email"
-                              placeholder="Enter your email address"
-                            />
-                          </div>
-                          <div className="form-inner mb-[20px]">
-                            <label>
-                              Phone Number <span>*</span>
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Enter your phone number"
-                            />
-                          </div>
-                          <div className="form-inner mb-30">
-                            <label>
-                              Write Your Massage <span>*</span>
-                            </label>
-                            <textarea
-                              placeholder="Write your quiry"
-                              defaultValue={""}
-                            />
-                          </div>
-                          <div className="form-inner">
-                            <button type="submit" className="primary-btn1 two">
-                              Submit Now
-                            </button>
-                          </div>
                         </form>
                       </div>
                     </div>
@@ -885,9 +707,12 @@ const Page = () => {
         <div
           className="modal fade show d-block"
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={(e) =>
+            handleModalOutsideClick(e, confirmModalRef, closeConfirmModal)
+          }
         >
           <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content">
+            <div className="modal-content" ref={confirmModalRef}>
               <div className="modal-header border-0">
                 <h5 className="modal-title">
                   <i className="bi bi-check-circle text-primary me-2"></i>
@@ -1021,9 +846,13 @@ const Page = () => {
         <div
           className="modal fade show d-block"
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={(e) =>
+            !bookingLoading &&
+            handleModalOutsideClick(e, bookingModalRef, closeBookingModal)
+          }
         >
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
+            <div className="modal-content" ref={bookingModalRef}>
               <div className="modal-header border-0">
                 <h5 className="modal-title">
                   {bookingLoading
@@ -1103,12 +932,35 @@ const Page = () => {
                   >
                     Close
                   </button>
+                  {bookingError && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        closeBookingModal();
+                        setIsConfirmModalOpen(true);
+                      }}
+                    >
+                      Try Again
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Review Modal */}
+      <ReviewModal
+        open={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        itemId={carData?.id}
+        itemType="car"
+        itemName={carData?.title}
+        apiEndpoint="/user/rating/car_rating.php"
+        onSuccess={handleReviewSuccess}
+      />
     </>
   );
 };

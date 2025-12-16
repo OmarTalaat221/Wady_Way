@@ -11,6 +11,7 @@ import axios from "axios";
 import { base_url } from "../../../uitils/base_url";
 import { message } from "antd";
 import moment from "moment";
+import ReviewModal from "../../../components/reviews/ReviewModal";
 
 const Page = () => {
   // Initialize with proper dates
@@ -19,6 +20,8 @@ const Page = () => {
     moment().add(1, "day").toDate(),
   ]);
   const [startDate, endDate] = dateRange;
+
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   const [isOpenModalVideo, setOpenModalVideo] = useState(false);
   const [isOpenimg, setOpenimg] = useState({
@@ -125,6 +128,10 @@ const Page = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReviewSuccess = (reviewData) => {
+    fetchHotelData();
   };
 
   // Memoized calculations for better performance - FIXED PRICING
@@ -756,14 +763,12 @@ const Page = () => {
                       <span>{hotelData?.total_reviews || "2590"} Reviews</span>
                     </div>
                   </div>
-                  <a
+                  <button
                     className="primary-btn1"
-                    data-bs-toggle="modal"
-                    href="#exampleModalToggle"
-                    role="button"
+                    onClick={() => setIsReviewModalOpen(true)}
                   >
                     GIVE A RATING
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1278,6 +1283,19 @@ const Page = () => {
           </div>
         </div>
       )}
+
+      <ReviewModal
+        open={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        itemId={hotelID}
+        itemType="hotel"
+        itemName={hotelData?.name}
+        apiEndpoint="/user/rating/hotel_rating.php"
+        onSuccess={(data) => {
+          console.log("Review submitted:", data);
+          // Refresh data if needed
+        }}
+      />
     </>
   );
 };

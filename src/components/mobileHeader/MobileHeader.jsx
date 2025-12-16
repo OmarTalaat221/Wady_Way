@@ -169,7 +169,7 @@ const MobileHeader = ({ currentLocale }) => {
           {/* Right Section */}
           <div className="mobile-header-right">
             {/* Language Switcher */}
-            <button
+            {/* <button
               className="lang-toggle"
               onClick={() =>
                 changeLanguage(currentLocale === "ar" ? "en" : "ar")
@@ -178,7 +178,7 @@ const MobileHeader = ({ currentLocale }) => {
               <span className="lang-flag">
                 {currentLocale === "ar" ? arFlag : enFlag}
               </span>
-            </button>
+            </button> */}
 
             {/* Hamburger Menu Button */}
             <button

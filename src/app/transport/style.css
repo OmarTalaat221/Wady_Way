@@ -815,6 +815,15 @@
   animation: spin 0.8s linear infinite;
 }
 
+.transport-card .favorite-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.transport-card .favorite-btn.disabled:hover {
+  transform: scale(1) !important;
+}
+
 @keyframes heartBeat {
   0% {
     transform: scale(1);

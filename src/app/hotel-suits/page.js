@@ -47,6 +47,8 @@ const Page = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+
   const [shareModalOpen, setShareModalOpen] = useState(null);
   const [animatedId, setAnimatedId] = useState(null);
 
@@ -261,28 +263,37 @@ const Page = () => {
     }
   }, [shareModalOpen]);
 
-  // Get user ID from localStorage
   useEffect(() => {
     const userDataString = localStorage.getItem("user");
     if (userDataString) {
       try {
         const userData = JSON.parse(userDataString);
-        setUserId(userData.id || userData.user_id);
+        const id = userData.id || userData.user_id;
+        if (id) {
+          setUserId(id);
+          setIsUserLoggedIn(true); // ADD THIS
+        }
       } catch (error) {
         console.error("Error parsing user data:", error);
+        setIsUserLoggedIn(false); // ADD THIS
       }
+    } else {
+      setIsUserLoggedIn(false); // ADD THIS
     }
   }, []);
 
   // ✅ Fetch hotels with filters in API GET params
   const fetchHotels = useCallback(async () => {
-    if (!userId) return;
+    // if (!userId) return;
 
     try {
       setLoading(true);
 
       const params = new URLSearchParams();
-      params.set("user_id", userId);
+      if (userId) {
+        params.set("user_id", userId);
+      }
+
       params.set("page", currentPage.toString());
       params.set("limit", hotelsPerPage.toString());
 
@@ -355,11 +366,20 @@ const Page = () => {
 
   // ✅ Fetch filter options on mount (all hotels without filters)
   const fetchFilterOptions = useCallback(async () => {
-    if (!userId) return;
+    // if (!userId) return;
 
     try {
+      const params = new URLSearchParams();
+
+      if (userId) {
+        params.set("user_id", userId);
+      }
+
+      params.set("page", "1");
+      params.set("limit", "1000");
+
       const response = await axios.get(
-        `${base_url}/user/hotels/get_all_hotels.php?user_id=${userId}&page=1&limit=1000`
+        `${base_url}/user/hotels/get_all_hotels.php?${params.toString()}`
       );
 
       if (response?.data?.status === "success") {
@@ -403,23 +423,17 @@ const Page = () => {
 
   // Fetch filter options on mount
   useEffect(() => {
-    if (userId) {
-      fetchFilterOptions();
-    }
-  }, [userId, fetchFilterOptions]);
+    fetchFilterOptions();
+  }, [fetchFilterOptions]);
 
   // ✅ Fetch hotels when filters change
   useEffect(() => {
-    if (userId) {
-      fetchHotels();
-    }
-  }, [userId, fetchHotels]);
+    fetchHotels();
+  }, [fetchHotels]);
 
   // ✅ Update URL when debounced search changes
   useEffect(() => {
-    if (userId) {
-      updateURLParams({ search: debouncedSearchText, page: 1 });
-    }
+    updateURLParams({ search: debouncedSearchText, page: 1 });
   }, [debouncedSearchText]);
 
   // ✅ Handle search input change
@@ -882,7 +896,7 @@ const Page = () => {
                                   hotel.is_fav ? "active" : ""
                                 } ${animatedId === hotel.id ? "animate" : ""} ${
                                   isLoading(hotel.id) ? "loading" : ""
-                                }`}
+                                } ${!isUserLoggedIn ? "disabled" : ""}`}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   if (!isLoading(hotel.id)) {
@@ -892,6 +906,11 @@ const Page = () => {
                                     );
                                   }
                                 }}
+                                title={
+                                  !isUserLoggedIn
+                                    ? "Login to add to favorites"
+                                    : "Add to favorites"
+                                }
                               >
                                 <svg
                                   viewBox="0 0 24 24"

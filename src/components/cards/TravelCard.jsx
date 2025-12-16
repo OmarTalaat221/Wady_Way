@@ -114,7 +114,7 @@ const TravelCard = ({
             <Link
               href={
                 type === "profile"
-                  ? `/account/${tour?.id}`
+                  ? `/package/package-details/${tour?.tour_id || tour?.id}`
                   : `/package/package-details/${tour?.tour_id || tour?.id}`
               }
             >

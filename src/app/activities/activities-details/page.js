@@ -5,12 +5,13 @@ import Breadcrumb from "@/components/common/Breadcrumb";
 import QuantityCounter from "@/uitils/QuantityCounter";
 import Lightbox from "yet-another-react-lightbox";
 import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
-
 import FAQ from "../../package/package-details/[packageId]/_components/FAQ";
 import { FaClock, FaFlag, FaUser } from "react-icons/fa6";
 import { TiArrowForward } from "react-icons/ti";
 import { base_url } from "../../../uitils/base_url";
 import { useSearchParams } from "next/navigation";
+import ReviewModal from "@/components/reviews/ReviewModal"; // Import ReviewModal
+import toast from "react-hot-toast";
 
 const Page = () => {
   const [isOpenModalVideo, setOpenModalVideo] = useState(false);
@@ -35,6 +36,9 @@ const Page = () => {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState(null);
+
+  // Review modal state
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   // Refs for modal click outside detection
   const confirmModalRef = useRef(null);
@@ -85,12 +89,28 @@ const Page = () => {
     }
   };
 
-  // Handle initial form submission (show confirmation modal)
+  // Handle review submission success
+  const handleReviewSuccess = (reviewData) => {
+    console.log("Review submitted:", reviewData);
+    // toast.success("Thank you for your review!");
+    // fetchActivityData();
+  };
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
 
+    // Get user data
+    const userData = localStorage.getItem("user");
+    if (!userData) {
+      toast.error("Please login to make a booking");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1500);
+      return;
+    }
+
     if (!selectedDate) {
-      alert("Please select a booking date");
+      toast.error("Please select a booking date");
       return;
     }
 
@@ -106,8 +126,13 @@ const Page = () => {
     setBookingSuccess(false);
 
     try {
+      // Get user ID
+      const userData = localStorage.getItem("user");
+      const user = JSON.parse(userData);
+      const userId = user.user_id || user.id;
+
       const bookingData = {
-        user_id: 1,
+        user_id: userId,
         activity_id: parseInt(activityId),
         childs_num: childQuantity,
         adults_num: adultQuantity,
@@ -136,7 +161,8 @@ const Page = () => {
       }
     } catch (err) {
       setBookingError(
-        "Network error. Please check your connection and try again."
+        err.response?.data?.message ||
+          "Network error. Please check your connection and try again."
       );
       console.error("Booking error:", err);
     } finally {
@@ -419,6 +445,40 @@ const Page = () => {
 
               <div className="faq-content-wrap mb-[25px]">
                 <FAQ faqData={faqData} text={true} />
+              </div>
+
+              {/* Review Section */}
+              <div className="review-wrapper">
+                <h4>Customer Review</h4>
+                <div className="review-box">
+                  <div className="total-review">
+                    <h2>{activityData?.rating || "9.5"}</h2>
+                    <div className="review-wrap">
+                      <ul className="star-list">
+                        {[...Array(5)].map((_, i) => (
+                          <li key={i}>
+                            <i
+                              className={
+                                i < 4 ? "bi bi-star-fill" : "bi bi-star-half"
+                              }
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                      <span>
+                        {activityData?.reviews_count || "2590"} Reviews
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Review Button */}
+                  <button
+                    className="primary-btn1"
+                    onClick={() => setIsReviewModalOpen(true)}
+                  >
+                    GIVE A RATING
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -827,6 +887,17 @@ const Page = () => {
             </div>
           </div>
         )}
+
+        {/* Review Modal */}
+        <ReviewModal
+          open={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          itemId={activityId}
+          itemType="activity"
+          itemName={activityData?.title}
+          apiEndpoint="/user/rating/activity_rating.php"
+          onSuccess={handleReviewSuccess}
+        />
 
         <React.Fragment>
           <ModalVideo

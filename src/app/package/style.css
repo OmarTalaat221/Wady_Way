@@ -1,5 +1,5 @@
 /* Favorite button styles */
-.favorite-btn {
+.package-card .favorite-btn {
   position: absolute;
   top: 15px;
   right: 15px;
@@ -15,11 +15,11 @@
   transition: transform 0.2s ease;
 }
 
-.favorite-btn:hover {
+.package-card .favorite-btn:hover {
   transform: scale(1.1);
 }
 
-.favorite-btn svg {
+.package-card .favorite-btn svg {
   width: 20px;
   height: 20px;
   fill: transparent;
@@ -28,13 +28,23 @@
   transition: all 0.3s ease;
 }
 
-.favorite-btn.active svg {
+.package-card .favorite-btn.active svg {
   fill: #ff385c;
   stroke: #ff385c;
 }
 
-.favorite-btn.animate svg {
+.package-card .favorite-btn.animate svg {
   animation: heartBeat 0.4s ease-in-out;
+}
+
+/* Add to style.css */
+.package-card .favorite-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.package-card .favorite-btn.disabled:hover {
+  transform: scale(1) !important;
 }
 
 @keyframes heartBeat {

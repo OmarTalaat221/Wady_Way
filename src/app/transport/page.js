@@ -9,6 +9,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import axios from "axios";
 import { useDispatch } from "react-redux";
 import { useWishlist } from "@/hooks/useWishlist";
+import toast from "react-hot-toast";
 
 const Page = () => {
   const dispatch = useDispatch();
@@ -23,6 +24,8 @@ const Page = () => {
   const [error, setError] = useState(null);
   const [allFeatures, setAllFeatures] = useState([]);
   const [userId, setUserId] = useState(null);
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+
   const [shareModalOpen, setShareModalOpen] = useState(null);
   const [animatedId, setAnimatedId] = useState(null);
 
@@ -202,28 +205,36 @@ const Page = () => {
     }
   }, [shareModalOpen]);
 
-  // Get user ID from localStorage
   useEffect(() => {
     const userDataString = localStorage.getItem("user");
     if (userDataString) {
       try {
         const userData = JSON.parse(userDataString);
-        setUserId(userData.id || userData.user_id);
+        const id = userData.id || userData.user_id;
+        if (id) {
+          setUserId(id);
+          setIsUserLoggedIn(true); // ADD THIS
+        }
       } catch (error) {
         console.error("Error parsing user data:", error);
+        setIsUserLoggedIn(false); // ADD THIS
       }
+    } else {
+      setIsUserLoggedIn(false); // ADD THIS
     }
   }, []);
 
   // ✅ Function to fetch cars from API with filters
   const fetchCars = useCallback(async () => {
-    if (!userId) return;
+    // if (!userId) return;
 
     try {
       setLoading(true);
 
       const params = new URLSearchParams();
-      params.set("user_id", userId);
+      if (userId) {
+        params.set("user_id", userId);
+      }
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
@@ -309,11 +320,20 @@ const Page = () => {
 
   // ✅ Fetch filter options once on mount
   const fetchFilterOptions = useCallback(async () => {
-    if (!userId) return;
+    // if (!userId) return;
 
     try {
+      const params = new URLSearchParams();
+
+      if (userId) {
+        params.set("user_id", userId);
+      }
+
+      params.set("page", "1");
+      params.set("limit", "1000");
+
       const response = await axios.get(
-        `${base_url}/user/cars/select_car.php?user_id=${userId}&page=1&limit=1000`
+        `${base_url}/user/cars/select_car.php?${params.toString()}`
       );
       const data = response.data;
 
@@ -346,17 +366,13 @@ const Page = () => {
 
   // Fetch filter options on mount
   useEffect(() => {
-    if (userId) {
-      fetchFilterOptions();
-    }
-  }, [userId, fetchFilterOptions]);
+    fetchFilterOptions();
+  }, [fetchFilterOptions]);
 
   // ✅ Fetch cars when filters change
   useEffect(() => {
-    if (userId) {
-      fetchCars();
-    }
-  }, [userId, fetchCars]);
+    fetchCars();
+  }, [fetchCars]);
 
   // ✅ Handle page change
   const handlePageChange = useCallback(
@@ -765,12 +781,13 @@ const Page = () => {
                             {car?.location && <span>{car.location}</span>}
                           </Link>
 
-                          {/* Favorite Button */}
                           <div
                             className={`favorite-btn ${
                               car.is_fav ? "active" : ""
                             } ${animatedId === car.id ? "animate" : ""} ${
                               isLoading(car.id) ? "loading" : ""
+                            } ${
+                              !isUserLoggedIn ? "disabled" : "" // ADD THIS
                             }`}
                             onClick={(e) => {
                               e.preventDefault();
@@ -778,6 +795,11 @@ const Page = () => {
                                 handleToggleFavorite(car.id, car.is_fav);
                               }
                             }}
+                            title={
+                              !isUserLoggedIn
+                                ? "Login to add to favorites"
+                                : "Add to favorites"
+                            } // ADD THIS
                           >
                             <svg
                               viewBox="0 0 24 24"

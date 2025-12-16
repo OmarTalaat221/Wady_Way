@@ -12,6 +12,7 @@ import { base_url } from "../../uitils/base_url";
 import axios from "axios";
 import { useDispatch } from "react-redux";
 import { useWishlist } from "@/hooks/useWishlist";
+import toast from "react-hot-toast"; // Add this import
 import "./style.css";
 
 const ActivityCard = ({
@@ -22,6 +23,7 @@ const ActivityCard = ({
   onShareClick,
   shareModalOpen,
   onCloseShare,
+  isUserLoggedIn, // Add this prop
 }) => {
   const dispatch = useDispatch();
   const shareModalRef = useRef(null);
@@ -70,8 +72,29 @@ const ActivityCard = ({
   const copyToClipboard = () => {
     const url = `${window.location.origin}/activities/activities-details?id=${id}`;
     navigator.clipboard.writeText(url).then(() => {
+      toast.success("Link copied to clipboard!");
       onCloseShare();
     });
+  };
+
+  // Handle favorite click with login check
+  const handleFavoriteClick = (e) => {
+    e.preventDefault();
+
+    if (!isUserLoggedIn) {
+      toast.error("Please login to add activities to your favorites", {
+        duration: 3000,
+        icon: "🔒",
+      });
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1500);
+      return;
+    }
+
+    if (!isLoadingFav) {
+      onToggleFavorite(id, is_fav);
+    }
   };
 
   return (
@@ -126,17 +149,17 @@ const ActivityCard = ({
 
         {/* Bottom Left Action Buttons */}
         <div className="absolute bottom-6 left-6 flex items-center gap-2 z-10">
-          {/* Favorite Button */}
+          {/* Favorite Button - Updated with login check */}
           <div
             className={`favorite-btn-activity ${is_fav ? "active" : ""} ${
               isAnimated ? "animate" : ""
-            } ${isLoadingFav ? "loading" : ""}`}
-            onClick={(e) => {
-              e.preventDefault();
-              if (!isLoadingFav) {
-                onToggleFavorite(id, is_fav);
-              }
-            }}
+            } ${isLoadingFav ? "loading" : ""} ${
+              !isUserLoggedIn ? "disabled" : ""
+            }`}
+            onClick={handleFavoriteClick}
+            title={
+              !isUserLoggedIn ? "Login to add to favorites" : "Add to favorites"
+            }
           >
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
@@ -294,6 +317,7 @@ const ActivitiesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false); // Add this state
   const [shareModalOpen, setShareModalOpen] = useState(null);
   const [animatedId, setAnimatedId] = useState(null);
 
@@ -390,28 +414,38 @@ const ActivitiesPage = () => {
     if (newCategory !== activeFilter) setActiveFilter(newCategory);
   }, [searchParams]);
 
-  // Get user ID from localStorage
+  // ✅ Get user ID from localStorage - UPDATED
   useEffect(() => {
     const userDataString = localStorage.getItem("user");
     if (userDataString) {
       try {
         const userData = JSON.parse(userDataString);
-        setUserId(userData.id || userData.user_id);
+        const id = userData.id || userData.user_id;
+        if (id) {
+          setUserId(id);
+          setIsUserLoggedIn(true);
+        }
       } catch (error) {
         console.error("Error parsing user data:", error);
+        setIsUserLoggedIn(false);
       }
+    } else {
+      setIsUserLoggedIn(false);
     }
   }, []);
 
-  // ✅ Fetch activities with filters in API GET params
+  // ✅ Fetch activities - UPDATED to work without userId
   const fetchActivities = useCallback(async () => {
-    if (!userId) return;
-
     try {
       setLoading(true);
 
       const params = new URLSearchParams();
-      params.set("user_id", userId);
+
+      // Only add user_id if user is logged in
+      if (userId) {
+        params.set("user_id", userId);
+      }
+
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
@@ -459,13 +493,21 @@ const ActivitiesPage = () => {
     }
   }, [userId, currentPage, itemsPerPage, activeFilter]);
 
-  // ✅ Fetch available categories on mount
+  // ✅ Fetch available categories - UPDATED to work without userId
   const fetchCategories = useCallback(async () => {
-    if (!userId) return;
-
     try {
+      const params = new URLSearchParams();
+
+      // Only add user_id if available
+      if (userId) {
+        params.set("user_id", userId);
+      }
+
+      params.set("page", "1");
+      params.set("limit", "1000");
+
       const response = await axios.get(
-        `${base_url}/user/activities/select_activities.php?user_id=${userId}&page=1&limit=1000`
+        `${base_url}/user/activities/select_activities.php?${params.toString()}`
       );
 
       if (response.data.status === "success") {
@@ -477,9 +519,6 @@ const ActivitiesPage = () => {
           if (activity.activity_type) {
             categoriesSet.add(activity.activity_type);
           }
-          // if (activity.category) {
-          //   categoriesSet.add(activity.category);
-          // }
         });
 
         const categories = [
@@ -493,19 +532,15 @@ const ActivitiesPage = () => {
     }
   }, [userId]);
 
-  // Fetch categories on mount
+  // ✅ Fetch categories on mount - works even without login
   useEffect(() => {
-    if (userId) {
-      fetchCategories();
-    }
-  }, [userId, fetchCategories]);
+    fetchCategories();
+  }, [fetchCategories]);
 
-  // ✅ Fetch activities when filters change
+  // ✅ Fetch activities when filters change - works even without login
   useEffect(() => {
-    if (userId) {
-      fetchActivities();
-    }
-  }, [userId, fetchActivities]);
+    fetchActivities();
+  }, [fetchActivities]);
 
   // ✅ Handle filter click - NO page reload
   const handleFilterClick = useCallback(
@@ -573,8 +608,20 @@ const ActivitiesPage = () => {
     }, 100);
   }, [pathname]);
 
-  // Toggle favorite
+  // ✅ Toggle favorite - UPDATED with login check
   const handleToggleFavorite = async (activityId, currentStatus) => {
+    // Check if user is logged in
+    if (!isUserLoggedIn || !userId) {
+      toast.error("Please login to add activities to your favorites", {
+        duration: 3000,
+        icon: "🔒",
+      });
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1500);
+      return;
+    }
+
     setAnimatedId(activityId);
 
     const result = await toggleWishlist(activityId, "activity", currentStatus);
@@ -586,6 +633,15 @@ const ActivitiesPage = () => {
             ? { ...activity, is_fav: result.is_fav }
             : activity
         )
+      );
+
+      // Show success toast
+      toast.success(
+        result.is_fav ? "Added to favorites!" : "Removed from favorites",
+        {
+          duration: 2000,
+          icon: result.is_fav ? "❤️" : "💔",
+        }
       );
     }
 
@@ -644,14 +700,6 @@ const ActivitiesPage = () => {
     return pages;
   };
 
-  // ✅ Handle horizontal scroll with mouse wheel
-  // const handleWheelScroll = (e) => {
-  //   if (categoryScrollRef.current) {
-  //     e.preventDefault();
-  //     categoryScrollRef.current.scrollLeft += e.deltaY;
-  //   }
-  // };
-
   if (error && activities.length === 0) {
     return (
       <div className="bg-white min-h-screen">
@@ -707,10 +755,6 @@ const ActivitiesPage = () => {
       <div className="bg-white pb-8">
         <div className="container mx-auto px-4">
           <div className="relative mb-8">
-            {/* <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none md:hidden" /> */}
-
-            {/* <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none md:hidden" /> */}
-
             {/* ✅ Snap Scroll Container */}
             <div
               ref={categoryScrollRef}
@@ -720,7 +764,6 @@ const ActivitiesPage = () => {
                 msOverflowStyle: "none",
                 WebkitOverflowScrolling: "touch",
               }}
-              // onWheel={handleWheelScroll}
             >
               {/* Spacer for centering on mobile */}
               <div className="flex-shrink-0 w-4 md:hidden snap-start" />
@@ -819,6 +862,7 @@ const ActivitiesPage = () => {
                   onShareClick={toggleShareModal}
                   shareModalOpen={shareModalOpen}
                   onCloseShare={closeShareModal}
+                  isUserLoggedIn={isUserLoggedIn} // Pass login status
                 />
               ))}
             </div>

@@ -207,7 +207,6 @@ const Account = () => {
             progress: progress,
             category: tour.category,
             countryName: tour.country_name,
-            // Keep original tour details for reference
             tourDetails: tour,
             reservation: reservation,
           };

@@ -26,11 +26,11 @@ const Preloader = ({ onClose }) => {
   return (
     isPreloaderVisible && (
       <div className={preloaderClassNames}>
-        <div className="preloader-close-btn" onClick={handleCloseClick}>
+        {/* <div className="preloader-close-btn" onClick={handleCloseClick}>
           <span>
             <i className="bi bi-x-lg" /> Close
           </span>
-        </div>
+        </div> */}
         <div className="container">
           <div className="row d-flex justify-content-center">
             <div className="col-6 ">

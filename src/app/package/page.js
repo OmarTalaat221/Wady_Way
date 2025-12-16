@@ -13,6 +13,7 @@ import { base_url } from "../../uitils/base_url";
 import axios from "axios";
 import { useDispatch } from "react-redux";
 import { useWishlist } from "@/hooks/useWishlist";
+import toast from "react-hot-toast";
 
 const Page = () => {
   const dispatch = useDispatch();
@@ -28,6 +29,7 @@ const Page = () => {
   const [animatedId, setAnimatedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false); // ADD THIS
 
   // ✅ Flag to prevent URL sync loop
   const isUpdatingURL = useRef(false);
@@ -235,16 +237,22 @@ const Page = () => {
     if (newPriceMax !== priceMax) setPriceMax(newPriceMax);
   }, [searchParams]);
 
-  // Get user ID from localStorage
   useEffect(() => {
     const userDataString = localStorage.getItem("user");
     if (userDataString) {
       try {
         const userData = JSON.parse(userDataString);
-        setUserId(userData.id || userData.user_id);
+        const id = userData.id || userData.user_id;
+        if (id) {
+          setUserId(id);
+          setIsUserLoggedIn(true); // ADD THIS
+        }
       } catch (error) {
         console.error("Error parsing user data:", error);
+        setIsUserLoggedIn(false); // ADD THIS
       }
+    } else {
+      setIsUserLoggedIn(false); // ADD THIS
     }
   }, []);
 
@@ -270,37 +278,37 @@ const Page = () => {
 
   // ✅ Fetch tours from API with filters in GET params
   const fetchTours = useCallback(async () => {
-    if (!userId) return;
+    // if (!userId) return;
 
     try {
       setLoading(true);
 
       const params = new URLSearchParams();
-      params.set("user_id", userId);
+
+      // Only add user_id if user is logged in - ADD THIS CHECK
+      if (userId) {
+        params.set("user_id", userId);
+      }
+
       params.set("page", currentPage.toString());
       params.set("limit", itemsPerPage.toString());
 
-      // ✅ Add activity filter
       if (activityFilter && activityFilter !== "") {
         params.set("activity", activityFilter);
       }
 
-      // ✅ Add country_id filter (integer)
       if (countryId && countryId !== 0) {
         params.set("country_id", countryId.toString());
       }
 
-      // ✅ Add days filter (integer - exact)
       if (daysFilter && daysFilter !== 0) {
         params.set("days", daysFilter.toString());
       }
 
-      // ✅ Add price_min filter
       if (priceMin !== "" && priceMin !== null && priceMin >= 0) {
         params.set("price_min", priceMin.toString());
       }
 
-      // ✅ Add price_max filter
       if (priceMax !== "" && priceMax !== null && priceMax > 0) {
         params.set("price_max", priceMax.toString());
       }
@@ -372,10 +380,8 @@ const Page = () => {
 
   // ✅ Fetch tours when filters change
   useEffect(() => {
-    if (userId) {
-      fetchTours();
-    }
-  }, [userId, fetchTours]);
+    fetchTours();
+  }, [fetchTours]);
 
   // ✅ Handle page change
   const handlePageChange = useCallback(
@@ -654,12 +660,13 @@ const Page = () => {
                                 />
                               </Link>
 
-                              {/* Favorite Button */}
                               <div
                                 className={`favorite-btn ${
                                   tour.is_fav ? "active" : ""
                                 } ${animatedId === tour.id ? "animate" : ""} ${
                                   isLoading(tour.id) ? "loading" : ""
+                                } ${
+                                  !isUserLoggedIn ? "disabled" : "" // ADD THIS
                                 }`}
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -667,6 +674,11 @@ const Page = () => {
                                     handleToggleFavorite(tour.id, tour.is_fav);
                                   }
                                 }}
+                                title={
+                                  !isUserLoggedIn
+                                    ? "Login to add to favorites"
+                                    : "Add to favorites"
+                                } // ADD THIS
                               >
                                 <svg
                                   viewBox="0 0 24 24"

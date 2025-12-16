@@ -1,0 +1,137 @@
+Review Modal Custom Styles .review-modal .ant-modal-content {
+  border-radius: 20px !important;
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.review-modal .ant-modal-body {
+  padding: 0 !important;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for modal body */
+.review-modal .ant-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.review-modal .ant-modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.review-modal .ant-modal-body::-webkit-scrollbar-thumb {
+  background: var(--primary-color1, #c19a6b);
+  border-radius: 10px;
+}
+
+.review-modal .ant-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a68558;
+}
+
+/* Close button customization */
+.review-modal .ant-modal-close {
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  transition: all 0.3s ease;
+}
+
+.review-modal .ant-modal-close:hover {
+  background: #e5e7eb;
+}
+
+.review-modal .ant-modal-close-x {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  font-size: 16px;
+  color: #4b5563;
+}
+
+.review-modal .ant-modal-close:hover .ant-modal-close-x {
+  color: #111827;
+}
+
+/* Rate Component Customization */
+.review-modal .custom-rate {
+  color: var(--primary-color1, #c19a6b) !important;
+}
+
+.review-modal .custom-rate .ant-rate-star {
+  margin-right: 8px !important;
+}
+
+@media (max-width: 480px) {
+  .review-modal .custom-rate .ant-rate-star {
+    margin-right: 4px !important;
+  }
+}
+
+.review-modal .ant-rate-star-full svg,
+.review-modal .ant-rate-star-half .ant-rate-star-first svg {
+  fill: var(--primary-color1, #c19a6b);
+}
+
+.review-modal .ant-rate-star-zero svg {
+  fill: #e5e7eb;
+}
+
+/* Responsive modal width */
+@media (min-width: 640px) {
+  .review-modal {
+    max-width: 600px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .review-modal {
+    max-width: 700px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .review-modal {
+    max-width: 900px !important;
+  }
+}
+
+/* Modal mask animation */
+.review-modal .ant-modal-mask {
+  backdrop-filter: blur(4px);
+}
+
+/* Prevent body scroll when modal is open */
+body:has(.review-modal .ant-modal-wrap) {
+  overflow: hidden !important;
+}
+
+/* Smooth animations */
+.review-modal .ant-modal {
+  animation: modalSlideDown 0.3s ease-out;
+}
+
+@keyframes modalSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}

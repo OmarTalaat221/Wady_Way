@@ -25,6 +25,15 @@
   transform: scale(1.15);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
+/* Disabled favorite button style */
+.favorite-btn-activity.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.favorite-btn-activity.disabled:hover {
+  transform: scale(1) !important;
+}
 
 .favorite-btn-activity svg {
   width: 24px;

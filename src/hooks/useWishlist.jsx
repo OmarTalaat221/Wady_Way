@@ -32,7 +32,7 @@ export const useWishlist = () => {
 
     // Check if user is logged in
     if (!userId) {
-      toast.info("Please login to add items to your wishlist");
+      toast.error("Please login to add items to your wishlist");
       return { success: false, is_fav: currentStatus };
     }
 

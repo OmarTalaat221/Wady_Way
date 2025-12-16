@@ -143,6 +143,15 @@
   transform: translateY(0);
 }
 
+.room-suits-card .favorite-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.room-suits-card .favorite-btn.disabled:hover {
+  transform: scale(1) !important;
+}
+
 .room-suits-card .share-option {
   display: flex;
   align-items: center;
