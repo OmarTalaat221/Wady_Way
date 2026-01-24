@@ -242,3 +242,40 @@
     min-width: 160px;
   }
 }
+
+.room-suits-page .sticky-sidebar {
+  position: sticky;
+  top: 110px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding-right: 10px;
+  scroll-behavior: smooth;
+  transition: top 0.3s ease-in-out;
+}
+
+.sticky-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sticky-sidebar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.sticky-sidebar::-webkit-scrollbar-thumb {
+  background: #295557;
+  border-radius: 10px;
+}
+
+.sticky-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #e8a355;
+}
+
+@media (max-width: 1024px) {
+  .sticky-sidebar {
+    position: relative;
+    top: auto;
+    max-height: none;
+    overflow-y: visible;
+  }
+}

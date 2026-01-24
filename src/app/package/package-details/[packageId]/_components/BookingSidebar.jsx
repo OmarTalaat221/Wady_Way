@@ -7,13 +7,15 @@ import { FaEdit, FaPlus, FaMinus } from "react-icons/fa";
 import { customExpandIcon } from "./CustomExpandIcon";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+
 import {
   setTourData,
   setTourInfo,
   setPeopleCount,
   calculateTotal,
-  selectTourReservation,
+  selectPriceDetails, // ✅ استيراد selector جديد
 } from "@/lib/redux/slices/tourReservationSlice";
+import toast from "react-hot-toast";
 
 const { Panel } = Collapse;
 
@@ -36,7 +38,13 @@ const BookingSidebar = ({
   const selectedByDay = useSelector(
     (state) => state.tourReservation.selectedByDay
   );
-  const totalAmount = useSelector((state) => state.tourReservation.totalAmount);
+
+  // ✅ استخدام selector للحصول على تفاصيل الأسعار
+  const priceDetails = useSelector(selectPriceDetails);
+
+  const totalPeople = people.adults + people.children + people.infants;
+  const maxPersons = tourData?.max_persons || Infinity;
+  const canAddMorePeople = totalPeople < maxPersons;
 
   const contentStyle = {
     backgroundColor: "#fff",
@@ -49,9 +57,29 @@ const BookingSidebar = ({
     boxShadow: "none",
   };
 
-  useEffect(() => {
-    console.log(tourData, "tourData");
-  }, []);
+  const handleAddPerson = (type) => {
+    if (!canAddMorePeople) {
+      toast.error(
+        t("maxPersonsReached") ||
+          `Maximum ${maxPersons} persons allowed for this tour`
+      );
+      return;
+    }
+
+    setPeople({
+      ...people,
+      [type]: people[type] + 1,
+    });
+  };
+
+  const handleRemovePerson = (type, minValue = 0) => {
+    if (people[type] <= minValue) return;
+
+    setPeople({
+      ...people,
+      [type]: people[type] - 1,
+    });
+  };
 
   useEffect(() => {
     if (tourData) {
@@ -69,7 +97,6 @@ const BookingSidebar = ({
     );
   }, [people, dispatch]);
 
-  // Update dates in Redux
   useEffect(() => {
     if (dateValue && dateValue.length === 2) {
       dispatch(
@@ -81,12 +108,10 @@ const BookingSidebar = ({
     }
   }, [dateValue, dispatch]);
 
-  // Calculate total whenever selections change
   useEffect(() => {
     dispatch(calculateTotal());
   }, [selectedByDay, people, dispatch]);
 
-  // Get selected items for display
   const getSelectedHotels = () => {
     return Object.values(selectedByDay)
       .map((day) => day.hotel)
@@ -103,11 +128,6 @@ const BookingSidebar = ({
     return Object.values(selectedByDay)
       .flatMap((day) => day.activities || [])
       .filter(Boolean);
-  };
-
-  // Use Redux total or calculate locally
-  const calculateTotalPrice = () => {
-    return totalAmount || 0;
   };
 
   const numberOfDays =
@@ -147,7 +167,6 @@ const BookingSidebar = ({
                         {React.cloneElement(menu, {
                           style: menuStyle,
                         })}
-
                         <div className="calendar_cont">
                           <Calendar
                             onChange={handleDateChange}
@@ -193,6 +212,11 @@ const BookingSidebar = ({
                         <div className="d-flex flex-column gap-2 p-2">
                           <div className="add_travel_drop px-2">
                             {t("addTravelers")}
+                            {maxPersons !== Infinity && (
+                              <span className="text-sm text-gray-500 ms-2">
+                                ({totalPeople}/{maxPersons})
+                              </span>
+                            )}
                           </div>
 
                           {/* Adults */}
@@ -208,12 +232,7 @@ const BookingSidebar = ({
                               <button
                                 className="travel_button"
                                 disabled={people?.adults <= 1}
-                                onClick={() =>
-                                  setPeople({
-                                    ...people,
-                                    adults: Math.max(1, people?.adults - 1),
-                                  })
-                                }
+                                onClick={() => handleRemovePerson("adults", 1)}
                               >
                                 <FaMinus />
                               </button>
@@ -223,13 +242,15 @@ const BookingSidebar = ({
                               </div>
 
                               <button
-                                onClick={() =>
-                                  setPeople({
-                                    ...people,
-                                    adults: people?.adults + 1,
-                                  })
-                                }
+                                onClick={() => handleAddPerson("adults")}
                                 className="travel_button"
+                                disabled={!canAddMorePeople}
+                                style={{
+                                  opacity: canAddMorePeople ? 1 : 0.5,
+                                  cursor: canAddMorePeople
+                                    ? "pointer"
+                                    : "not-allowed",
+                                }}
                               >
                                 <FaPlus />
                               </button>
@@ -250,10 +271,7 @@ const BookingSidebar = ({
                                 className="travel_button"
                                 disabled={people?.children <= 0}
                                 onClick={() =>
-                                  setPeople({
-                                    ...people,
-                                    children: Math.max(0, people?.children - 1),
-                                  })
+                                  handleRemovePerson("children", 0)
                                 }
                               >
                                 <FaMinus />
@@ -264,13 +282,15 @@ const BookingSidebar = ({
                               </div>
 
                               <button
-                                onClick={() =>
-                                  setPeople({
-                                    ...people,
-                                    children: people?.children + 1,
-                                  })
-                                }
+                                onClick={() => handleAddPerson("children")}
                                 className="travel_button"
+                                disabled={!canAddMorePeople}
+                                style={{
+                                  opacity: canAddMorePeople ? 1 : 0.5,
+                                  cursor: canAddMorePeople
+                                    ? "pointer"
+                                    : "not-allowed",
+                                }}
                               >
                                 <FaPlus />
                               </button>
@@ -290,12 +310,7 @@ const BookingSidebar = ({
                               <button
                                 className="travel_button"
                                 disabled={people?.infants <= 0}
-                                onClick={() =>
-                                  setPeople({
-                                    ...people,
-                                    infants: Math.max(0, people?.infants - 1),
-                                  })
-                                }
+                                onClick={() => handleRemovePerson("infants", 0)}
                               >
                                 <FaMinus />
                               </button>
@@ -305,13 +320,15 @@ const BookingSidebar = ({
                               </div>
 
                               <button
-                                onClick={() =>
-                                  setPeople({
-                                    ...people,
-                                    infants: people?.infants + 1,
-                                  })
-                                }
+                                onClick={() => handleAddPerson("infants")}
                                 className="travel_button"
+                                disabled={!canAddMorePeople}
+                                style={{
+                                  opacity: canAddMorePeople ? 1 : 0.5,
+                                  cursor: canAddMorePeople
+                                    ? "pointer"
+                                    : "not-allowed",
+                                }}
                               >
                                 <FaPlus />
                               </button>
@@ -326,13 +343,16 @@ const BookingSidebar = ({
                       <div className="travel-input gap-2">
                         <span className="travel-icon mx-0">👤</span>
                         <span className="travel-text">
-                          {people?.adults + people?.children + people?.infants}{" "}
-                          {people?.adults +
-                            people?.children +
-                            people?.infants ===
-                          1
+                          {totalPeople}{" "}
+                          {totalPeople === 1
                             ? t("traveler")
                             : t("travelers_plural")}
+                          {maxPersons !== Infinity && (
+                            <span className="text-gray-400 text-sm">
+                              {" "}
+                              (max {maxPersons})
+                            </span>
+                          )}
                         </span>
                         <span
                           className="travel-dropdown"
@@ -345,7 +365,6 @@ const BookingSidebar = ({
                   </Dropdown>
                 </div>
 
-                {/* Selected Items Summary */}
                 <Collapse
                   expandIcon={customExpandIcon("12px")}
                   ghost
@@ -359,7 +378,6 @@ const BookingSidebar = ({
                           <span className="panel_head">
                             {item.label?.[locale] || item.label?.en}
                           </span>
-
                           <button
                             className="edit-button flex gap-[5px] px-1"
                             type="button"
@@ -394,7 +412,6 @@ const BookingSidebar = ({
                                 {child.title?.[locale] || child.title?.en}
                               </div>
                             </div>
-
                             {child.children && (
                               <div
                                 style={{
@@ -425,9 +442,10 @@ const BookingSidebar = ({
                   ))}
                 </Collapse>
 
-                {/* Price Breakdown */}
+                {/* ✅ Price Breakdown مع الخصم */}
                 {tourData && (
                   <div className="price-breakdown mb-3">
+                    {/* Base Tour Prices */}
                     <div className="price-item">
                       <span className="price-label">
                         {t("adults")} ({people.adults} × ${tourData.per_adult}):
@@ -456,6 +474,7 @@ const BookingSidebar = ({
                       </div>
                     )}
 
+                    {/* Hotels */}
                     {getSelectedHotels().length > 0 && (
                       <div className="price-item">
                         <span className="price-label">
@@ -479,6 +498,7 @@ const BookingSidebar = ({
                       </div>
                     )}
 
+                    {/* Cars */}
                     {getSelectedCars().length > 0 && (
                       <div className="price-item">
                         <span className="price-label">{t("transfers")}:</span>
@@ -495,16 +515,58 @@ const BookingSidebar = ({
                         </span>
                       </div>
                     )}
+                    {getSelectedActivities().length > 0 && (
+                      <div className="price-item">
+                        <span className="price-label">{t("activities")}:</span>
+                        <span className="price-value">
+                          $
+                          {getSelectedActivities()
+                            .reduce(
+                              (sum, activity) =>
+                                sum +
+                                parseFloat(
+                                  activity.price_current || activity.price || 0
+                                ),
+                              0
+                            )
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ✅ Subtotal */}
+                    <div className="price-item">
+                      <span className="price-label font-semibold">
+                        {t("subtotal") || "Subtotal"}:
+                      </span>
+                      <span className="price-value font-semibold">
+                        ${priceDetails.subtotal.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* ✅ Discount */}
+                    {priceDetails.discountPercentage > 0 && (
+                      <div className="price-item">
+                        <span className="price-label text-green-600">
+                          {t("discount") || "Discount"} (
+                          {priceDetails.discountPercentage}%):
+                        </span>
+                        <span className="price-value text-green-600">
+                          - ${priceDetails.discountAmount.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
               <div className="book_butt_cont">
+                {/* ✅ Total Price بعد الخصم */}
                 <div className="total-price">
                   <span>{t("totalPrice")}</span>
                   <span className="price-amount">
                     {tourData?.price_currency || "$"}
-                    {calculateTotalPrice()}
+                    {priceDetails.total.toFixed(2)}
                   </span>
                 </div>
 

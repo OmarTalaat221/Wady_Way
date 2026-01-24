@@ -1,0 +1,15 @@
+/* Antd Modal Customization */
+.ant-modal-content {
+  overflow: hidden;
+}
+
+.ant-modal-close {
+  top: -40px !important;
+  right: 0 !important;
+  color: white !important;
+}
+
+.ant-modal-close:hover {
+  color: #ccc !important;
+  background: transparent !important;
+}

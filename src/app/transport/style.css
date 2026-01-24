@@ -273,7 +273,7 @@
 }
 
 .price {
-  font-size: 32px;
+  /* font-size: 32px; */
   font-weight: 700;
   color: #333;
   margin: 0;
@@ -996,5 +996,44 @@
   .transport-card .share-options {
     right: 10px;
     min-width: 160px;
+  }
+}
+
+.transport-page .sticky-sidebar {
+  position: sticky;
+  top: 110px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding-right: 10px;
+  scroll-behavior: smooth;
+  transition: top 0.3s ease-in-out;
+}
+
+/* ✅ Custom Scrollbar للـ Sidebar */
+.transport-page .sticky-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.transport-page .sticky-sidebar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.transport-page .sticky-sidebar::-webkit-scrollbar-thumb {
+  background: #295557;
+  border-radius: 10px;
+}
+
+.transport-page .sticky-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #e8a355;
+}
+
+/* ✅ Responsive - Remove sticky on tablet */
+@media (max-width: 1024px) {
+  .transport-page .sticky-sidebar {
+    position: relative;
+    top: auto;
+    max-height: none;
+    overflow-y: visible;
   }
 }

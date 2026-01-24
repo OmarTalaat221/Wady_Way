@@ -17,10 +17,10 @@ const Footer = ({ style }) => {
                     <img
                       style={{
                         width: "250px",
-                        height: "100px",
+                        // height: "100px",
                         objectFit: "contain",
                       }}
-                      src="https://res.cloudinary.com/dhgp9dzdt/image/upload/v1742474019/long_logo_ns5cmz.png"
+                      src="https://res.cloudinary.com/dkc5klynm/image/upload/v1768723589/wadi_way_logo_only_smaller_o6ie4y.png"
                       alt=""
                     />
                   </Link>

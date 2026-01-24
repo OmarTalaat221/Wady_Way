@@ -4,6 +4,7 @@ import Link from "next/link";
 import React, { useState } from "react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useQueryClient } from "@tanstack/react-query";
+import "./discount_ribbon.css";
 
 export const TourCard = ({ item }) => {
   const { toggleWishlist, isLoading } = useWishlist();
@@ -75,6 +76,11 @@ export const TourCard = ({ item }) => {
 
   return (
     <div className="package-card !overflow-visible">
+      {item.offer_percentage && (
+        <div className="discount-ribbon">
+          <span>{item.offer_percentage}% OFF</span>
+        </div>
+      )}
       <div className="package-card-img-wrap">
         <Link href={item.detailsHref} className="card-img">
           <img
@@ -185,7 +191,10 @@ export const TourCard = ({ item }) => {
           <div className="price-area">
             <h6>Starting From:</h6>
             <span>
-              {item.price} {item.oldPrice && <del>{item.oldPrice}</del>}
+              {item.price}{" "}
+              {item?.oldPrice && item?.oldPrice > item?.price && (
+                <del>{item.oldPrice}</del>
+              )}
             </span>
             <p>TAXES INCL/PERS</p>
           </div>

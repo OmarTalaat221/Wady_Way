@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import "./style.css";
 import { base_url } from "../../uitils/base_url";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { Select } from "antd";
 
 import axios from "axios";
 import { useDispatch } from "react-redux";
@@ -23,19 +24,45 @@ const Page = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [allFeatures, setAllFeatures] = useState([]);
-  const [userId, setUserId] = useState(null);
-  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+  const [userId, setUserId] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const userDataString = localStorage.getItem("user");
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          return userData.id || userData.user_id || null;
+        }
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+    return null;
+  });
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const userDataString = localStorage.getItem("user");
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          const id = userData.id || userData.user_id;
+          return !!id;
+        }
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+    return false;
+  });
 
   const [shareModalOpen, setShareModalOpen] = useState(null);
   const [animatedId, setAnimatedId] = useState(null);
 
-  // ✅ Flag to prevent URL sync when we're updating URL ourselves
-  const isUpdatingURL = useRef(false);
+  // ✅ Mobile sidebar state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // ✅ Flag to track initial load
+  const isUpdatingURL = useRef(false);
   const isInitialLoad = useRef(true);
 
-  // Initialize pagination from URL params
   const [currentPage, setCurrentPage] = useState(() => {
     const pageParam = searchParams.get("page");
     return pageParam ? parseInt(pageParam) : 1;
@@ -51,17 +78,26 @@ const Page = () => {
 
   const shareModalRefs = useRef({});
 
-  // Filter states - Initialize from URL params
   const [searchText, setSearchText] = useState("");
 
-  const [minPrice, setMinPrice] = useState(() => {
-    const minPriceParam = searchParams.get("min_price");
-    return minPriceParam ? parseFloat(minPriceParam) : "";
-  });
+  // Replace minPrice and maxPrice state with:
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState(() => {
+    const minPriceParam = searchParams.get("price_min");
+    const maxPriceParam = searchParams.get("price_max");
 
-  const [maxPrice, setMaxPrice] = useState(() => {
-    const maxPriceParam = searchParams.get("max_price");
-    return maxPriceParam ? parseFloat(maxPriceParam) : "";
+    if (minPriceParam && maxPriceParam) {
+      const mins = minPriceParam.split(",").map(Number);
+      const maxs = maxPriceParam.split(",").map(Number);
+
+      const ranges = [];
+      for (let i = 0; i < mins.length; i++) {
+        if (!isNaN(mins[i]) && !isNaN(maxs[i])) {
+          ranges.push({ min: mins[i], max: maxs[i] });
+        }
+      }
+      return ranges;
+    }
+    return [];
   });
 
   const [selectedFeatures, setSelectedFeatures] = useState(() => {
@@ -76,6 +112,21 @@ const Page = () => {
 
   const [carTypes, setCarTypes] = useState([]);
 
+  // Add after other state declarations
+  const [sortBy, setSortBy] = useState(() => {
+    return searchParams.get("sort") || "";
+  });
+
+  // ✅ Sort options from API
+  const SORT_OPTIONS = [
+    { value: "", label: "Default" },
+    { value: "price_low", label: "Price: Low to High" },
+    { value: "price_high", label: "Price: High to Low" },
+    { value: "rating_high", label: "Highest Rated" },
+    { value: "rating_low", label: "Lowest Rated" },
+    { value: "newest", label: "Newest First" },
+  ];
+
   const priceRanges = [
     { id: "under50", label: "Under $50/day", min: 0, max: 50 },
     { id: "50to100", label: "$50 - $100/day", min: 50, max: 100 },
@@ -83,7 +134,19 @@ const Page = () => {
     { id: "over200", label: "$200+/day", min: 200, max: 10000 },
   ];
 
-  // ✅ Function to update URL without causing re-render/reload
+  // ✅ Prevent body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (isMobileSidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileSidebarOpen]);
+
   const updateURLParams = useCallback(
     (options = {}) => {
       const {
@@ -91,8 +154,8 @@ const Page = () => {
         limit = itemsPerPage,
         features = selectedFeatures,
         car_type = selectedCarTypes,
-        min_price = minPrice,
-        max_price = maxPrice,
+        priceRanges = selectedPriceRanges,
+        sort = sortBy,
       } = options;
 
       const params = new URLSearchParams();
@@ -113,25 +176,35 @@ const Page = () => {
         params.set("car_type", car_type.join(","));
       }
 
-      if (min_price !== "" && min_price !== null && min_price >= 0) {
-        params.set("min_price", min_price.toString());
+      if (sort && sort !== "") {
+        params.set("sort", sort);
       }
 
-      if (max_price !== "" && max_price !== null && max_price > 0) {
-        params.set("max_price", max_price.toString());
-      }
-
-      const newURL = params.toString()
+      // ✅ Build URL manually for price to avoid encoding
+      let baseURL = params.toString()
         ? `${pathname}?${params.toString()}`
         : pathname;
 
-      // ✅ Set flag to prevent sync effect from running
+      const additionalParams = [];
+
+      // ✅ Handle multiple price ranges - without encoding
+      if (priceRanges && priceRanges.length > 0) {
+        const minPrices = priceRanges.map((r) => r.min).join(",");
+        const maxPrices = priceRanges.map((r) => r.max).join(",");
+        additionalParams.push(`price_min=${minPrices}`);
+        additionalParams.push(`price_max=${maxPrices}`);
+      }
+
+      // ✅ Combine URL
+      let finalURL = baseURL;
+      if (additionalParams.length > 0) {
+        const separator = baseURL.includes("?") ? "&" : "?";
+        finalURL = `${baseURL}${separator}${additionalParams.join("&")}`;
+      }
+
       isUpdatingURL.current = true;
+      window.history.replaceState(null, "", finalURL);
 
-      // ✅ Use replace instead of push to avoid history stack buildup
-      window.history.replaceState(null, "", newURL);
-
-      // ✅ Reset flag after a short delay
       setTimeout(() => {
         isUpdatingURL.current = false;
       }, 100);
@@ -142,22 +215,20 @@ const Page = () => {
       itemsPerPage,
       selectedFeatures,
       selectedCarTypes,
-      minPrice,
-      maxPrice,
+      selectedPriceRanges,
+      sortBy,
     ]
   );
-
-  // ✅ Only sync from URL on initial load or browser back/forward
   useEffect(() => {
-    // Skip if we're updating the URL ourselves
     if (isUpdatingURL.current) return;
 
     const pageParam = searchParams.get("page");
     const limitParam = searchParams.get("limit");
     const featuresParam = searchParams.get("features");
     const carTypeParam = searchParams.get("car_type");
-    const minPriceParam = searchParams.get("min_price");
-    const maxPriceParam = searchParams.get("max_price");
+    const minPriceParam = searchParams.get("price_min");
+    const maxPriceParam = searchParams.get("price_max");
+    const sortParam = searchParams.get("sort");
 
     const newPage = pageParam ? parseInt(pageParam) : 1;
     const newLimit = limitParam ? parseInt(limitParam) : 10;
@@ -167,23 +238,36 @@ const Page = () => {
     const newCarTypes = carTypeParam
       ? carTypeParam.split(",").filter(Boolean)
       : [];
-    const newMinPrice = minPriceParam ? parseFloat(minPriceParam) : "";
-    const newMaxPrice = maxPriceParam ? parseFloat(maxPriceParam) : "";
+    const newSort = sortParam || "";
 
-    // Only update if values are different (for browser back/forward navigation)
+    // ✅ Parse price ranges
+    let newPriceRanges = [];
+    if (minPriceParam && maxPriceParam) {
+      const mins = minPriceParam.split(",").map(Number);
+      const maxs = maxPriceParam.split(",").map(Number);
+      for (let i = 0; i < mins.length; i++) {
+        if (!isNaN(mins[i]) && !isNaN(maxs[i])) {
+          newPriceRanges.push({ min: mins[i], max: maxs[i] });
+        }
+      }
+    }
+
     if (newPage !== currentPage) setCurrentPage(newPage);
     if (newLimit !== itemsPerPage) setItemsPerPage(newLimit);
+    if (newSort !== sortBy) setSortBy(newSort);
     if (JSON.stringify(newFeatures) !== JSON.stringify(selectedFeatures)) {
       setSelectedFeatures(newFeatures);
     }
     if (JSON.stringify(newCarTypes) !== JSON.stringify(selectedCarTypes)) {
       setSelectedCarTypes(newCarTypes);
     }
-    if (newMinPrice !== minPrice) setMinPrice(newMinPrice);
-    if (newMaxPrice !== maxPrice) setMaxPrice(newMaxPrice);
+    if (
+      JSON.stringify(newPriceRanges) !== JSON.stringify(selectedPriceRanges)
+    ) {
+      setSelectedPriceRanges(newPriceRanges);
+    }
   }, [searchParams]);
 
-  // Handle click outside to close share modal
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (shareModalOpen !== null) {
@@ -213,21 +297,18 @@ const Page = () => {
         const id = userData.id || userData.user_id;
         if (id) {
           setUserId(id);
-          setIsUserLoggedIn(true); // ADD THIS
+          setIsUserLoggedIn(true);
         }
       } catch (error) {
         console.error("Error parsing user data:", error);
-        setIsUserLoggedIn(false); // ADD THIS
+        setIsUserLoggedIn(false);
       }
     } else {
-      setIsUserLoggedIn(false); // ADD THIS
+      setIsUserLoggedIn(false);
     }
   }, []);
 
-  // ✅ Function to fetch cars from API with filters
   const fetchCars = useCallback(async () => {
-    // if (!userId) return;
-
     try {
       setLoading(true);
 
@@ -246,15 +327,20 @@ const Page = () => {
         params.set("car_type", selectedCarTypes.join(","));
       }
 
-      if (minPrice !== "" && minPrice !== null && minPrice >= 0) {
-        params.set("min_price", minPrice.toString());
+      if (sortBy && sortBy !== "") {
+        params.set("sort", sortBy);
       }
 
-      if (maxPrice !== "" && maxPrice !== null && maxPrice > 0) {
-        params.set("max_price", maxPrice.toString());
+      // ✅ Build API URL manually for price
+      let apiUrl = `${base_url}/user/cars/select_car.php?${params.toString()}`;
+
+      // ✅ Handle multiple price ranges - append without encoding
+      if (selectedPriceRanges && selectedPriceRanges.length > 0) {
+        const minPrices = selectedPriceRanges.map((r) => r.min).join(",");
+        const maxPrices = selectedPriceRanges.map((r) => r.max).join(",");
+        apiUrl += `&price_min=${minPrices}&price_max=${maxPrices}`;
       }
 
-      const apiUrl = `${base_url}/user/cars/select_car.php?${params.toString()}`;
       console.log("Fetching:", apiUrl);
 
       const response = await axios.get(apiUrl);
@@ -263,6 +349,15 @@ const Page = () => {
       if (data.status == "success" && data.message) {
         setTotalPages(parseInt(data.total_pages) || 1);
         setTotalItems(parseInt(data.total_items) || 0);
+
+        // ✅ Use featurs_sort and type_sort from API response
+        if (data.featurs_sort && Array.isArray(data.featurs_sort)) {
+          setAllFeatures(data.featurs_sort);
+        }
+
+        if (data.type_sort && Array.isArray(data.type_sort)) {
+          setCarTypes(data.type_sort);
+        }
 
         const mappedCars = data.message.map((car) => ({
           id: car.id,
@@ -274,7 +369,10 @@ const Page = () => {
           price_current: car.price_current || "0.00",
           price_original: car.price_original || car.price_current || "0.00",
           rating:
-            car.ratings && car.ratings.length > 0 ? car.ratings[0].score : 4.0,
+            car.avg_rating ||
+            (car.ratings && car.ratings.length > 0
+              ? car.ratings[0].score
+              : 4.0),
           reviews: car.review_count || Math.floor(Math.random() * 200) + 50,
           features: car.features || [],
           is_fav: car?.is_fav || false,
@@ -290,17 +388,7 @@ const Page = () => {
       }
     } catch (err) {
       console.error("Error fetching cars:", err);
-
-      if (err.response) {
-        setError(
-          `Server error: ${err.response.status} - ${err.response.statusText}`
-        );
-      } else if (err.request) {
-        setError("Network error: No response from server");
-      } else {
-        setError(err.message || "An unexpected error occurred");
-      }
-
+      setError(err.message || "An unexpected error occurred");
       setCars([]);
       setTotalPages(1);
       setTotalItems(0);
@@ -314,14 +402,11 @@ const Page = () => {
     itemsPerPage,
     selectedFeatures,
     selectedCarTypes,
-    minPrice,
-    maxPrice,
+    selectedPriceRanges,
+    sortBy,
   ]);
 
-  // ✅ Fetch filter options once on mount
   const fetchFilterOptions = useCallback(async () => {
-    // if (!userId) return;
-
     try {
       const params = new URLSearchParams();
 
@@ -330,7 +415,7 @@ const Page = () => {
       }
 
       params.set("page", "1");
-      params.set("limit", "1000");
+      params.set("limit", "10");
 
       const response = await axios.get(
         `${base_url}/user/cars/select_car.php?${params.toString()}`
@@ -364,17 +449,14 @@ const Page = () => {
     }
   }, [userId]);
 
-  // Fetch filter options on mount
   useEffect(() => {
     fetchFilterOptions();
   }, [fetchFilterOptions]);
 
-  // ✅ Fetch cars when filters change
   useEffect(() => {
     fetchCars();
   }, [fetchCars]);
 
-  // ✅ Handle page change
   const handlePageChange = useCallback(
     (page) => {
       if (page >= 1 && page <= totalPages && page !== currentPage) {
@@ -386,7 +468,6 @@ const Page = () => {
     [totalPages, currentPage, updateURLParams]
   );
 
-  // Toggle favorite
   const handleToggleFavorite = async (carId, currentStatus) => {
     setAnimatedId(carId);
 
@@ -405,7 +486,6 @@ const Page = () => {
     }, 600);
   };
 
-  // Share Modal Functions
   const toggleShareModal = (id) => {
     setShareModalOpen(shareModalOpen === id ? null : id);
   };
@@ -441,35 +521,46 @@ const Page = () => {
     e.preventDefault();
   };
 
-  // ✅ Handle price range change - NO page reload
   const handlePriceRangeChange = useCallback(
     (range) => {
-      if (minPrice === range.min && maxPrice === range.max) {
-        // Toggle off
-        setMinPrice("");
-        setMaxPrice("");
-        setCurrentPage(1);
-        updateURLParams({
-          page: 1,
-          min_price: "",
-          max_price: "",
-        });
+      // Check if this range is already selected
+      const isSelected = selectedPriceRanges.some(
+        (r) => r.min === range.min && r.max === range.max
+      );
+
+      let newRanges;
+      if (isSelected) {
+        // Remove the range
+        newRanges = selectedPriceRanges.filter(
+          (r) => !(r.min === range.min && r.max === range.max)
+        );
       } else {
-        // Select new range
-        setMinPrice(range.min);
-        setMaxPrice(range.max);
-        setCurrentPage(1);
-        updateURLParams({
-          page: 1,
-          min_price: range.min,
-          max_price: range.max,
-        });
+        // Add the range
+        newRanges = [
+          ...selectedPriceRanges,
+          { min: range.min, max: range.max },
+        ];
       }
+
+      setSelectedPriceRanges(newRanges);
+      setCurrentPage(1);
+      updateURLParams({
+        page: 1,
+        priceRanges: newRanges,
+      });
     },
-    [minPrice, maxPrice, updateURLParams]
+    [selectedPriceRanges, updateURLParams]
   );
 
-  // ✅ Handle feature change - NO page reload
+  const handleSortChange = useCallback(
+    (value) => {
+      setSortBy(value);
+      setCurrentPage(1);
+      updateURLParams({ page: 1, sort: value });
+    },
+    [updateURLParams]
+  );
+
   const handleFeatureChange = useCallback(
     (feature) => {
       const newFeatures = selectedFeatures.includes(feature)
@@ -486,7 +577,6 @@ const Page = () => {
     [selectedFeatures, updateURLParams]
   );
 
-  // ✅ Handle car type change - NO page reload
   const handleCarTypeChange = useCallback(
     (type) => {
       const newCarTypes = selectedCarTypes.includes(type)
@@ -503,32 +593,39 @@ const Page = () => {
     [selectedCarTypes, updateURLParams]
   );
 
-  // ✅ Clear all filters - NO page reload
   const clearAllFilters = useCallback(() => {
     setSearchText("");
     setSelectedFeatures([]);
     setSelectedCarTypes([]);
-    setMinPrice("");
-    setMaxPrice("");
+    setSelectedPriceRanges([]); // ✅ Clear price ranges
     setCurrentPage(1);
 
-    // Clear URL params
     isUpdatingURL.current = true;
-    window.history.replaceState(null, "", pathname);
+    // ✅ Keep sort in URL
+    const params = {};
+    if (sortBy && sortBy !== "") {
+      params.sort = sortBy;
+    }
+    const queryString = params.sort ? `?sort=${params.sort}` : "";
+    const newURL = `${pathname}${queryString}`;
+    window.history.replaceState(null, "", newURL);
     setTimeout(() => {
       isUpdatingURL.current = false;
     }, 100);
-  }, [pathname]);
+  }, [pathname, sortBy]);
 
-  // Check if any filters are active
+  // ✅ Active filters count
   const hasActiveFilters =
     searchText ||
     selectedCarTypes.length > 0 ||
     selectedFeatures.length > 0 ||
-    minPrice !== "" ||
-    maxPrice !== "";
+    selectedPriceRanges.length > 0; // ✅ Changed
 
-  // Filter cars by search text only (other filters are handled by API)
+  const activeFiltersCount =
+    selectedCarTypes.length +
+    selectedFeatures.length +
+    selectedPriceRanges.length; // ✅ Changed
+
   const filteredCars = useMemo(() => {
     let filtered = [...cars];
 
@@ -544,194 +641,208 @@ const Page = () => {
     return filtered;
   }, [cars, searchText]);
 
+  // ✅ Sidebar Content Component
+  const SidebarContent = () => (
+    <>
+      {/* Search Box */}
+      {/* <div className="single-widget mb-30">
+        <h5 className="widget-title">Search Here</h5>
+        <form onSubmit={handleSearch}>
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="Search by car name, type or location"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+            <button type="submit">
+              <i className="bx bx-search" />
+            </button>
+          </div>
+        </form>
+      </div> */}
+
+      {/* Price Range Filter */}
+      <div className="single-widget mb-30">
+        <h5 className="widget-title">Filter by Price</h5>
+        <div className="checkbox-container">
+          <ul>
+            {priceRanges.map((range) => {
+              // ✅ Check if this range is in selectedPriceRanges
+              const isSelected = selectedPriceRanges.some(
+                (r) => r.min === range.min && r.max === range.max
+              );
+              return (
+                <li key={range.id}>
+                  <label className="containerss">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        handlePriceRangeChange(range);
+                        if (window.innerWidth < 1024) {
+                          setTimeout(() => setIsMobileSidebarOpen(false), 300);
+                        }
+                      }}
+                    />
+                    <span className="checkmark" />
+                    <span className="text">{range.label}</span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+
+      {/* Car Type Filter */}
+      {carTypes.length > 0 && (
+        <div className="single-widget mb-30">
+          <h5 className="widget-title">Car Type</h5>
+          <div className="checkbox-container">
+            <ul>
+              {carTypes.map((type) => {
+                const isSelected = selectedCarTypes.includes(type);
+                return (
+                  <li key={type}>
+                    <label className="containerss">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          handleCarTypeChange(type);
+                          if (window.innerWidth < 1024) {
+                            setTimeout(
+                              () => setIsMobileSidebarOpen(false),
+                              300
+                            );
+                          }
+                        }}
+                      />
+                      <span className="checkmark" />
+                      <span className="text">{type}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Car Features Filter */}
+      {allFeatures.length > 0 && (
+        <div className="single-widget mb-30">
+          <h5 className="widget-title">Car Features</h5>
+          <div className="checkbox-container">
+            <ul>
+              {allFeatures.map((feature) => {
+                const isSelected = selectedFeatures.includes(feature);
+                return (
+                  <li key={feature}>
+                    <label className="containerss">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          handleFeatureChange(feature);
+                          if (window.innerWidth < 1024) {
+                            setTimeout(
+                              () => setIsMobileSidebarOpen(false),
+                              300
+                            );
+                          }
+                        }}
+                      />
+                      <span className="checkmark" />
+                      <span className="text">{feature}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <>
-      <div className="transport-page pt-120 mb-120">
+      <Breadcrumb pagename="Transports" pagetitle="Transports" />
+
+      <div className="transport-page pt-[50px] mb-[50px]">
         <div className="container">
-          <div className="row g-lg-4 gy-5">
-            <div className="col-xl-4 order-lg-1 order-2">
-              <div className="sidebar-area">
-                {/* Search Box */}
-                <div className="single-widget mb-30">
-                  <h5 className="widget-title">Search Here</h5>
-                  <form onSubmit={handleSearch}>
-                    <div className="search-box">
-                      <input
-                        type="text"
-                        placeholder="Search by car name, type or location"
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                      />
-                      <button type="submit">
-                        <i className="bx bx-search" />
-                      </button>
-                    </div>
-                  </form>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* ✅ Main Content */}
+            <div className="lg:col-span-2 order-1">
+              {/* ✅ Header with Results Info and Filter Button */}
+              {/* ✅ Header with Results Info, Sort and Filter Button */}
+              <div className="flex flex-col sm:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                  <h5 className="text-xl font-semibold mb-1">
+                    {filteredCars.length}{" "}
+                    {filteredCars.length === 1 ? "Car" : "Cars"} Found
+                  </h5>
+                  <small className="text-gray-500">
+                    Page {currentPage} of {totalPages} • Total: {totalItems}{" "}
+                    cars
+                  </small>
                 </div>
 
-                {/* Clear Filters Button */}
-                {hasActiveFilters && (
-                  <div className="single-widget mb-30">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* ✅ Ant Design Select for Sort */}
+                  <Select
+                    value={sortBy}
+                    onChange={handleSortChange}
+                    className="min-w-[180px]"
+                    size="large"
+                    options={SORT_OPTIONS}
+                    placeholder="Sort By"
+                  />
+
+                  {/* ✅ Mobile Filter Button */}
+                  <button
+                    className="primary-btn2 lg:hidden flex"
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                  >
+                    <i className="bi bi-funnel"></i>
+                    <span>Filters</span>
+                    {activeFiltersCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                        {activeFiltersCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {hasActiveFilters && (
                     <button
+                      className="hidden md:block px-4 py-2 text-sm border-2 border-red-200 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors duration-300"
                       onClick={clearAllFilters}
-                      className="btn btn-outline-danger w-100"
                     >
-                      Clear All Filters
+                      Clear All
                     </button>
-                  </div>
-                )}
-
-                {/* Price Range Filter */}
-                <div className="single-widget mb-30">
-                  <h5 className="widget-title">Filter by Price</h5>
-                  <div className="checkbox-container">
-                    <ul>
-                      {priceRanges.map((range) => {
-                        const isSelected =
-                          minPrice === range.min && maxPrice === range.max;
-                        return (
-                          <li key={range.id}>
-                            <label className="containerss">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handlePriceRangeChange(range)}
-                              />
-                              <span className="checkmark" />
-                              <span className="text">{range.label}</span>
-                            </label>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+                  )}
                 </div>
-
-                {/* Car Type Filter */}
-                {carTypes.length > 0 && (
-                  <div className="single-widget mb-30">
-                    <h5 className="widget-title">Car Type</h5>
-                    <div className="checkbox-container">
-                      <ul>
-                        {carTypes.map((type) => {
-                          const isSelected = selectedCarTypes.includes(type);
-                          return (
-                            <li key={type}>
-                              <label className="containerss">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => handleCarTypeChange(type)}
-                                />
-                                <span className="checkmark" />
-                                <span className="text">{type}</span>
-                              </label>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-
-                {/* Car Features Filter */}
-                {allFeatures.length > 0 && (
-                  <div className="single-widget mb-30">
-                    <h5 className="widget-title">Car Features</h5>
-                    <div className="checkbox-container">
-                      <ul>
-                        {allFeatures.map((feature) => {
-                          const isSelected = selectedFeatures.includes(feature);
-                          return (
-                            <li key={feature}>
-                              <label className="containerss">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => handleFeatureChange(feature)}
-                                />
-                                <span className="checkmark" />
-                                <span className="text">{feature}</span>
-                              </label>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-
-                {/* Active Filters Display */}
-                {hasActiveFilters && (
-                  <div className="single-widget mb-30">
-                    <h5 className="widget-title">Active Filters</h5>
-                    <div className="active-filters">
-                      {(minPrice !== "" || maxPrice !== "") && (
-                        <span className="badge bg-primary me-1 mb-1">
-                          ${minPrice || 0} - ${maxPrice || "∞"}
-                          <button
-                            className="btn-close btn-close-white ms-1"
-                            style={{ fontSize: "0.5rem" }}
-                            onClick={() => {
-                              setMinPrice("");
-                              setMaxPrice("");
-                              setCurrentPage(1);
-                              updateURLParams({
-                                page: 1,
-                                min_price: "",
-                                max_price: "",
-                              });
-                            }}
-                          />
-                        </span>
-                      )}
-
-                      {selectedCarTypes.map((type) => (
-                        <span key={type} className="badge bg-success me-1 mb-1">
-                          {type}
-                          <button
-                            className="btn-close btn-close-white ms-1"
-                            style={{ fontSize: "0.5rem" }}
-                            onClick={() => handleCarTypeChange(type)}
-                          />
-                        </span>
-                      ))}
-
-                      {selectedFeatures.map((feature) => (
-                        <span key={feature} className="badge bg-info me-1 mb-1">
-                          {feature}
-                          <button
-                            className="btn-close btn-close-white ms-1"
-                            style={{ fontSize: "0.5rem" }}
-                            onClick={() => handleFeatureChange(feature)}
-                          />
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-            </div>
 
-            <div className="col-xl-8 order-lg-2 order-1">
-              {/* Loading State - Only show spinner, no page reload */}
+              {/* ✅ Loading State */}
               {loading && (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-[#295557]" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                  <p className="mt-2">Loading cars...</p>
+                <div className="text-center py-12">
+                  <div className="inline-block w-12 h-12 border-4 border-gray-200 border-t-[#295557] rounded-full animate-spin"></div>
+                  <p className="mt-4 text-gray-600">Loading cars...</p>
                 </div>
               )}
 
-              {/* Error State */}
+              {/* ✅ Error State */}
               {!loading && error && cars.length === 0 && (
-                <div className="alert alert-warning" role="alert">
-                  <h4 className="alert-heading">No Cars Available</h4>
-                  <p>{error}</p>
-                  <hr />
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-yellow-800 mb-2">
+                    No Cars Available
+                  </h4>
+                  <p className="text-yellow-700 mb-4">{error}</p>
                   <button
-                    className="btn btn-warning"
+                    className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
                     onClick={() => fetchCars()}
                   >
                     Try Again
@@ -739,29 +850,9 @@ const Page = () => {
                 </div>
               )}
 
-              {/* Results Info */}
+              {/* ✅ Cars Grid */}
               {!loading && (
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                  <div>
-                    <h5 className="mb-0">
-                      {filteredCars.length}{" "}
-                      {filteredCars.length === 1 ? "Car" : "Cars"} Found
-                    </h5>
-                    <small className="text-muted">
-                      Page {currentPage} of {totalPages}
-                    </small>
-                  </div>
-                  <div>
-                    <small className="text-muted">
-                      Total: {totalItems} cars available
-                    </small>
-                  </div>
-                </div>
-              )}
-
-              {/* Cars Grid */}
-              {!loading && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-[30px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-[70px]">
                   {filteredCars.length > 0 ? (
                     filteredCars.map((car) => (
                       <div key={car?.id} className="transport-card">
@@ -781,17 +872,16 @@ const Page = () => {
                             {car?.location && <span>{car.location}</span>}
                           </Link>
 
+                          {/* Favorite Button */}
                           <div
                             className={`favorite-btn ${
                               car.is_fav ? "active" : ""
                             } ${animatedId === car.id ? "animate" : ""} ${
                               isLoading(car.id) ? "loading" : ""
-                            } ${
-                              !isUserLoggedIn ? "disabled" : "" // ADD THIS
-                            }`}
+                            } ${!isUserLoggedIn ? "disabled" : ""}`}
                             onClick={(e) => {
                               e.preventDefault();
-                              if (!isLoading(car.id)) {
+                              if (!isLoading(car.id) && isUserLoggedIn) {
                                 handleToggleFavorite(car.id, car.is_fav);
                               }
                             }}
@@ -799,7 +889,7 @@ const Page = () => {
                               !isUserLoggedIn
                                 ? "Login to add to favorites"
                                 : "Add to favorites"
-                            } // ADD THIS
+                            }
                           >
                             <svg
                               viewBox="0 0 24 24"
@@ -887,32 +977,28 @@ const Page = () => {
                           </h4>
 
                           <div className="price-info mb-2">
-                            <span className="current-price text-[#295557] fw-bold fs-5">
+                            <span className="current-price text-[#295557] font-bold text-lg">
                               ${car?.price_current}/day
                             </span>
                             {car?.price_original !== car?.price_current && (
-                              <span className="original-price text-muted text-decoration-line-through ms-2">
+                              <span className="original-price text-gray-400 line-through ml-2">
                                 ${car?.price_original}
                               </span>
                             )}
                           </div>
 
                           {car?.features && car.features.length > 0 && (
-                            <div className="features-tags mb-3">
+                            <div className="features-tags mb-3 flex flex-wrap gap-1">
                               {car.features.slice(0, 3).map((feature, idx) => (
                                 <span
                                   key={idx}
-                                  className="badge bg-secondary me-1 mb-1"
-                                  style={{ fontSize: "0.75rem" }}
+                                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
                                 >
                                   {feature}
                                 </span>
                               ))}
                               {car.features.length > 3 && (
-                                <span
-                                  className="badge bg-dark"
-                                  style={{ fontSize: "0.75rem" }}
-                                >
+                                <span className="px-2 py-1 bg-gray-800 text-white text-xs rounded">
                                   +{car.features.length - 3} more
                                 </span>
                               )}
@@ -920,45 +1006,49 @@ const Page = () => {
                           )}
 
                           <div className="card-bottom">
-                            <div className="details-btn md:w-full !w-fit">
+                            <div className="details-btn flex items-center justify-center">
                               <Link
                                 href={`/transport/transport-details?id=${car?.id}`}
-                                className="primary-btn1"
+                                className="primary-btn1 !w-fit"
                               >
                                 View Details
                               </Link>
                             </div>
                             <div className="review-area">
-                              <ul className="rating">
+                              <ul className="rating flex gap-1">
                                 {[...Array(5)].map((_, starIndex) => (
                                   <li key={starIndex}>
                                     <i
                                       className={`bi ${
                                         starIndex < Math.floor(car?.rating || 4)
-                                          ? "bi-star-fill"
-                                          : "bi-star"
+                                          ? "bi-star-fill text-yellow-400"
+                                          : "bi-star text-gray-300"
                                       }`}
                                     />
                                   </li>
                                 ))}
                               </ul>
-                              <span>({car?.reviews || 0} reviews)</span>
+                              <span className="text-gray-500 text-sm">
+                                ({car?.reviews || 0} reviews)
+                              </span>
                             </div>
                           </div>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="col-span-2 text-center py-5">
-                      <i className="bi bi-search fs-1 text-muted mb-3 d-block"></i>
-                      <h4>No cars found matching your criteria</h4>
-                      <p className="text-muted mb-4">
+                    <div className="col-span-full text-center py-12">
+                      <i className="bi bi-search text-5xl text-gray-400 mb-4 block"></i>
+                      <h4 className="text-2xl font-semibold mb-3">
+                        No cars found matching your criteria
+                      </h4>
+                      <p className="text-gray-500 mb-6">
                         Try adjusting your filters or search terms
                       </p>
                       {hasActiveFilters && (
                         <button
                           onClick={clearAllFilters}
-                          className="btn !text-white p-[10px] hover:bg-[#1d3d3f] !bg-[#295557]"
+                          className="px-6 py-3 bg-[#295557] text-white rounded-lg hover:bg-[#e8a355] transition-colors duration-300"
                         >
                           Clear All Filters
                         </button>
@@ -968,133 +1058,166 @@ const Page = () => {
                 </div>
               )}
 
-              {/* Pagination */}
+              {/* ✅ Pagination */}
               {!loading && filteredCars.length > 0 && totalPages > 1 && (
-                <div className="row">
-                  <div className="col-lg-12">
-                    <nav className="inner-pagination-area">
-                      <ul className="pagination-list">
+                <div className="w-full">
+                  <nav className="inner-pagination-area flex justify-center">
+                    <ul className="pagination-list flex items-center gap-2">
+                      {/* Previous Button */}
+                      <li>
+                        <button
+                          className={`px-4 py-2 rounded-lg border transition-colors duration-300 ${
+                            currentPage === 1
+                              ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400"
+                              : "hover:bg-[#295557] hover:text-white bg-white text-gray-700"
+                          }`}
+                          onClick={() => {
+                            if (currentPage > 1) {
+                              handlePageChange(currentPage - 1);
+                            }
+                          }}
+                          disabled={currentPage === 1}
+                        >
+                          <i className="bi bi-chevron-left" />
+                        </button>
+                      </li>
+
+                      {/* First Page */}
+                      {currentPage > 2 && (
                         <li>
-                          <a
-                            href="#"
-                            className={`shop-pagi-btn ${
-                              currentPage === 1 ? "disabled" : ""
-                            }`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              if (currentPage > 1) {
-                                handlePageChange(currentPage - 1);
-                              }
-                            }}
+                          <button
+                            className="min-w-[40px] px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-[#e8a355] hover:text-white transition-colors duration-300"
+                            onClick={() => handlePageChange(1)}
                           >
-                            <i className="bi bi-chevron-left" />
-                          </a>
+                            1
+                          </button>
                         </li>
+                      )}
 
-                        {currentPage > 2 && (
-                          <li>
-                            <a
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handlePageChange(1);
-                              }}
-                            >
-                              1
-                            </a>
-                          </li>
-                        )}
-
-                        {currentPage > 3 && (
-                          <li>
-                            <a href="#" onClick={(e) => e.preventDefault()}>
-                              <i className="bi bi-three-dots" />
-                            </a>
-                          </li>
-                        )}
-
-                        {currentPage > 1 && (
-                          <li>
-                            <a
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handlePageChange(currentPage - 1);
-                              }}
-                            >
-                              {currentPage - 1}
-                            </a>
-                          </li>
-                        )}
-
+                      {/* Dots */}
+                      {currentPage > 3 && (
                         <li>
-                          <a
-                            href="#"
-                            className="active"
-                            onClick={(e) => e.preventDefault()}
-                          >
-                            {currentPage}
-                          </a>
+                          <span className="px-4 py-2 text-gray-400">
+                            <i className="bi bi-three-dots" />
+                          </span>
                         </li>
+                      )}
 
-                        {currentPage < totalPages && (
-                          <li>
-                            <a
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handlePageChange(currentPage + 1);
-                              }}
-                            >
-                              {currentPage + 1}
-                            </a>
-                          </li>
-                        )}
-
-                        {currentPage < totalPages - 2 && (
-                          <li>
-                            <a href="#" onClick={(e) => e.preventDefault()}>
-                              <i className="bi bi-three-dots" />
-                            </a>
-                          </li>
-                        )}
-
-                        {currentPage < totalPages - 1 && (
-                          <li>
-                            <a
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handlePageChange(totalPages);
-                              }}
-                            >
-                              {totalPages}
-                            </a>
-                          </li>
-                        )}
-
+                      {/* Previous Page */}
+                      {currentPage > 1 && (
                         <li>
-                          <a
-                            href="#"
-                            className={`shop-pagi-btn ${
-                              currentPage === totalPages ? "disabled" : ""
-                            }`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              if (currentPage < totalPages) {
-                                handlePageChange(currentPage + 1);
-                              }
-                            }}
+                          <button
+                            className="min-w-[40px] px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-[#e8a355] hover:text-white transition-colors duration-300"
+                            onClick={() => handlePageChange(currentPage - 1)}
                           >
-                            <i className="bi bi-chevron-right" />
-                          </a>
+                            {currentPage - 1}
+                          </button>
                         </li>
-                      </ul>
-                    </nav>
-                  </div>
+                      )}
+
+                      {/* Current Page */}
+                      <li>
+                        <button className="min-w-[40px] px-4 py-2 rounded-lg border bg-[#295557] text-white border-[#295557]">
+                          {currentPage}
+                        </button>
+                      </li>
+
+                      {/* Next Page */}
+                      {currentPage < totalPages && (
+                        <li>
+                          <button
+                            className="min-w-[40px] px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-[#e8a355] hover:text-white transition-colors duration-300"
+                            onClick={() => handlePageChange(currentPage + 1)}
+                          >
+                            {currentPage + 1}
+                          </button>
+                        </li>
+                      )}
+
+                      {/* Dots */}
+                      {currentPage < totalPages - 2 && (
+                        <li>
+                          <span className="px-4 py-2 text-gray-400">
+                            <i className="bi bi-three-dots" />
+                          </span>
+                        </li>
+                      )}
+
+                      {/* Last Page */}
+                      {currentPage < totalPages - 1 && (
+                        <li>
+                          <button
+                            className="min-w-[40px] px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-[#e8a355] hover:text-white transition-colors duration-300"
+                            onClick={() => handlePageChange(totalPages)}
+                          >
+                            {totalPages}
+                          </button>
+                        </li>
+                      )}
+
+                      {/* Next Button */}
+                      <li>
+                        <button
+                          className={`px-4 py-2 rounded-lg border transition-colors duration-300 ${
+                            currentPage === totalPages
+                              ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400"
+                              : "hover:bg-[#295557] hover:text-white bg-white text-gray-700"
+                          }`}
+                          onClick={() => {
+                            if (currentPage < totalPages) {
+                              handlePageChange(currentPage + 1);
+                            }
+                          }}
+                          disabled={currentPage === totalPages}
+                        >
+                          <i className="bi bi-chevron-right" />
+                        </button>
+                      </li>
+                    </ul>
+                  </nav>
                 </div>
               )}
             </div>
+
+            {/* ✅ Desktop Sidebar - Sticky */}
+            <div className="hidden lg:block lg:col-span-1 order-2">
+              <div className="sidebar-area sticky-sidebar">
+                <SidebarContent />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ Mobile Sidebar Overlay */}
+      <div
+        className={`fixed inset-0 bg-black/50 z-[9998] transition-opacity duration-300 lg:hidden ${
+          isMobileSidebarOpen ? "opacity-100 visible" : "opacity-0 invisible"
+        }`}
+        onClick={() => setIsMobileSidebarOpen(false)}
+      ></div>
+
+      {/* ✅ Mobile Sidebar Drawer */}
+      <div
+        className={`fixed top-0 right-0 h-screen w-[85%] max-w-[350px] bg-white z-[9999] transition-transform duration-300 ease-in-out flex flex-col lg:hidden ${
+          isMobileSidebarOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50">
+          <h5 className="text-lg font-semibold m-0">Filters</h5>
+          <button
+            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-200 transition-colors"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          >
+            <i className="bi bi-x-lg text-xl"></i>
+          </button>
+        </div>
+
+        {/* Body with Scroll */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="sidebar-area p-4">
+            <SidebarContent />
           </div>
         </div>
       </div>

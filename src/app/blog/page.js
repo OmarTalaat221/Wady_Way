@@ -11,12 +11,13 @@ const AdminBlogsPage = () => {
   const [allBlogs, setAllBlogs] = useState([]);
   const [filteredBlogs, setFilteredBlogs] = useState([]);
   const [displayBlogs, setDisplayBlogs] = useState([]);
-  const [activeFilter, setActiveFilter] = useState("All");
+  const [activeFilter, setActiveFilter] = useState("all"); // Changed to "all" string
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const blogsPerPage = 9;
 
-  const [categories, setCategories] = useState(["All"]);
+  // Categories as array of objects (NOT mixed with "All" string)
+  const [categories, setCategories] = useState([]);
 
   const fetchAdminBlogs = async () => {
     setLoading(true);
@@ -30,13 +31,24 @@ const AdminBlogsPage = () => {
         setAllBlogs(blogs);
         setFilteredBlogs(blogs);
 
-        // Extract unique categories
-        const uniqueCategories = [
-          "All",
-          ...new Set(blogs.map((blog) => blog.category)),
-        ];
-        setCategories(uniqueCategories);
+        // ✅ FIXED: Extract unique categories properly
+        const uniqueCategories = [];
+        const seenCategoryIds = new Set();
 
+        blogs.forEach((blog) => {
+          // Use category as ID (it's "2" in your data)
+          const categoryId = blog.category;
+
+          if (categoryId && !seenCategoryIds.has(categoryId)) {
+            seenCategoryIds.add(categoryId);
+            uniqueCategories.push({
+              category_id: categoryId,
+              category_name: blog.category_name || `Category ${categoryId}`,
+            });
+          }
+        });
+
+        setCategories(uniqueCategories);
         setDisplayBlogs(blogs.slice(0, blogsPerPage));
       }
     } catch (error) {
@@ -49,40 +61,50 @@ const AdminBlogsPage = () => {
     }
   };
 
-  // Filter blogs by category
-  const filterBlogs = (category) => {
-    setActiveFilter(category);
+  // ✅ FIXED: Filter blogs by category ID
+  const filterBlogs = (categoryId) => {
+    setActiveFilter(categoryId);
     setCurrentPage(1);
 
     let filtered;
-    if (category === "All") {
+    if (categoryId === "all") {
       filtered = allBlogs;
     } else {
-      filtered = allBlogs.filter((blog) => blog.category === category);
+      // Compare with category ID (which is blog.category in your data)
+      filtered = allBlogs.filter((blog) => blog.category === categoryId);
     }
 
     setFilteredBlogs(filtered);
     setDisplayBlogs(filtered.slice(0, blogsPerPage));
   };
 
+  // ✅ Helper: Get blog count by category
+  const getCategoryBlogCount = (categoryId) => {
+    if (categoryId === "all") return allBlogs.length;
+    return allBlogs.filter((blog) => blog.category === categoryId).length;
+  };
+
+  // ✅ Helper: Get active category name for display
+  const getActiveCategoryName = () => {
+    if (activeFilter === "all") return null;
+    const category = categories.find((cat) => cat.category_id === activeFilter);
+    return category?.category_name || activeFilter;
+  };
+
   // Handle pagination
   const handlePageChange = (page) => {
     setCurrentPage(page);
-
     const startIndex = (page - 1) * blogsPerPage;
     const endIndex = startIndex + blogsPerPage;
     const paginatedBlogs = filteredBlogs.slice(startIndex, endIndex);
-
     setDisplayBlogs(paginatedBlogs);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Calculate total pages
   const getTotalPages = () => {
     return Math.ceil(filteredBlogs.length / blogsPerPage);
   };
 
-  // Format date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const day = date.getDate();
@@ -90,13 +112,11 @@ const AdminBlogsPage = () => {
     return { day, month };
   };
 
-  // Calculate read time
   const calculateReadTime = (title) => {
     const words = title.split(" ").length;
     return Math.max(1, Math.ceil(words / 50));
   };
 
-  // Generate pagination numbers
   const generatePaginationNumbers = () => {
     const totalPages = getTotalPages();
     const pages = [];
@@ -123,16 +143,13 @@ const AdminBlogsPage = () => {
         );
       }
     }
-
     return pages;
   };
 
-  // Fetch data on mount
   useEffect(() => {
     fetchAdminBlogs();
   }, []);
 
-  // Update pagination when filtered blogs change
   useEffect(() => {
     const startIndex = (currentPage - 1) * blogsPerPage;
     const endIndex = startIndex + blogsPerPage;
@@ -153,19 +170,49 @@ const AdminBlogsPage = () => {
             </p>
           </div>
 
-          {/* Category Filter Buttons */}
+          {/* ✅ FIXED: Category Filter Buttons */}
           <div className="flex overflow-x-auto pb-2 snap-x no-scroll flex-wrap justify-center gap-3 mb-16">
-            {categories.map((filter) => (
+            {/* "All" Button - Separate from category objects */}
+            <button
+              onClick={() => filterBlogs("all")}
+              className={`group/filter snap-center relative px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 overflow-hidden ${
+                activeFilter === "all"
+                  ? "text-white transform hover:scale-105 active:scale-95"
+                  : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 hover:border-gray-300 transform hover:scale-105 active:scale-95"
+              }`}
+              style={
+                activeFilter === "all"
+                  ? {
+                      background:
+                        "linear-gradient(135deg, #295557 0%, #e8a355 100%)",
+                    }
+                  : {}
+              }
+            >
+              <span className="relative z-10">All ({allBlogs.length})</span>
+              {activeFilter === "all" && (
+                <>
+                  <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/filter:scale-x-100 transition-transform duration-300 origin-left" />
+                  <div className="absolute inset-0 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/15 to-transparent transform -skew-x-12 -translate-x-full group-hover/filter:translate-x-full" />
+                </>
+              )}
+              {activeFilter !== "all" && (
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300" />
+              )}
+            </button>
+
+            {/* Category Buttons - Map through category objects */}
+            {categories.map((category) => (
               <button
-                key={filter}
-                onClick={() => filterBlogs(filter)}
+                key={category.category_id}
+                onClick={() => filterBlogs(category.category_id)}
                 className={`group/filter snap-center relative px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 overflow-hidden ${
-                  activeFilter === filter
+                  activeFilter === category.category_id
                     ? "text-white transform hover:scale-105 active:scale-95"
                     : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 hover:border-gray-300 transform hover:scale-105 active:scale-95"
                 }`}
                 style={
-                  activeFilter === filter
+                  activeFilter === category.category_id
                     ? {
                         background:
                           "linear-gradient(135deg, #295557 0%, #e8a355 100%)",
@@ -174,40 +221,41 @@ const AdminBlogsPage = () => {
                 }
               >
                 <span className="relative z-10">
-                  {filter?.replace("_", " ")}
-                  {filter === "All"
-                    ? ` (${allBlogs.length})`
-                    : ` (${
-                        allBlogs.filter((blog) => blog.category === filter)
-                          .length
-                      })`}
+                  {category.category_name} (
+                  {getCategoryBlogCount(category.category_id)})
                 </span>
-
-                {activeFilter === filter && (
+                {activeFilter === category.category_id && (
                   <>
                     <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/filter:scale-x-100 transition-transform duration-300 origin-left" />
                     <div className="absolute inset-0 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/15 to-transparent transform -skew-x-12 -translate-x-full group-hover/filter:translate-x-full" />
                   </>
                 )}
-
-                {activeFilter !== filter && (
+                {activeFilter !== category.category_id && (
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 opacity-0 group-hover/filter:opacity-100 transition-opacity duration-300" />
                 )}
               </button>
             ))}
           </div>
 
-          {/* Results Counter */}
+          {/* ✅ FIXED: Results Counter */}
           <div className="text-center mb-6">
             <p className="text-gray-600">
               Showing {displayBlogs.length} of {filteredBlogs.length} official
               blogs
-              {activeFilter !== "All" &&
-                ` in "${activeFilter?.replace("_", " ")}"`}
+              {activeFilter !== "all" && getActiveCategoryName() && (
+                <>
+                  {" "}
+                  in "
+                  <span className="font-semibold">
+                    {getActiveCategoryName()}
+                  </span>
+                  "
+                </>
+              )}
             </p>
           </div>
 
-          {/* Loading State */}
+          {/* Rest of your code remains the same... */}
           {loading ? (
             <div className="flex justify-center items-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#295557]"></div>
@@ -270,18 +318,22 @@ const AdminBlogsPage = () => {
                               <ul>
                                 <li>
                                   By{" "}
-                                  <Link href="/blog">
+                                  <Link
+                                    href={`/blog/blog-details?blog_id=${blog.blog_id}`}
+                                  >
                                     {blog.admin_name || "Admin"}
                                   </Link>
                                 </li>
                                 <li>
-                                  <Link href="/blog">
-                                    {blog.category?.replace("_", " ")}
+                                  <Link
+                                    href={`/blog/blog-details?blog_id=${blog.blog_id}`}
+                                  >
+                                    {blog.category_name}
                                   </Link>
                                 </li>
                               </ul>
                             </div>
-                            <h5>
+                            <h5 className="line-clamp-1">
                               <Link
                                 href={`/blog/blog-details?blog_id=${blog.blog_id}`}
                               >
@@ -353,10 +405,18 @@ const AdminBlogsPage = () => {
                         No official blogs found
                       </h4>
                       <p className="text-gray-400">
-                        {activeFilter !== "All"
-                          ? `No official blogs found in "${activeFilter}" category.`
+                        {activeFilter !== "all" && getActiveCategoryName()
+                          ? `No official blogs found in "${getActiveCategoryName()}" category.`
                           : "No official blogs available at the moment."}
                       </p>
+                      {activeFilter !== "all" && (
+                        <button
+                          onClick={() => filterBlogs("all")}
+                          className="mt-4 px-6 py-2 bg-[#295557] text-white rounded-full hover:bg-[#1e3d3f] transition-colors"
+                        >
+                          View All Blogs
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

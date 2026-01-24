@@ -65,7 +65,7 @@ const Home1Blog = ({ data }) => {
                     >
                       <img
                         src={item.cover_image}
-                        alt={item.category}
+                        alt={item.category_name}
                         className="w-full h-[250px] xs:h-[280px] sm:h-[320px] md:h-[400px] lg:h-[450px] xl:h-[511px] object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
                       />
                     </Link>
@@ -73,12 +73,12 @@ const Home1Blog = ({ data }) => {
                   <div className="blog-card-content">
                     <div className="blog-card-content-top">
                       <ul>
-                        <li>
+                        {/* <li>
                           By{" "}
                           <Link href="/blog">
-                            {item?.user?.name || "Rison donec"}
+                            {item?.user?.name || "Admin"}
                           </Link>
-                        </li>
+                        </li> */}
                         <li>
                           <Link href="/blog">
                             {item?.created_at?.split(" ")[0]}
@@ -129,7 +129,7 @@ const Home1Blog = ({ data }) => {
                     >
                       <img
                         src={item.cover_image}
-                        alt={item.category}
+                        alt={item.category_name}
                         className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
                       />
                     </Link>
@@ -142,19 +142,19 @@ const Home1Blog = ({ data }) => {
                   <div className="blog-card-content">
                     <div className="blog-card-content-top">
                       <ul>
-                        <li>
+                        {/* <li>
                           By{" "}
                           <Link
                             href={`/blog/blog-details?blog_id=${item.blog_id}`}
                           >
                             {item?.user?.name}
                           </Link>
-                        </li>
+                        </li> */}
                         <li>
                           <Link
                             href={`/blog/blog-details?blog_id=${item.blog_id}`}
                           >
-                            {item.category}
+                            {item.category_name}
                           </Link>
                         </li>
                       </ul>

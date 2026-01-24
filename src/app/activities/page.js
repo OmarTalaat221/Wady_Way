@@ -132,10 +132,10 @@ const ActivityCard = ({
         >
           ⭐{" "}
           {averageRating >= 5
-            ? 5?.toFixed(1)
+            ? (5)?.toFixed(1)
             : averageRating <= 0
-            ? 0?.toFixed(1)
-            : averageRating}
+              ? (0)?.toFixed(1)
+              : averageRating}
         </div>
 
         {/* Price Badge */}
@@ -316,8 +316,35 @@ const ActivitiesPage = () => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
-  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false); // Add this state
+  const [userId, setUserId] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const userDataString = localStorage.getItem("user");
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          return userData.id || userData.user_id || null;
+        }
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+    return null;
+  });
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const userDataString = localStorage.getItem("user");
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          const id = userData.id || userData.user_id;
+          return !!id;
+        }
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+    return false;
+  });
   const [shareModalOpen, setShareModalOpen] = useState(null);
   const [animatedId, setAnimatedId] = useState(null);
 
@@ -758,7 +785,7 @@ const ActivitiesPage = () => {
             {/* ✅ Snap Scroll Container */}
             <div
               ref={categoryScrollRef}
-              className="category-scroll-container flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth"
+              className="category-scroll-container flex gap-3 overflow-x-auto pb-4 no-scrollbar snap-x snap-mandatory scroll-smooth"
               style={{
                 scrollbarWidth: "none",
                 msOverflowStyle: "none",

@@ -24,8 +24,9 @@ const page = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const blogsPerPage = 6; // Reduced for 2-column layout
 
-  // Available categories - will be dynamic based on API data
-  const [categories, setCategories] = useState(["All"]);
+  const [categories, setCategories] = useState([
+    { label: "All", value: "All" },
+  ]);
 
   // Add isLoggedIn state and user data
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -39,7 +40,6 @@ const page = () => {
     { label: "Hidden", value: "hidden" },
   ];
 
-  // Check login status on mount
   useEffect(() => {
     try {
       const user = localStorage.getItem("user");
@@ -55,7 +55,6 @@ const page = () => {
     }
   }, []);
 
-  // Fetch user blogs from API
   const fetchUserBlogs = async () => {
     if (!userData?.user_id && !userData?.id) return;
 
@@ -78,14 +77,6 @@ const page = () => {
         setAllBlogs(blogs);
         setFilteredBlogs(blogs);
 
-        // Extract unique categories from API data
-        const uniqueCategories = [
-          "All",
-          ...new Set(blogs.map((blog) => blog.category)),
-        ];
-        setCategories(uniqueCategories);
-
-        // Set initial display (first page)
         setDisplayBlogs(blogs.slice(0, blogsPerPage));
       } else {
         setAllBlogs([]);
@@ -220,6 +211,46 @@ const page = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(
+          `${base_url}/user/blog/select_categories.php`
+        );
+
+        if (
+          response.data.status === "success" &&
+          Array.isArray(response.data.message)
+        ) {
+          // Transform to label/value/name/id structure
+          const transformedCategories = response.data.message.map((item) => ({
+            label: item.category_name,
+            value: item.category_id,
+          }));
+
+          // Remove duplicates based on name
+          const uniqueCategories = transformedCategories.filter(
+            (cat, index, self) =>
+              index ===
+              self.findIndex(
+                (c) => c.label.toLowerCase() === cat.label.toLowerCase()
+              )
+          );
+
+          // Add "All" option at the beginning
+          setCategories([{ label: "All", value: "All" }, ...uniqueCategories]);
+        } else {
+          setCategories([{ label: "All", value: "All" }]);
+        }
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        setCategories([{ label: "All", value: "All" }]);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
   // Handle blog click based on status
   const handleBlogClick = (blog, e) => {
     if (blog.status !== "published") {
@@ -320,16 +351,9 @@ const page = () => {
                     size="large"
                     placeholder="Select category"
                   >
-                    {categories.map((category) => (
-                      <Option key={category} value={category}>
-                        {category}
-                        {category === "All"
-                          ? ` (${allBlogs.length})`
-                          : ` (${
-                              allBlogs.filter(
-                                (blog) => blog.category === category
-                              ).length
-                            })`}
+                    {categories.map((cat) => (
+                      <Option key={cat.id} value={cat.value}>
+                        {cat.label}
                       </Option>
                     ))}
                   </Select>
@@ -370,16 +394,9 @@ const page = () => {
                     size="large"
                     placeholder="Select category"
                   >
-                    {categories.map((category) => (
-                      <Option key={category} value={category}>
-                        {category}
-                        {category === "All"
-                          ? ` (${allBlogs.length})`
-                          : ` (${
-                              allBlogs.filter(
-                                (blog) => blog.category === category
-                              ).length
-                            })`}
+                    {categories.map((cat) => (
+                      <Option key={cat.id} value={cat.value}>
+                        {cat.label}
                       </Option>
                     ))}
                   </Select>

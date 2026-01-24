@@ -29,6 +29,55 @@ const Page = () => {
     openingIndex: 0,
   });
 
+  // Handle adult quantity change with max people validation
+  const handleAdultQuantityChange = (newQuantity) => {
+    if (maxPeople) {
+      const totalAfterChange = newQuantity + children;
+      if (totalAfterChange > maxPeople) {
+        message.error(`Maximum ${maxPeople} people allowed for this hotel`);
+        return;
+      }
+    }
+    setAdults(newQuantity);
+  };
+
+  // Handle child quantity change with max people validation
+  const handleChildQuantityChange = (newQuantity) => {
+    if (maxPeople) {
+      const totalAfterChange = adults + newQuantity;
+      if (totalAfterChange > maxPeople) {
+        message.error(`Maximum ${maxPeople} people allowed for this hotel`);
+        return;
+      }
+    }
+    setChildren(newQuantity);
+  };
+
+  // Add before const GallerySection = ...
+  const extractYouTubeVideoId = (url) => {
+    if (!url) return null;
+
+    // Already just an ID
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+      return url;
+    }
+
+    // Extract from various YouTube URL formats
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+
+    return null;
+  };
+
   // Hotel data state
   const [hotelData, setHotelData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +208,24 @@ const Page = () => {
     };
   }, [startDate, endDate, hotelData?.adult_price, hotelData?.child_price]);
 
+  // Max people calculation
+  const maxPeople = useMemo(() => {
+    const max = parseInt(hotelData?.adults_num) || 0;
+    return max > 0 ? max : null; // null means unlimited
+  }, [hotelData?.adults_num]);
+
+  // Calculate max for adult quantity
+  const maxAdultQuantity = useMemo(() => {
+    if (!maxPeople) return 10; // Your default max
+    return Math.max(1, maxPeople - children);
+  }, [maxPeople, children]);
+
+  // Calculate max for child quantity
+  const maxChildQuantity = useMemo(() => {
+    if (!maxPeople) return 10; // Your default max
+    return Math.max(0, maxPeople - adults);
+  }, [maxPeople, adults]);
+
   // Calculate total price
   const calculateTotal = useMemo(() => {
     if (
@@ -205,6 +272,10 @@ const Page = () => {
     // Comprehensive validation
     const validationErrors = [];
 
+    if (maxPeople && adults + children > maxPeople) {
+      message.error(`Maximum ${maxPeople} people allowed for this hotel`);
+      return;
+    }
     if (!user || !user.isLoggedIn) {
       message.error("Please login to make a booking");
       setTimeout(() => {
@@ -259,7 +330,7 @@ const Page = () => {
       const bookingData = {
         user_id: user.user_id || user.id || "1",
         hotel_id: hotelID,
-        aditional_services: "null",
+        aditional_services: null,
         total_amount: calculateTotal.toString(),
         start_date: moment(startDate).format("YYYY-MM-DD"),
         end_date: moment(endDate).format("YYYY-MM-DD"),
@@ -328,6 +399,14 @@ const Page = () => {
       },
     ];
   }, [hotelData?.image]);
+
+  // ✅ Add this new useMemo
+  const extractedVideoId = useMemo(() => {
+    return extractYouTubeVideoId(hotelData?.video_link);
+  }, [hotelData?.video_link]);
+
+  const hasVideo = !!extractedVideoId;
+  const imageCount = images.length;
 
   // Loading state
   if (loading) {
@@ -405,91 +484,153 @@ const Page = () => {
             <div className="col-lg-12">
               <div className="room-img-group mb-50">
                 <div className="row g-3">
-                  <div className="col-lg-6">
-                    <div className="gallery-img-wrap">
-                      <img
-                        src={
-                          images && images.length > 0
-                            ? images[0]?.imageBig
-                            : "/path/to/default-image.jpg"
-                        }
-                        alt={hotelData?.name || "Hotel Image"}
-                        onError={(e) => {
-                          e.target.src = "/path/to/fallback-image.jpg";
-                        }}
-                      />
-                      <a data-fancybox="gallery-01">
-                        <i
-                          className="bi bi-eye"
-                          onClick={() =>
-                            setOpenimg({ openingState: true, openingIndex: 0 })
+                  {/* Single Image */}
+                  {imageCount === 1 && (
+                    <div className="col-lg-12">
+                      <div className="gallery-img-wrap position-relative">
+                        <img
+                          src={
+                            images[0]?.imageBig || "/path/to/default-image.jpg"
                           }
-                        />{" "}
-                        View Room
-                      </a>
+                          alt={hotelData?.name || "Hotel Image"}
+                          onError={(e) => {
+                            e.target.src = "/path/to/fallback-image.jpg";
+                          }}
+                        />
+                        {hasVideo && (
+                          <button
+                            className="position-absolute bottom-0 end-0 m-3 btn btn-primary"
+                            onClick={() => setOpenModalVideo(true)}
+                          >
+                            <i className="bi bi-play-circle me-2" />
+                            Watch Video
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="col-lg-6">
-                    <div className="row g-3">
-                      {images &&
-                        images.length > 1 &&
-                        images.slice(1, 5).map((image, index) => (
-                          <div key={image.id} className="col-6">
-                            <div
-                              className={`gallery-img-wrap ${
-                                index >= 2 ? "active" : ""
-                              }`}
-                            >
-                              <img
-                                src={image.imageBig}
-                                alt={`${hotelData?.name || "Hotel"} Image ${
-                                  index + 2
-                                }`}
-                                onError={(e) => {
-                                  e.target.src = "/path/to/fallback-image.jpg";
-                                }}
-                              />
-                              {index === 2 ? (
-                                <button className="StartSlideShowFirstImage">
-                                  <i
-                                    className="bi bi-plus-lg"
-                                    onClick={() =>
-                                      setOpenimg({
-                                        openingState: true,
-                                        openingIndex: index + 1,
-                                      })
-                                    }
-                                  />
-                                  View More Images
-                                </button>
-                              ) : index === 3 ? (
-                                <a
-                                  data-fancybox="gallery-01"
-                                  style={{ cursor: "pointer" }}
-                                  onClick={() => setOpenModalVideo(true)}
-                                >
-                                  <i className="bi bi-play-circle" /> Watch
-                                  Video
-                                </a>
-                              ) : (
-                                <a>
-                                  <i
-                                    className="bi bi-eye"
-                                    onClick={() =>
-                                      setOpenimg({
-                                        openingState: true,
-                                        openingIndex: index + 1,
-                                      })
-                                    }
-                                  />{" "}
-                                  View Room
-                                </a>
-                              )}
-                            </div>
+                  )}
+
+                  {/* Two Images */}
+                  {imageCount === 2 && (
+                    <>
+                      {images.slice(0, 2).map((image, index) => (
+                        <div key={image.id} className="col-lg-6">
+                          <div className="gallery-img-wrap position-relative">
+                            <img
+                              src={
+                                image.imageBig || "/path/to/default-image.jpg"
+                              }
+                              alt={`${hotelData?.name || "Hotel"} Image ${index + 1}`}
+                              onError={(e) => {
+                                e.target.src = "/path/to/fallback-image.jpg";
+                              }}
+                            />
+                            <a>
+                              <i
+                                className="bi bi-eye"
+                                onClick={() =>
+                                  setOpenimg({
+                                    openingState: true,
+                                    openingIndex: index,
+                                  })
+                                }
+                              />{" "}
+                              View Room
+                            </a>
+                            {index === 1 && hasVideo && (
+                              <button
+                                className="position-absolute bottom-0 end-0 m-3"
+                                style={{ cursor: "pointer" }}
+                                onClick={() => setOpenModalVideo(true)}
+                              >
+                                <i className="bi bi-play-circle" /> Watch Video
+                              </button>
+                            )}
                           </div>
-                        ))}
-                    </div>
-                  </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Three or More Images */}
+                  {imageCount >= 3 && (
+                    <>
+                      <div className="col-lg-6">
+                        <div className="gallery-img-wrap">
+                          <img
+                            src={
+                              images[0]?.imageBig ||
+                              "/path/to/default-image.jpg"
+                            }
+                            alt={hotelData?.name || "Hotel Image"}
+                            onError={(e) => {
+                              e.target.src = "/path/to/fallback-image.jpg";
+                            }}
+                          />
+                          <a>
+                            <i
+                              className="bi bi-eye"
+                              onClick={() =>
+                                setOpenimg({
+                                  openingState: true,
+                                  openingIndex: 0,
+                                })
+                              }
+                            />{" "}
+                            View Room
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="col-lg-6">
+                        <div className="row g-3">
+                          {images
+                            .slice(1, imageCount >= 5 ? 5 : imageCount)
+                            .map((image, index) => (
+                              <div key={image.id} className="col-6">
+                                <div
+                                  className={`gallery-img-wrap ${index >= 2 ? "active" : ""}`}
+                                >
+                                  <img
+                                    src={image.imageBig}
+                                    alt={`${hotelData?.name || "Hotel"} Image ${index + 2}`}
+                                    onError={(e) => {
+                                      e.target.src =
+                                        "/path/to/fallback-image.jpg";
+                                    }}
+                                  />
+                                  {/* Show +More on 3rd image if more than 5 images */}
+                                  {index === 3 && imageCount > 5 ? (
+                                    <button className="StartSlideShowFirstImage">
+                                      <i
+                                        className="bi bi-plus-lg"
+                                        onClick={() =>
+                                          setOpenimg({
+                                            openingState: true,
+                                            openingIndex: index + 1,
+                                          })
+                                        }
+                                      />
+                                      View More Images
+                                    </button>
+                                  ) : /* Show Video button on last image */
+                                  index === 2 && hasVideo ? (
+                                    <a
+                                      data-fancybox="gallery-01"
+                                      style={{ cursor: "pointer" }}
+                                      onClick={() => setOpenModalVideo(true)}
+                                    >
+                                      <i className="bi bi-play-circle" /> Watch
+                                      Video
+                                    </a>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -790,6 +931,13 @@ const Page = () => {
                   >
                     <div className="sidebar-booking-form">
                       <form onSubmit={handleBooking}>
+                        {maxPeople && (
+                          <div className="alert alert-info mb-3">
+                            <i className="bi bi-info-circle me-2"></i>
+                            Maximum <strong>{maxPeople}</strong> guests allowed
+                            for this room
+                          </div>
+                        )}
                         <div className="tour-date-wrap mb-[30px]">
                           <div className="form-check !pl-0 customdate">
                             <span className="form-group">
@@ -836,9 +984,9 @@ const Page = () => {
                             </label>
                             <QuantityCounter
                               quantity={adults}
-                              onQuantityChange={setAdults}
+                              onQuantityChange={handleAdultQuantityChange} // Changed
                               minQuantity={1}
-                              maxQuantity={10}
+                              maxQuantity={maxAdultQuantity} // Changed
                             />
                           </div>
                           <div className="number-input-item children">
@@ -848,9 +996,9 @@ const Page = () => {
                             </label>
                             <QuantityCounter
                               quantity={children}
-                              onQuantityChange={setChildren}
+                              onQuantityChange={handleChildQuantityChange} // Changed
                               minQuantity={0}
-                              maxQuantity={10}
+                              maxQuantity={maxChildQuantity} // Changed
                             />
                           </div>
                         </div>
@@ -1027,7 +1175,7 @@ const Page = () => {
           onClick={() => setOpenModalVideo(true)}
           isOpen={isOpenModalVideo}
           animationSpeed="350"
-          videoId={hotelData.video_id || "r4KpWiK08vM"}
+          videoId={hotelData.video_link || "r4KpWiK08vM"}
           ratio="16:9"
           onClose={() => setOpenModalVideo(false)}
         />
@@ -1191,8 +1339,8 @@ const Page = () => {
                   {bookingLoading
                     ? "Processing Booking..."
                     : bookingSuccess
-                    ? "Booking Submitted!"
-                    : "Booking Error"}
+                      ? "Booking Submitted!"
+                      : "Booking Error"}
                 </h5>
                 {!bookingLoading && (
                   <button
@@ -1289,6 +1437,7 @@ const Page = () => {
         onClose={() => setIsReviewModalOpen(false)}
         itemId={hotelID}
         itemType="hotel"
+        // videoId={extractedVideoId}
         itemName={hotelData?.name}
         apiEndpoint="/user/rating/hotel_rating.php"
         onSuccess={(data) => {

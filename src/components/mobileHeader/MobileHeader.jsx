@@ -1,4 +1,3 @@
-// components/MobileHeader.jsx
 "use client";
 import Link from "next/link";
 import navData from "../../data/nav.json";
@@ -106,7 +105,7 @@ const MobileHeader = ({ currentLocale }) => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+      setScrolled(window.scrollY > 100);
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -141,57 +140,70 @@ const MobileHeader = ({ currentLocale }) => {
 
   const changeLanguage = async (newLang) => {
     document.cookie = `lang=${newLang}; path=/; max-age=31536000`;
-    const { setLanguageValue } = await import(
-      "../../../actions/set-language-action"
-    );
+    const { setLanguageValue } =
+      await import("../../../actions/set-language-action");
     startTransition(() => {
       setLanguageValue(newLang);
     });
   };
 
-  if (pathname === "/login" || pathname === "/signup") {
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password"
+  ) {
     return null;
   }
 
+  // Header Content Component to avoid duplication
+  const HeaderContent = () => (
+    <div className="mobile-header-container">
+      {/* Logo */}
+      <Link href="/" className="mobile-logo">
+        <img
+          src="https://res.cloudinary.com/dkc5klynm/image/upload/v1768722951/LOGO_WADI_WAY_og9z1l.png"
+          alt="Logo"
+        />
+      </Link>
+
+      {/* Right Section */}
+      <div className="mobile-header-right">
+        {/* Language Switcher */}
+        {/* <button
+          className="lang-toggle"
+          onClick={() =>
+            changeLanguage(currentLocale === "ar" ? "en" : "ar")
+          }
+        >
+          <span className="lang-flag">
+            {currentLocale === "ar" ? arFlag : enFlag}
+          </span>
+        </button> */}
+
+        {/* Hamburger Menu Button */}
+        <button
+          className={`hamburger-btn ${isMenuOpen ? "active" : ""}`}
+          onClick={toggleMenu}
+          aria-label="Toggle menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      {/* Mobile Header */}
-      <header className={`mobile-header ${scrolled ? "scrolled" : ""}`}>
-        <div className="mobile-header-container">
-          {/* Logo */}
-          <Link href="/" className="mobile-logo">
-            <img
-              src="https://res.cloudinary.com/dhgp9dzdt/image/upload/v1742474177/logo_qvee2o.png"
-              alt="Logo"
-            />
-          </Link>
+      {/* Static Mobile Header (Always visible at top) */}
+      <header className="mobile-header-static">
+        <HeaderContent />
+      </header>
 
-          {/* Right Section */}
-          <div className="mobile-header-right">
-            {/* Language Switcher */}
-            {/* <button
-              className="lang-toggle"
-              onClick={() =>
-                changeLanguage(currentLocale === "ar" ? "en" : "ar")
-              }
-            >
-              <span className="lang-flag">
-                {currentLocale === "ar" ? arFlag : enFlag}
-              </span>
-            </button> */}
-
-            {/* Hamburger Menu Button */}
-            <button
-              className={`hamburger-btn ${isMenuOpen ? "active" : ""}`}
-              onClick={toggleMenu}
-              aria-label="Toggle menu"
-            >
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-        </div>
+      {/* Fixed Mobile Header (Appears on scroll) */}
+      <header className={`mobile-header-fixed ${scrolled ? "scrolled" : ""}`}>
+        <HeaderContent />
       </header>
 
       {/* Overlay */}
@@ -424,8 +436,6 @@ const MobileHeader = ({ currentLocale }) => {
           </div>
         </div>
       </nav>
-
-      <style jsx>{``}</style>
     </>
   );
 };

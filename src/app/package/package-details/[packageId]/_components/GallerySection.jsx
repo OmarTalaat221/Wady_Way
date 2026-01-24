@@ -5,9 +5,18 @@ import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
 import ModalVideo from "react-modal-video";
 import { useLocale, useTranslations } from "next-intl";
 
-const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
+const GallerySection = ({
+  images,
+  videoId, // ✅ استقبال videoId مباشرة
+  setOpenimg,
+  isOpenimg,
+  isOpen,
+  setOpen,
+}) => {
   const locale = useLocale();
   const t = useTranslations("galleryPackage");
+
+  const hasVideo = !!videoId; // ✅ التحقق من وجود فيديو
 
   // Handle empty images
   if (!images || images.length === 0) {
@@ -22,12 +31,10 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
 
   const imageCount = images.length;
 
-  // Render gallery based on number of images
   const renderGallery = () => {
-    // Case 1: Only one image
     if (imageCount === 1) {
       return (
-        <div className="w-full">
+        <div className="w-full relative">
           <div className="relative transition-all duration-[450ms] h-full group">
             <img
               src={
@@ -39,25 +46,25 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
                 e.target.src = "https://via.placeholder.com/1200x600";
               }}
             />
-            {/* <div
-              onClick={() =>
-                setOpenimg({ openingState: true, openingIndex: 0 })
-              }
-              className="absolute left-0 top-0 w-full h-full flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col transition-all duration-[450ms] scale-[0.4] rounded-[10px] opacity-0 group-hover:scale-100 group-hover:opacity-100 cursor-pointer"
-            >
-              <i className="bi bi-eye text-[#ff7757] text-[35px]" />
-            </div> */}
           </div>
+          {hasVideo && (
+            <button
+              onClick={() => setOpen(true)}
+              className="absolute bottom-4 right-4 flex items-center gap-2 bg-[rgba(16,12,8,0.8)] hover:bg-[rgba(16,12,8,0.95)] text-white px-4 py-2 rounded-lg transition-all duration-300"
+            >
+              <i className="bi bi-play-circle text-[rgb(232,163,85)] text-[20px]" />
+              <span>{t("watchVideo")}</span>
+            </button>
+          )}
         </div>
       );
     }
 
-    // Case 2: Two images
     if (imageCount === 2) {
       return (
         <>
           {images.slice(0, 2).map((image, index) => (
-            <div key={index} className="w-full lg:w-1/2">
+            <div key={index} className="w-full lg:w-1/2 relative">
               <div className="relative transition-all duration-[450ms] h-full group">
                 <img
                   src={image.imageBig || "https://via.placeholder.com/600x400"}
@@ -67,25 +74,25 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
                     e.target.src = "https://via.placeholder.com/600x400";
                   }}
                 />
-                {/* <div
-                  onClick={() =>
-                    setOpenimg({ openingState: true, openingIndex: index })
-                  }
-                  className="absolute left-0 top-0 w-full h-full flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col transition-all duration-[450ms] scale-[0.4] rounded-[10px] opacity-0 group-hover:scale-100 group-hover:opacity-100 cursor-pointer"
-                >
-                  <i className="bi bi-eye text-[#ff7757] text-[35px]" />
-                </div> */}
               </div>
+              {index === 1 && hasVideo && (
+                <button
+                  onClick={() => setOpen(true)}
+                  className="absolute inset-0 flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col rounded-[10px] transition-all duration-300 hover:bg-[rgba(16,12,8,0.8)]"
+                >
+                  <i className="bi bi-play-circle text-[rgb(232,163,85)] text-[35px]" />
+                  <span className="mt-2">{t("watchVideo")}</span>
+                </button>
+              )}
             </div>
           ))}
         </>
       );
     }
 
-    // Case 3: Three or more images (default layout)
+    // 3+ images
     return (
       <>
-        {/* Main large image on the left */}
         <div className="w-full lg:w-1/2">
           <div className="relative transition-all duration-[450ms] h-full group">
             <img
@@ -96,21 +103,11 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
                 e.target.src = "https://via.placeholder.com/600x500";
               }}
             />
-            {/* <div
-              onClick={() =>
-                setOpenimg({ openingState: true, openingIndex: 0 })
-              }
-              className="absolute left-0 top-0 w-full h-full flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col transition-all duration-[450ms] scale-[0.4] rounded-[10px] opacity-0 group-hover:scale-100 group-hover:opacity-100 cursor-pointer"
-            >
-              {/* <i className="bi bi-eye text-[#ff7757] text-[35px]" /> 
-            </div> */}
           </div>
         </div>
 
-        {/* Right side grid */}
         <div className="w-full lg:w-1/2">
           <div className="grid grid-cols-2 gap-3 h-full">
-            {/* Show 2nd and 3rd images */}
             {images.slice(1, 3).map((image, index) => (
               <div
                 key={index}
@@ -124,18 +121,9 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
                     e.target.src = "https://via.placeholder.com/300x245";
                   }}
                 />
-                {/* <div
-                  onClick={() =>
-                    setOpenimg({ openingState: true, openingIndex: index + 1 })
-                  }
-                  className="absolute left-0 top-0 w-full h-full flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col transition-all duration-[450ms] scale-[0.4] rounded-[10px] opacity-0 group-hover:scale-100 group-hover:opacity-100 cursor-pointer"
-                >
-                  <i className="bi bi-eye text-[#ff7757] text-[35px]" />
-                </div> */}
               </div>
             ))}
 
-            {/* 4th position: "View More Images" button (if 4+ images) */}
             {imageCount >= 4 && (
               <div className="relative transition-all duration-[450ms] h-full group">
                 <img
@@ -148,25 +136,29 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
                     e.target.src = "https://via.placeholder.com/300x245";
                   }}
                 />
-                <button
-                  onClick={() =>
-                    setOpenimg({ openingState: true, openingIndex: 3 })
-                  }
-                  className="absolute left-0 top-0 w-full h-full flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col transition-all duration-[450ms] scale-100 rounded-[10px] opacity-100"
-                >
-                  <i className="bi bi-plus-lg text-[#ff7757] text-[20px]" />
-                  <span className="mt-2">{t("viewMoreImages")}</span>
-                </button>
+
+                {hasVideo && (
+                  <button
+                    onClick={() => setOpen(true)}
+                    className="absolute left-0 top-0 w-full h-full flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col transition-all duration-[450ms] scale-100 rounded-[10px] opacity-100 hover:bg-[rgba(16,12,8,0.8)]"
+                  >
+                    <i className="bi bi-play-circle text-[rgb(232,163,85)] text-[35px]" />
+                    <span className="mt-2">{t("watchVideo")}</span>
+                  </button>
+                )}
               </div>
             )}
 
-            {/* 5th position: "Watch Video" button (if 5+ images OR if exactly 3 images) */}
-            {(imageCount >= 5 || imageCount === 3) && (
+            {imageCount >= 5 && (
               <div className="relative transition-all duration-[450ms] h-full group">
                 <img
                   src={
-                    images[imageCount >= 5 ? 4 : 2]?.imageBig ||
-                    "https://via.placeholder.com/300x245"
+                    images[
+                      Math.min(
+                        imageCount >= 5 ? 4 : imageCount - 1,
+                        imageCount - 1
+                      )
+                    ]?.imageBig || "https://via.placeholder.com/300x245"
                   }
                   alt="Video thumbnail"
                   className="object-cover h-full w-full rounded-[10px]"
@@ -174,13 +166,18 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
                     e.target.src = "https://via.placeholder.com/300x245";
                   }}
                 />
-                <button
-                  onClick={() => setOpen(true)}
-                  className="absolute left-0 top-0 w-full h-full flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col transition-all duration-[450ms] scale-100 rounded-[10px] opacity-100"
-                >
-                  <i className="bi bi-play-circle text-[#ff7757] text-[20px]" />
-                  <span className="mt-2">{t("watchVideo")}</span>
-                </button>
+
+                {imageCount > 5 && (
+                  <button
+                    onClick={() =>
+                      setOpenimg({ openingState: true, openingIndex: 3 })
+                    }
+                    className="absolute left-0 top-0 w-full h-full flex items-center justify-center bg-[rgba(16,12,8,0.6)] text-white text-center font-rubik text-[15px] font-normal tracking-[0.6px] flex-col transition-all duration-[450ms] scale-100 rounded-[10px] opacity-100 hover:bg-[rgba(16,12,8,0.8)]"
+                  >
+                    <i className="bi bi-plus-lg text-[rgb(232,163,85)] text-[20px]" />
+                    <span className="mt-2">{t("viewMoreImages")}</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -195,7 +192,6 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
         <div className="flex gap-3 items-stretch">{renderGallery()}</div>
       </div>
 
-      {/* Lightbox for image gallery */}
       <Lightbox
         className="img-fluid"
         open={isOpenimg.openingState}
@@ -206,16 +202,16 @@ const GallerySection = ({ images, setOpenimg, isOpenimg, isOpen, setOpen }) => {
         slides={images.map((elem) => ({ src: elem.imageBig }))}
       />
 
-      {/* Video Modal */}
-      <ModalVideo
-        channel="youtube"
-        onClick={() => setOpen(true)}
-        isOpen={isOpen}
-        animationSpeed="350"
-        videoId="r4KpWiK08vM"
-        ratio="16:9"
-        onClose={() => setOpen(false)}
-      />
+      {hasVideo && (
+        <ModalVideo
+          channel="youtube"
+          isOpen={isOpen}
+          animationSpeed="350"
+          videoId={videoId} // ✅ استخدام videoId مباشرة
+          ratio="16:9"
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 };

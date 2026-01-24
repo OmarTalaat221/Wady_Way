@@ -5,7 +5,7 @@ import CountUp from "react-countup";
 const About1 = () => {
   return (
     <>
-      <div className="home1-about-section mb-120 mt-120">
+      <div className="home1-about-section mb-[80px] mt-[80px]">
         <img
           src="/assets/img/home1/section-vector1.png"
           alt=""

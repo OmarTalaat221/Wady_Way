@@ -32,7 +32,7 @@
 }
 
 /* Favorite button styles */
-.favorite-btn {
+/* .favorite-btn {
   position: absolute;
   top: 15px;
   right: 15px;
@@ -68,7 +68,7 @@
 
 .favorite-btn.animate svg {
   animation: heartBeat 0.4s ease-in-out;
-}
+} */
 
 @keyframes heartBeat {
   0% {

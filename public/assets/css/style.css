@@ -8428,7 +8428,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   position: relative;
 }
 .franctional-slider-section .slider-content-wrapper {
-  background-image: url(../img/home1/facility-content-bg.png),
+  background-image:
+    url(../img/home1/facility-content-bg.png),
     linear-gradient(180deg, #f9f4f0 0%, #f9f4f0 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -9414,7 +9415,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   11.Home1 Package Card Tab section
 ========================================*/
 .package-card-tab-section {
-  background-image: url(../img/home1/package-card-tab-bg.png),
+  background-image:
+    url(../img/home1/package-card-tab-bg.png),
     linear-gradient(180deg, #faf5ee 0%, #faf5ee 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -9479,11 +9481,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   .nav-pills
   .nav-item
   .nav-link.active {
-  background-image: linear-gradient(
-      180deg,
-      rgba(16, 12, 8, 0.5) 0%,
-      rgba(16, 12, 8, 0.5) 100%
-    ),
+  background-image:
+    linear-gradient(180deg, rgba(16, 12, 8, 0.5) 0%, rgba(16, 12, 8, 0.5) 100%),
     url(../img/home1/package-card-nav-bg.png);
   background-size: cover;
   background-repeat: no-repeat;
@@ -9528,11 +9527,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   .nav-pills
   .nav-item:nth-child(2)
   .nav-link.active {
-  background-image: linear-gradient(
-      180deg,
-      rgba(16, 12, 8, 0.5) 0%,
-      rgba(16, 12, 8, 0.5) 100%
-    ),
+  background-image:
+    linear-gradient(180deg, rgba(16, 12, 8, 0.5) 0%, rgba(16, 12, 8, 0.5) 100%),
     url(../img/home1/package-card-nav-bg2.png);
 }
 .package-card-tab-section
@@ -9540,11 +9536,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   .nav-pills
   .nav-item:nth-child(3)
   .nav-link.active {
-  background-image: linear-gradient(
-      180deg,
-      rgba(16, 12, 8, 0.5) 0%,
-      rgba(16, 12, 8, 0.5) 100%
-    ),
+  background-image:
+    linear-gradient(180deg, rgba(16, 12, 8, 0.5) 0%, rgba(16, 12, 8, 0.5) 100%),
     url(../img/home1/package-card-nav-bg3.png);
 }
 .package-card-tab-section
@@ -9552,11 +9545,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   .nav-pills
   .nav-item:nth-child(4)
   .nav-link.active {
-  background-image: linear-gradient(
-      180deg,
-      rgba(16, 12, 8, 0.5) 0%,
-      rgba(16, 12, 8, 0.5) 100%
-    ),
+  background-image:
+    linear-gradient(180deg, rgba(16, 12, 8, 0.5) 0%, rgba(16, 12, 8, 0.5) 100%),
     url(../img/home1/package-card-nav-bg4.png);
 }
 .package-card-tab-section
@@ -9581,11 +9571,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   .nav-pills
   .nav-item:last-child
   .nav-link.active {
-  background-image: linear-gradient(
-      180deg,
-      rgba(16, 12, 8, 0.5) 0%,
-      rgba(16, 12, 8, 0.5) 100%
-    ),
+  background-image:
+    linear-gradient(180deg, rgba(16, 12, 8, 0.5) 0%, rgba(16, 12, 8, 0.5) 100%),
     url(../img/home1/package-card-nav-bg5.png);
 }
 @media (max-width: 1199px) {
@@ -12113,7 +12100,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   }
 }
 .banner3-section .banner3-content {
-  background-image: url(../img/home1/newsletter-bg.png),
+  background-image:
+    url(../img/home1/newsletter-bg.png),
     linear-gradient(180deg, #f9f4f0 0%, #f9f4f0 100%);
   padding: 86px 20px;
   background-size: cover;
@@ -12239,8 +12227,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   18.Home1 Footer section
 ========================================*/
 .footer-section {
-  background-image: url(../img/footer-bg.png),
-    linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
+  background-image:
+    url(../img/footer-bg.png), linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center center;
@@ -12542,14 +12530,16 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   }
 }
 .footer-section.style-3 {
-  background-image: url(../img/footer-bg2.png),
+  background-image:
+    url(../img/footer-bg2.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
 }
 .footer-section.style-3 .footer-top {
   padding-bottom: 105px;
 }
 .footer-section.style-4 {
-  background-image: url(../img/footer-bg2.png),
+  background-image:
+    url(../img/footer-bg2.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   margin: 0 50px;
   /* border-radius: 30px 30px 0 0; */
@@ -14533,7 +14523,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 }
 
 .tour-pack-section {
-  background-image: url(../img/home2/tour-pack-section-bg.png),
+  background-image:
+    url(../img/home2/tour-pack-section-bg.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -15079,7 +15070,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   background-color: var(--white-color);
 }
 .slider-and-tab-section .tab-area {
-  background-image: linear-gradient(180deg, #fffcea 0%, #fffcea 100%),
+  background-image:
+    linear-gradient(180deg, #fffcea 0%, #fffcea 100%),
     url(../img/home2/activities-content-bg.png);
   background-size: cover;
   background-repeat: no-repeat;
@@ -15691,7 +15683,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   25.Home2 Testimonial Section
 ========================================*/
 .home2-testimonial-section {
-  background-image: url(../img/home2/home2-testimonial-bg.png),
+  background-image:
+    url(../img/home2/home2-testimonial-bg.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -16184,7 +16177,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 }
 
 .banner5-card {
-  background-image: url(../img/home2/banner5-card-bg.png),
+  background-image:
+    url(../img/home2/banner5-card-bg.png),
     linear-gradient(180deg, white 0%, white 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -16411,7 +16405,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   28.Home2 Newsletter Section
 ========================================*/
 .banner6-section {
-  background-image: url(../img/home2/home2-newsletter-bg.png),
+  background-image:
+    url(../img/home2/home2-newsletter-bg.png),
     linear-gradient(180deg, #202f59 0%, #202f59 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -17634,7 +17629,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 }
 
 .destination-dropdown-section {
-  background-image: url(../img/home3/destination-dropdown-bg.png),
+  background-image:
+    url(../img/home3/destination-dropdown-bg.png),
     linear-gradient(180deg, #eef3f1 0%, #eef3f1 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -18929,7 +18925,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   text-align: center;
   border-radius: 10px;
   border: 1px solid rgba(34, 34, 34, 0.1);
-  background-image: url(../img/home3/testimonial-card-bg.png),
+  background-image:
+    url(../img/home3/testimonial-card-bg.png),
     linear-gradient(180deg, whitesmoke 0%, whitesmoke 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -19067,7 +19064,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   letter-spacing: 0.26px;
 }
 .testimonial-card2.style-2 {
-  background-image: url(../img/home4/home4-testimonial-card-bg.png),
+  background-image:
+    url(../img/home4/home4-testimonial-card-bg.png),
     linear-gradient(180deg, #2d3330 0%, #2d3330 100%);
   border-radius: 20px;
 }
@@ -19096,7 +19094,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 }
 
 .home3-testimonial-section {
-  background-image: url(../img/home3/testimonial-section-bg.png),
+  background-image:
+    url(../img/home3/testimonial-section-bg.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -19842,7 +19841,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 ========================================*/
 .home4-banner-area {
   position: relative;
-  background-image: url(../img/home4/home4-banner-bg.png),
+  background-image:
+    url(../img/home4/home4-banner-bg.png),
     linear-gradient(180deg, #ece4d7 0%, #ece4d7 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -20424,7 +20424,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   }
 }
 .home4-banner2-area .home4-banner2-wrapper {
-  background-image: url(../img/home4/home4-banner2-bg.png),
+  background-image:
+    url(../img/home4/home4-banner2-bg.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -20924,7 +20925,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   overflow: hidden;
 }
 .home4-banner3-with-package-slider .home4-banner3-wrapper {
-  background-image: url(../img/home4/home4-banner3-bg.png),
+  background-image:
+    url(../img/home4/home4-banner3-bg.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -21046,7 +21048,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   }
 }
 .home4-banner3-with-package-slider .package-card-slider-wrapper {
-  background-image: url(../img/home4/package-card-slider-bg.png),
+  background-image:
+    url(../img/home4/package-card-slider-bg.png),
     linear-gradient(180deg, #f4f9f1 0%, #f4f9f1 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -21553,7 +21556,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   transform: scale(1.1);
 }
 .package-card4.two {
-  background-image: url(../img/home4/package-card4-bg.png),
+  background-image:
+    url(../img/home4/package-card4-bg.png),
     linear-gradient(180deg, white 0%, white 100%);
   box-shadow: 0px 0px 20px 0px rgba(0, 0, 0, 0.05);
 }
@@ -21841,7 +21845,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   49 .Home4 Testimonial section
 ========================================*/
 .home4-testimonial-section {
-  background-image: url(../img/home4/hom4-testiomial-bg.png),
+  background-image:
+    url(../img/home4/hom4-testiomial-bg.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -22014,11 +22019,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   51 .Home4 Activity Counter section
 ========================================*/
 .home4-activity-counter-section {
-  background-image: linear-gradient(
-      180deg,
-      rgba(16, 12, 8, 0.6) 0%,
-      rgba(16, 12, 8, 0.6) 100%
-    ),
+  background-image:
+    linear-gradient(180deg, rgba(16, 12, 8, 0.6) 0%, rgba(16, 12, 8, 0.6) 100%),
     url(../img/home4/activity-counter-bg.png);
   background-size: cover;
   background-repeat: no-repeat;
@@ -22173,7 +22175,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 .home5-banner-area .banner-wrapper .banner-price-card {
   border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.44);
-  background-image: url(../img/home5/banner-price-card-bg.png),
+  background-image:
+    url(../img/home5/banner-price-card-bg.png),
     linear-gradient(
       112deg,
       rgba(34, 34, 34, 0.5) 0%,
@@ -23192,7 +23195,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   }
 }
 .home5-destination-card-slider-section .destination-card-slider-wrap {
-  background-image: url(../img/home5/destination-card-slider-bg.png),
+  background-image:
+    url(../img/home5/destination-card-slider-bg.png),
     linear-gradient(180deg, #fff9f3 0%, #fff9f3 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -24428,7 +24432,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   }
 }
 .home5-visa-application-section .visa-application-wrapper {
-  background-image: url(../img/home5/visa-application-section-bg.png),
+  background-image:
+    url(../img/home5/visa-application-section-bg.png),
     linear-gradient(180deg, #edf2f5 0%, #edf2f5 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -24508,11 +24513,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   61 .Home5 Newsletter section
 ========================================*/
 .home5-banner3-section {
-  background-image: linear-gradient(
-      90deg,
-      rgba(249, 244, 240, 0) 38.83%,
-      #f9f4f0 46.62%
-    ),
+  background-image:
+    linear-gradient(90deg, rgba(249, 244, 240, 0) 38.83%, #f9f4f0 46.62%),
     url(../img/home5/home5-banner3-img.jpg);
   background-size: cover;
   background-repeat: no-repeat;
@@ -25266,7 +25268,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 }
 
 .home6-destination-card-slider-section {
-  background-image: url(../img/home6/destination-section-bg.png),
+  background-image:
+    url(../img/home6/destination-section-bg.png),
     linear-gradient(180deg, #f0faef 0%, #f0faef 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -25699,7 +25702,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   66 .Home6 Tour pack section
 ========================================*/
 .home6-tourpack-section {
-  background-image: url(../img/home6/tourpack-section-bg.png),
+  background-image:
+    url(../img/home6/tourpack-section-bg.png),
     linear-gradient(180deg, #fff9f3 0%, #fff9f3 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -26167,7 +26171,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   68  .Home6 Banner2 section
 ========================================*/
 .home6-banner2-area {
-  background-image: url(../img/home6/home6-banner2-bg.png),
+  background-image:
+    url(../img/home6/home6-banner2-bg.png),
     linear-gradient(180deg, #1d231f 0%, #1d231f 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -26397,7 +26402,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   70 .Home6 Visa Application section
 ========================================*/
 .home6-visa-application-section {
-  background-image: url(../img/home6/home6-visa-section-bg.png),
+  background-image:
+    url(../img/home6/home6-visa-section-bg.png),
     linear-gradient(180deg, #eef3f1 0%, #eef3f1 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -26418,7 +26424,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   71 .Home6 Testimonial section
 ========================================*/
 .home6-testimonial-section {
-  background-image: url(../img/home6/home6-testimonial-bg.png),
+  background-image:
+    url(../img/home6/home6-testimonial-bg.png),
     linear-gradient(180deg, #f4f9f1 0%, #f4f9f1 100%);
   background-size: cover;
   background-repeat: no-repeat;
@@ -26891,7 +26898,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   opacity: 0;
 }
 .destination-gallery .gallery-img-wrap a i {
-  color: var(--primary-color2);
+  color: rgb(232, 163, 85);
   font-size: 35px;
 }
 .destination-gallery .gallery-img-wrap:hover a {
@@ -26971,11 +26978,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 }
 .destination-location-gallery .nav-pills .nav-item .nav-link.active {
   background-color: unset;
-  background-image: linear-gradient(
-      270deg,
-      rgba(0, 0, 0, 0.3),
-      rgba(0, 0, 0, 0.3) 101.02%
-    ),
+  background-image:
+    linear-gradient(270deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3) 101.02%),
     url(../img/innerpage/location-gallery-bg1.jpg);
   color: var(--white-color);
 }
@@ -26983,55 +26987,40 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   .nav-pills
   .nav-item
   .nav-link.active#location2-tab {
-  background-image: linear-gradient(
-      270deg,
-      rgba(0, 0, 0, 0.3),
-      rgba(0, 0, 0, 0.3) 101.02%
-    ),
+  background-image:
+    linear-gradient(270deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3) 101.02%),
     url(../img/innerpage/gallery-01.jpg);
 }
 .destination-location-gallery
   .nav-pills
   .nav-item
   .nav-link.active#location3-tab {
-  background-image: linear-gradient(
-      270deg,
-      rgba(0, 0, 0, 0.3),
-      rgba(0, 0, 0, 0.3) 101.02%
-    ),
+  background-image:
+    linear-gradient(270deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3) 101.02%),
     url(../img/innerpage/gallery-02.jpg);
 }
 .destination-location-gallery
   .nav-pills
   .nav-item
   .nav-link.active#location4-tab {
-  background-image: linear-gradient(
-      270deg,
-      rgba(0, 0, 0, 0.3),
-      rgba(0, 0, 0, 0.3) 101.02%
-    ),
+  background-image:
+    linear-gradient(270deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3) 101.02%),
     url(../img/innerpage/gallery-03.jpg);
 }
 .destination-location-gallery
   .nav-pills
   .nav-item
   .nav-link.active#location5-tab {
-  background-image: linear-gradient(
-      270deg,
-      rgba(0, 0, 0, 0.3),
-      rgba(0, 0, 0, 0.3) 101.02%
-    ),
+  background-image:
+    linear-gradient(270deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3) 101.02%),
     url(../img/innerpage/gallery-04.jpg);
 }
 .destination-location-gallery
   .nav-pills
   .nav-item
   .nav-link.active#location6-tab {
-  background-image: linear-gradient(
-      270deg,
-      rgba(0, 0, 0, 0.3),
-      rgba(0, 0, 0, 0.3) 101.02%
-    ),
+  background-image:
+    linear-gradient(270deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3) 101.02%),
     url(../img/innerpage/destination-img-01.jpg);
 }
 
@@ -30494,7 +30483,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   opacity: 0;
 }
 .room-details-area .room-img-group .gallery-img-wrap a i {
-  color: var(--primary-color2);
+  color: rgb(232, 163, 85);
   font-size: 35px;
 }
 .room-details-area .room-img-group .gallery-img-wrap button {
@@ -30520,7 +30509,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   opacity: 0;
 }
 .room-details-area .room-img-group .gallery-img-wrap button i {
-  color: var(--primary-color2);
+  color: rgb(232, 163, 85);
   font-size: 20px;
 }
 .room-details-area .room-img-group .gallery-img-wrap:hover a {
@@ -31723,7 +31712,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   opacity: 0;
 }
 .package-details-area .package-img-group .gallery-img-wrap a i {
-  color: var(--primary-color2);
+  color: #e8a355;
   font-size: 35px;
 }
 .package-details-area .package-img-group .gallery-img-wrap button {
@@ -31749,7 +31738,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   opacity: 0;
 }
 .package-details-area .package-img-group .gallery-img-wrap button i {
-  color: var(--primary-color2);
+  color: #e8a355;
   font-size: 20px;
 }
 .package-details-area .package-img-group .gallery-img-wrap:hover a {
@@ -32347,7 +32336,8 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(#fff, #fff) padding-box,
+  background:
+    linear-gradient(#fff, #fff) padding-box,
     linear-gradient(180deg, #fff 0%, #ddd 100%) border-box;
   background-origin: padding-box, border-box;
   background-repeat: no-repeat;
@@ -32852,7 +32842,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 .sidebar-area .single-widget {
   padding: 25px;
   border-radius: 5px;
-  box-shadow: 0px 0px 25px 0px rgba(16, 16, 16, 0.05);
+  /* box-shadow: 0px 0px 25px 0px rgba(16, 16, 16, 0.05); */
 }
 @media (min-width: 992px) and (max-width: 1199px) {
   .sidebar-area .single-widget {
@@ -33337,7 +33327,9 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   z-index: 10;
 }
 .range-wrap .noUi-state-tap .noUi-origin {
-  transition: left 0.3s, top 0.3s;
+  transition:
+    left 0.3s,
+    top 0.3s;
 }
 .range-wrap .noUi-state-drag * {
   cursor: inherit !important;

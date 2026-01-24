@@ -1,7 +1,10 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { refreshUserId } from "@/lib/redux/slices/tourReservationSlice";
+import {
+  refreshUserId,
+  initializeTourGuides, // ✅ Import new action
+} from "@/lib/redux/slices/tourReservationSlice";
 import Breadcrumb from "../../../../../../components/common/Breadcrumb";
 import "./style.css";
 import { Alert } from "reactstrap";
@@ -40,6 +43,15 @@ const PageSummaryClient = ({ lang }) => {
   useEffect(() => {
     dispatch(refreshUserId());
   }, [dispatch]);
+
+  // ✅ Initialize tour guides for all days when tourData is available
+  useEffect(() => {
+    if (tourData) {
+      const numberOfDays =
+        tourData.itinerary?.length || tourData.days?.length || 1;
+      dispatch(initializeTourGuides(numberOfDays));
+    }
+  }, [tourData, dispatch]);
 
   useEffect(() => {
     console.log("Redux State Debug:");
@@ -120,7 +132,8 @@ const PageSummaryClient = ({ lang }) => {
             ar: itineraryDay.description || `اليوم ${dayNumber}`,
           },
           title: itineraryDay.title || itineraryDay.location?.en || "",
-          tour_guide: selections.tour_guide || false,
+          // ✅ لم نعد نحتاج هذا لأننا نستخدم Redux
+          // tour_guide: selections.tour_guide ?? true,
           driver: true,
           location:
             itineraryDay.title || itineraryDay.location?.en || "Location",

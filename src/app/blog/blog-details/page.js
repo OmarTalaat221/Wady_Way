@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import axios from "axios";
 import Link from "next/link";
 import Breadcrumb from "@/components/common/Breadcrumb";
@@ -31,6 +31,72 @@ const page = () => {
     message: "",
     saveInfo: false,
   });
+  const pathname = usePathname();
+  const [copied, setCopied] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentUrl(`${window.location.origin}${pathname}?blog_id=${blogId}`);
+    }
+  }, [pathname, blogId]);
+  const handleNativeShare = async () => {
+    if (typeof window !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: blogData?.title || document.title,
+          text: blogData?.description || "",
+          url: currentUrl,
+        });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("Error sharing:", err);
+        }
+      }
+    }
+  };
+
+  const copyToClipboard = async () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      await navigator.clipboard.writeText(currentUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  const shareLinks = {
+    facebook: () => {
+      if (typeof window === "undefined" || !currentUrl) return;
+      const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`;
+      window.open(url, "facebook-share", "width=580,height=400");
+    },
+
+    x: () => {
+      if (typeof window === "undefined" || !currentUrl) return;
+      const text = encodeURIComponent(blogData?.title || "");
+      const url = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(currentUrl)}`;
+      window.open(url, "x-share", "width=580,height=400");
+    },
+
+    instagram: () => {
+      if (navigator.share) {
+        handleNativeShare();
+      } else {
+        copyToClipboard();
+      }
+    },
+
+    // Optional: Add WhatsApp
+    whatsapp: () => {
+      if (typeof window === "undefined" || !currentUrl) return;
+      const text = encodeURIComponent(`${blogData?.title || ""} ${currentUrl}`);
+      window.open(`https://wa.me/?text=${text}`, "_blank");
+    },
+  };
 
   // Check if user is logged in
   useEffect(() => {
@@ -406,13 +472,24 @@ const page = () => {
                 <div className="social-area">
                   <h6>Share On:</h6>
                   <ul className="social-link">
+                    {/* Facebook */}
                     <li>
-                      <a href="https://www.facebook.com/">
+                      <button
+                        onClick={shareLinks.facebook}
+                        className="bg-transparent text-[#295557] border-0 cursor-pointer"
+                        aria-label="Share on Facebook"
+                      >
                         <i className="bx bxl-facebook" />
-                      </a>
+                      </button>
                     </li>
+
+                    {/* X (formerly Twitter) */}
                     <li>
-                      <a href="https://twitter.com/">
+                      <button
+                        onClick={shareLinks.x}
+                        className="bg-transparent text-[#295557] border-0 cursor-pointer"
+                        aria-label="Share on X"
+                      >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           width={12}
@@ -421,27 +498,56 @@ const page = () => {
                           className="bi bi-twitter-x"
                           viewBox="0 0 16 16"
                         >
-                          <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865l8.875 11.633Z"></path>
+                          <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865l8.875 11.633Z" />
                         </svg>
-                      </a>
+                      </button>
                     </li>
+
+                    {/* Instagram */}
                     <li>
-                      <a href="https://www.pinterest.com/">
-                        <i className="bx bxl-pinterest-alt" />
-                      </a>
-                    </li>
-                    <li>
-                      <a href="https://www.instagram.com/">
+                      <button
+                        onClick={shareLinks.instagram}
+                        className="bg-transparent text-[#295557] border-0 cursor-pointer"
+                        aria-label="Share on Instagram"
+                      >
                         <i className="bx bxl-instagram" />
-                      </a>
+                      </button>
+                    </li>
+
+                    {/* Copy Link */}
+                    <li>
+                      <button
+                        onClick={copyToClipboard}
+                        className="bg-transparent text-[#295557] border-0 cursor-pointer"
+                        aria-label="Copy link"
+                      >
+                        <i className={copied ? "bx bx-check" : "bx bx-link"} />
+                      </button>
+                    </li>
+
+                    {/* Optional: WhatsApp */}
+                    <li>
+                      <button
+                        onClick={shareLinks.whatsapp}
+                        className="bg-transparent text-[#295557] border-0 cursor-pointer"
+                        aria-label="Share on WhatsApp"
+                      >
+                        <i className="bx bxl-whatsapp" />
+                      </button>
                     </li>
                   </ul>
+
+                  {copied && (
+                    <span className="text-green-600 text-sm ml-2">
+                      Link copied!
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Navigation */}
               {(blogData.previous_blog || blogData.next_blog) && (
-                <div className="row sm:mb-6 mb-0 md:mb-10 ">
+                <div className="row sm:!mb-6 mb-0 md:!mb-10 ">
                   <div className="col-lg-12">
                     <div className="details-navigation">
                       {blogData.previous_blog && (

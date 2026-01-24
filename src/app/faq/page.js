@@ -15,6 +15,7 @@ import { base_url } from "../../uitils/base_url";
 const FAQPage = () => {
   const [generalFAQs, setGeneralFAQs] = useState([]);
   const [travelTipsFAQs, setTravelTipsFAQs] = useState([]);
+  const [offer, setOffer] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -54,6 +55,7 @@ const FAQPage = () => {
 
         setGeneralFAQs(transformFAQData(generalQuestions));
         setTravelTipsFAQs(transformFAQData(travelTipsQuestions));
+        setOffer(response?.data?.first_offer);
       } else {
         throw new Error("Failed to fetch FAQs");
       }
@@ -230,11 +232,14 @@ const FAQPage = () => {
                   />
                   <div className="banner2-content-wrap">
                     <div className="banner2-content">
-                      <span>Savings worldwide</span>
-                      <h3>50% Off</h3>
-                      <p>For Your First Book</p>
+                      <span>{offer?.panner_title}</span>
+                      <h3>{offer?.offer_percentage}</h3>
+                      <p>{offer?.offer_descreption}</p>
                     </div>
-                    <Link href="/package" className="primary-btn1">
+                    <Link
+                      href={`/package/package-details/${offer?.tour_id}`}
+                      className="primary-btn1"
+                    >
                       Book Now
                     </Link>
                   </div>

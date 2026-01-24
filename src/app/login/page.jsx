@@ -13,8 +13,11 @@ const Login = () => {
     email: "",
     password: "",
   });
+
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+
+  const fcm_token = localStorage.getItem("fcm_token");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -55,6 +58,7 @@ const Login = () => {
       const loginData = {
         email: formData.email,
         password: formData.password,
+        fcm_token: fcm_token,
       };
 
       const response = await axios.post(
@@ -194,7 +198,7 @@ const Login = () => {
 
                 {/* Forgot Password Link */}
                 <motion.div className="text-right" variants={itemVariants}>
-                  <Link href="#" className="modern-link">
+                  <Link href="/forgot-password" className="modern-link">
                     Forgot Password?
                   </Link>
                 </motion.div>

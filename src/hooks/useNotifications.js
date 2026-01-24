@@ -95,7 +95,7 @@ export default function useNotifications() {
       // Call API for each unread notification
       await Promise.all(
         unreadNotifications.map((notification) =>
-          fetch("/admin/notifications/mark_as_seen.php", {
+          fetch(`${base_url}/admin/notifications/mark_as_seen.php`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

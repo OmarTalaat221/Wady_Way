@@ -51,6 +51,7 @@ export const mapApiItemToTourCardItem = (apiItem) => {
     oldPrice: apiItem?.price_original
       ? money(apiItem?.price_currency, apiItem?.price_original)
       : "",
+    offer_percentage: apiItem?.offer_percentage?.match(/\d+/)?.[0] || null,
   };
 };
 

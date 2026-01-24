@@ -1,9 +1,12 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import axios from "axios";
+import { base_url } from "../../../../../uitils/base_url";
+import { Modal } from "antd";
+import "./style.css";
 
 const ReviewsDetails = () => {
   const params = useParams();
@@ -14,138 +17,130 @@ const ReviewsDetails = () => {
   const currentLocale = useLocale();
   const reviewsListRef = useRef(null);
   const [isSticky, setIsSticky] = useState(false);
-
   const [showMobileReviews, setShowMobileReviews] = useState(true);
-
-  const reviewsData = [
-    {
-      id: 1,
-      name: "Mr. Bowmik Haldar",
-      date: "05 June, 2023",
-      image:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      content:
-        "The tour was absolutely amazing! Our guide Ahmed was incredibly knowledgeable about Egyptian history and culture. The sunrise at the pyramids was breathtaking, and the camel ride was an unforgettable experience. The local restaurant they took us to served authentic Egyptian cuisine that was delicious. I highly recommend this tour to anyone visiting Egypt.",
-      ratings: {
-        overall: 4.5,
-        transport: 4.5,
-        food: 4.5,
-        destination: 4.5,
-        hospitality: 4.5,
-      },
-      gallery: [
-        "https://images.unsplash.com/photo-1553913861-c0fddf2619ee?w=600&h=400&fit=crop",
-        // "https://images.unsplash.com/photo-1573160103600-f4a5840f8ed5?w=600&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=600&h=400&fit=crop",
-        // "https://images.unsplash.com/photo-1539650116574-75c0c6d0e925?w=600&h=400&fit=crop",
-      ],
-      videoUrl: "https://www.youtube.com/embed/FYE5EMoMbO4",
-    },
-    {
-      id: 2,
-      name: "Mr. Bowmik Haldar",
-      date: "05 June, 2023",
-      image:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      content:
-        "The tour was absolutely amazing! Our guide Ahmed was incredibly knowledgeable about Egyptian history and culture. The sunrise at the pyramids was breathtaking, and the camel ride was an unforgettable experience. The local restaurant they took us to served authentic Egyptian cuisine that was delicious. I highly recommend this tour to anyone visiting Egypt.",
-      ratings: {
-        overall: 4.5,
-        transport: 4.5,
-        food: 4.5,
-        destination: 4.5,
-        hospitality: 4.5,
-      },
-      gallery: [
-        "https://images.unsplash.com/photo-1553913861-c0fddf2619ee?w=600&h=400&fit=crop",
-        // "https://images.unsplash.com/photo-1573160103600-f4a5840f8ed5?w=600&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=600&h=400&fit=crop",
-        // "https://images.unsplash.com/photo-1539650116574-75c0c6d0e925?w=600&h=400&fit=crop",
-      ],
-      videoUrl: "https://www.youtube.com/embed/FYE5EMoMbO4",
-    },
-    {
-      id: 3,
-      name: "Mr. Bowmik Haldar",
-      date: "05 June, 2023",
-      image:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      content:
-        "The tour was absolutely amazing! Our guide Ahmed was incredibly knowledgeable about Egyptian history and culture. The sunrise at the pyramids was breathtaking, and the camel ride was an unforgettable experience. The local restaurant they took us to served authentic Egyptian cuisine that was delicious. I highly recommend this tour to anyone visiting Egypt.",
-      ratings: {
-        overall: 4.5,
-        transport: 4.5,
-        food: 4.5,
-        destination: 4.5,
-        hospitality: 4.5,
-      },
-      gallery: [
-        "https://images.unsplash.com/photo-1553913861-c0fddf2619ee?w=600&h=400&fit=crop",
-        // "https://images.unsplash.com/photo-1573160103600-f4a5840f8ed5?w=600&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=600&h=400&fit=crop",
-        // "https://images.unsplash.com/photo-1539650116574-75c0c6d0e925?w=600&h=400&fit=crop",
-      ],
-      videoUrl: "https://www.youtube.com/embed/FYE5EMoMbO4",
-    },
-    {
-      id: 4,
-      name: "Mr. Bowmik Haldar",
-      date: "05 June, 2023",
-      image:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      content:
-        "The tour was absolutely amazing! Our guide Ahmed was incredibly knowledgeable about Egyptian history and culture. The sunrise at the pyramids was breathtaking, and the camel ride was an unforgettable experience. The local restaurant they took us to served authentic Egyptian cuisine that was delicious. I highly recommend this tour to anyone visiting Egypt.",
-      ratings: {
-        overall: 4.5,
-        transport: 4.5,
-        food: 4.5,
-        destination: 4.5,
-        hospitality: 4.5,
-      },
-      gallery: [
-        "https://images.unsplash.com/photo-1553913861-c0fddf2619ee?w=600&h=400&fit=crop",
-        // "https://images.unsplash.com/photo-1573160103600-f4a5840f8ed5?w=600&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=600&h=400&fit=crop",
-        // "https://images.unsplash.com/photo-1539650116574-75c0c6d0e925?w=600&h=400&fit=crop",
-      ],
-      videoUrl: "https://www.youtube.com/embed/FYE5EMoMbO4",
-    },
-  ];
-
+  const [loading, setLoading] = useState(true);
+  const [reviewsData, setReviewsData] = useState([]);
   const [selectedReview, setSelectedReview] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [showVideoModal, setShowVideoModal] = useState(false);
 
-  // Set initial selected review based on URL parameter or default to first review
-  useEffect(() => {
-    if (reviewIdParam) {
-      const reviewId = parseInt(reviewIdParam);
-      const review = reviewsData.find((r) => r.id === reviewId);
-      if (review) {
-        setSelectedReview(review);
-      } else {
-        setSelectedReview(reviewsData[0]);
+  // Parse images helper
+  const parseImages = (images) => {
+    if (!images) return [];
+    if (typeof images === "string") {
+      try {
+        return JSON.parse(images);
+      } catch (e) {
+        return [];
       }
-    } else {
-      setSelectedReview(reviewsData[0]);
     }
+    return Array.isArray(images) ? images : [];
+  };
+
+  // Clean video URL helper
+  const cleanVideoUrl = (video) => {
+    if (!video || typeof video !== "string") return null;
+    const cleaned = video
+      .replace(/\\/g, "")
+      .replace(/^"/, "")
+      .replace(/"$/, "");
+    if (cleaned === "[]" || cleaned === "Array" || cleaned === "") {
+      return null;
+    }
+    return cleaned;
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  // Transform API review to component format
+  const transformReview = (reviewData) => ({
+    id: reviewData.rating_id,
+    user_id: reviewData.user_id,
+    name: reviewData.full_name || `Traveler #${reviewData.user_id}`,
+    date: formatDate(reviewData.created_at),
+    image: reviewData.image || "https://via.placeholder.com/150x150?text=User",
+    content: reviewData.comment,
+    gallery: parseImages(reviewData.images),
+    videoUrl: cleanVideoUrl(reviewData.video),
+    ratings: {
+      overall: parseFloat(reviewData.overall) || 0,
+      transport: parseFloat(reviewData.transport) || 0,
+      hotel: parseFloat(reviewData.hotel) || 0,
+      activity: parseFloat(reviewData.activity) || 0,
+    },
+  });
+
+  // Fetch review details from API
+  const fetchReviewDetails = async () => {
+    if (!reviewIdParam) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        `${base_url}/user/rating/select_tour_rating.php`,
+        { review_id: reviewIdParam }
+      );
+
+      if (response.data?.status === "success") {
+        const mainReview = response.data.message?.review;
+        const relatedReviews = response.data.message?.related_reviews || [];
+
+        // Transform main review
+        const transformedMainReview = mainReview
+          ? transformReview(mainReview)
+          : null;
+
+        // Transform related reviews (filter approved only)
+        const transformedRelated = relatedReviews
+          .filter((r) => r.status === "approved")
+          .map(transformReview);
+
+        // Combine all reviews with main review first
+        const allReviews = transformedMainReview
+          ? [transformedMainReview, ...transformedRelated]
+          : transformedRelated;
+
+        setReviewsData(allReviews);
+
+        // Set selected review
+        if (transformedMainReview) {
+          setSelectedReview(transformedMainReview);
+        } else if (allReviews.length > 0) {
+          setSelectedReview(allReviews[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching review details:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviewDetails();
   }, [reviewIdParam]);
 
   // Handle scroll for sticky reviews list on mobile
   useEffect(() => {
     const handleScroll = () => {
       if (window.innerWidth < 1024) {
-        // Only apply on screens smaller than lg
         const reviewsSection = document.getElementById("reviews-section");
         if (reviewsSection) {
           const reviewsSectionTop = reviewsSection.getBoundingClientRect().top;
-          const reviewsSectionBottom =
-            reviewsSection.getBoundingClientRect().bottom;
-
-          // Make the reviews list sticky when scrolling past it
-          if (
-            reviewsSectionTop <= 0
-            // reviewsSectionBottom > window.innerHeight
-          ) {
+          if (reviewsSectionTop <= 0) {
             setIsSticky(true);
           } else {
             setIsSticky(false);
@@ -166,22 +161,14 @@ const ReviewsDetails = () => {
     setActiveFilter(filter);
   };
 
-  const filteredReviews =
-    activeFilter === "all"
-      ? reviewsData
-      : reviewsData.filter((review) => {
-          if (activeFilter === "positive") return review.ratings.overall >= 3.5;
-          if (activeFilter === "negative") return review.ratings.overall < 3.5;
-          return true;
-        });
-
-  if (!selectedReview) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
-      </div>
-    );
-  }
+  const filteredReviews = useMemo(() => {
+    if (activeFilter === "all") return reviewsData;
+    return reviewsData.filter((review) => {
+      if (activeFilter === "positive") return review.ratings.overall >= 3.5;
+      if (activeFilter === "negative") return review.ratings.overall < 3.5;
+      return true;
+    });
+  }, [reviewsData, activeFilter]);
 
   // Direction-aware classes based on current locale
   const directionClasses = {
@@ -190,6 +177,54 @@ const ReviewsDetails = () => {
     padding: currentLocale === "ar" ? "pr-4 pl-2" : "pl-4 pr-2",
     borderSide: currentLocale === "ar" ? "border-r-4" : "border-l-4",
   };
+
+  // Render stars helper
+  const renderStars = (rating) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const stars = [];
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<i key={i} className="bi bi-star-fill"></i>);
+    }
+
+    if (hasHalfStar) {
+      stars.push(<i key="half" className="bi bi-star-half"></i>);
+    }
+
+    return stars;
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+      </div>
+    );
+  }
+
+  // No reviews found
+  if (!selectedReview || reviewsData.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-16">
+        <i className="bi bi-chat-square-text text-6xl text-gray-300 mb-4"></i>
+        <h3 className="text-xl font-semibold text-gray-600 mb-2">
+          {t("noReviewFound") || "No Review Found"}
+        </h3>
+        <p className="text-gray-500 mb-6">
+          {t("reviewNotExist") ||
+            "The review you're looking for doesn't exist or has been removed."}
+        </p>
+        <Link
+          href={`/package/package-details/${packageId}`}
+          className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-md transition-colors inline-block"
+        >
+          {t("backToPackage") || "Back to Package"}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 py-16">
@@ -250,42 +285,6 @@ const ReviewsDetails = () => {
           </h1>
         </div>
 
-        {/* Filter Section */}
-        <div className="mb-8">
-          <div className={`flex flex-wrap gap-3 `}>
-            <button
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                activeFilter === "all"
-                  ? "bg-amber-500 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-              onClick={() => handleFilterChange("all")}
-            >
-              {t("allReviews")}
-            </button>
-            <button
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                activeFilter === "positive"
-                  ? "bg-amber-500 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-              onClick={() => handleFilterChange("positive")}
-            >
-              {t("positive")}
-            </button>
-            <button
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                activeFilter === "negative"
-                  ? "bg-amber-500 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
-              }`}
-              onClick={() => handleFilterChange("negative")}
-            >
-              {t("negative")}
-            </button>
-          </div>
-        </div>
-
         {/* Main Content */}
         <div id="reviews-section" className="flex flex-col lg:flex-row gap-8">
           {/* Mobile Horizontal Reviews List (visible only on small screens) */}
@@ -340,9 +339,9 @@ const ReviewsDetails = () => {
                 >
                   {filteredReviews.map((review, index) => (
                     <div
-                      key={index}
+                      key={review.id || index}
                       className={`cursor-pointer border-b-4 flex-shrink-0 w-64 ${
-                        selectedReview.id === review.id
+                        selectedReview?.id === review.id
                           ? "border-amber-500 bg-amber-50"
                           : "border-transparent hover:bg-gray-50 border-gray-200"
                       } p-4 rounded-lg transition-all shadow-sm`}
@@ -354,25 +353,19 @@ const ReviewsDetails = () => {
                             src={review.image}
                             alt={review.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src =
+                                "https://via.placeholder.com/48x48?text=User";
+                            }}
                           />
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900">
+                          <h4 className="font-medium text-gray-900 text-center mt-2">
                             {review.name}
                           </h4>
                           <div className="flex items-center justify-center mt-1">
-                            <div className="flex text-amber-400 ">
-                              {[
-                                ...Array(Math.floor(review.ratings.overall)),
-                              ].map((_, i) => (
-                                <i
-                                  key={i}
-                                  className="bi bi-star-fill text-xs"
-                                ></i>
-                              ))}
-                              {review.ratings.overall % 1 !== 0 && (
-                                <i className="bi bi-star-half text-xs"></i>
-                              )}
+                            <div className="flex text-amber-400">
+                              {renderStars(review.ratings.overall)}
                             </div>
                           </div>
                         </div>
@@ -397,9 +390,9 @@ const ReviewsDetails = () => {
               <div className="max-h-[600px] overflow-y-auto no-scrollbar">
                 {filteredReviews.map((review, index) => (
                   <div
-                    key={index}
+                    key={review.id || index}
                     className={`cursor-pointer ${directionClasses.borderSide} ${
-                      selectedReview.id === review.id
+                      selectedReview?.id === review.id
                         ? "border-amber-500 bg-amber-50"
                         : "border-transparent hover:bg-gray-50"
                     } p-4 transition-all`}
@@ -413,6 +406,10 @@ const ReviewsDetails = () => {
                           src={review.image}
                           alt={review.name}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src =
+                              "https://via.placeholder.com/48x48?text=User";
+                          }}
                         />
                       </div>
                       <div className={directionClasses.textAlign}>
@@ -421,17 +418,7 @@ const ReviewsDetails = () => {
                         </h4>
                         <div className={`flex items-center mt-1 `}>
                           <div className="flex text-amber-400 mx-2">
-                            {[...Array(Math.floor(review.ratings.overall))].map(
-                              (_, i) => (
-                                <i
-                                  key={i}
-                                  className="bi bi-star-fill text-xs"
-                                ></i>
-                              )
-                            )}
-                            {review.ratings.overall % 1 !== 0 && (
-                              <i className="bi bi-star-half text-xs"></i>
-                            )}
+                            {renderStars(review.ratings.overall)}
                           </div>
                           <span className="text-sm text-gray-500">
                             {review.date}
@@ -440,6 +427,7 @@ const ReviewsDetails = () => {
                         <p className="mt-2 text-sm text-gray-600 line-clamp-2">
                           {review.content}
                         </p>
+                        {/* Media indicators */}
                       </div>
                     </div>
                   </div>
@@ -461,6 +449,10 @@ const ReviewsDetails = () => {
                       src={selectedReview.image}
                       alt={selectedReview.name}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src =
+                          "https://via.placeholder.com/64x64?text=User";
+                      }}
                     />
                   </div>
                   <div className={directionClasses.textAlign}>
@@ -469,14 +461,7 @@ const ReviewsDetails = () => {
                     </h2>
                     <div className={`flex items-center mt-1 `}>
                       <div className="flex text-amber-400 mx-2">
-                        {[
-                          ...Array(Math.floor(selectedReview.ratings.overall)),
-                        ].map((_, i) => (
-                          <i key={i} className="bi bi-star-fill"></i>
-                        ))}
-                        {selectedReview.ratings.overall % 1 !== 0 && (
-                          <i className="bi bi-star-half"></i>
-                        )}
+                        {renderStars(selectedReview.ratings.overall)}
                       </div>
                       <span className="text-gray-500">
                         {selectedReview.date}
@@ -491,7 +476,7 @@ const ReviewsDetails = () => {
                 {/* Client Story */}
                 <div className="mb-8">
                   <h3
-                    className={`text-lg font-semibold text-gray-900 mb-4 flex items-center }`}
+                    className={`text-lg font-semibold text-gray-900 mb-4 flex items-center `}
                   >
                     <span
                       className={`w-1 h-6 bg-amber-500 rounded ${directionClasses.margin}`}
@@ -516,114 +501,62 @@ const ReviewsDetails = () => {
                     {t("ratings")}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Overall */}
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">{t("overall")}</span>
                         <div className="flex items-center">
                           <div className="flex text-amber-400 mx-2">
-                            {[
-                              ...Array(
-                                Math.floor(selectedReview.ratings.overall)
-                              ),
-                            ].map((_, i) => (
-                              <i key={i} className="bi bi-star-fill"></i>
-                            ))}
-                            {selectedReview.ratings.overall % 1 !== 0 && (
-                              <i className="bi bi-star-half"></i>
-                            )}
+                            {renderStars(selectedReview.ratings.overall)}
                           </div>
                           <span className="font-medium">
-                            {selectedReview.ratings.overall}
+                            {selectedReview.ratings.overall.toFixed(1)}
                           </span>
                         </div>
                       </div>
                     </div>
+                    {/* Transport */}
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">{t("transport")}</span>
                         <div className="flex items-center">
                           <div className="flex text-amber-400 mx-2">
-                            {[
-                              ...Array(
-                                Math.floor(selectedReview.ratings.transport)
-                              ),
-                            ].map((_, i) => (
-                              <i key={i} className="bi bi-star-fill"></i>
-                            ))}
-                            {selectedReview.ratings.transport % 1 !== 0 && (
-                              <i className="bi bi-star-half"></i>
-                            )}
+                            {renderStars(selectedReview.ratings.transport)}
                           </div>
                           <span className="font-medium">
-                            {selectedReview.ratings.transport}
+                            {selectedReview.ratings.transport.toFixed(1)}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">{t("food")}</span>
-                        <div className="flex items-center">
-                          <div className="flex text-amber-400 mx-2">
-                            {[
-                              ...Array(Math.floor(selectedReview.ratings.food)),
-                            ].map((_, i) => (
-                              <i key={i} className="bi bi-star-fill"></i>
-                            ))}
-                            {selectedReview.ratings.food % 1 !== 0 && (
-                              <i className="bi bi-star-half"></i>
-                            )}
-                          </div>
-                          <span className="font-medium">
-                            {selectedReview.ratings.food}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    {/* Hotel */}
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">
-                          {t("destination")}
+                          {t("hotel") || "Hotel"}
                         </span>
                         <div className="flex items-center">
                           <div className="flex text-amber-400 mx-2">
-                            {[
-                              ...Array(
-                                Math.floor(selectedReview.ratings.destination)
-                              ),
-                            ].map((_, i) => (
-                              <i key={i} className="bi bi-star-fill"></i>
-                            ))}
-                            {selectedReview.ratings.destination % 1 !== 0 && (
-                              <i className="bi bi-star-half"></i>
-                            )}
+                            {renderStars(selectedReview.ratings.hotel)}
                           </div>
                           <span className="font-medium">
-                            {selectedReview.ratings.destination}
+                            {selectedReview.ratings.hotel.toFixed(1)}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded-lg md:col-span-2">
+                    {/* Activity */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">
-                          {t("hospitality")}
+                          {t("activity") || "Activity"}
                         </span>
                         <div className="flex items-center">
                           <div className="flex text-amber-400 mx-2">
-                            {[
-                              ...Array(
-                                Math.floor(selectedReview.ratings.hospitality)
-                              ),
-                            ].map((_, i) => (
-                              <i key={i} className="bi bi-star-fill"></i>
-                            ))}
-                            {selectedReview.ratings.hospitality % 1 !== 0 && (
-                              <i className="bi bi-star-half"></i>
-                            )}
+                            {renderStars(selectedReview.ratings.activity)}
                           </div>
                           <span className="font-medium">
-                            {selectedReview.ratings.hospitality}
+                            {selectedReview.ratings.activity.toFixed(1)}
                           </span>
                         </div>
                       </div>
@@ -632,52 +565,63 @@ const ReviewsDetails = () => {
                 </div>
 
                 {/* Tour Gallery */}
-                <div className="mb-8">
-                  <h3
-                    className={`text-lg font-semibold text-gray-900 mb-4 flex items-center `}
-                  >
-                    <span
-                      className={`w-1 h-6 bg-amber-500 rounded ${directionClasses.margin}`}
-                    ></span>
-                    {t("tourGallery")}
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {selectedReview.gallery.map((image, index) => (
-                      <div
-                        key={index}
-                        className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow h-48"
+                {selectedReview.gallery &&
+                  selectedReview.gallery.length > 0 && (
+                    <div className="mb-8">
+                      <h3
+                        className={`text-lg font-semibold text-gray-900 mb-4 flex items-center `}
                       >
-                        <img
-                          src={image}
-                          alt={`Tour image ${index + 1}`}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
+                        <span
+                          className={`w-1 h-6 bg-amber-500 rounded ${directionClasses.margin}`}
+                        ></span>
+                        {t("tourGallery")} ({selectedReview.gallery.length})
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {selectedReview.gallery.map((image, index) => (
+                          <div
+                            key={index}
+                            className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow h-48 cursor-pointer"
+                            onClick={() => setSelectedImage(image)}
+                          >
+                            <img
+                              src={image}
+                              alt={`Tour image ${index + 1}`}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  )}
 
                 {/* Tour Video */}
-                <div>
-                  <h3
-                    className={`text-lg font-semibold text-gray-900 mb-4 flex items-center `}
-                  >
-                    <span
-                      className={`w-1 h-6 bg-amber-500 rounded ${directionClasses.margin}`}
-                    ></span>
-                    {t("tourVideo")}
-                  </h3>
-                  <div className="aspect-w-16 relative pb-[56.25%]">
-                    <iframe
-                      src={selectedReview.videoUrl}
-                      title="Tour Video"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="absolute inset-0 w-full h-full rounded-lg"
-                    ></iframe>
+                {selectedReview.videoUrl && (
+                  <div>
+                    <h3
+                      className={`text-lg font-semibold text-gray-900 mb-4 flex items-center `}
+                    >
+                      <span
+                        className={`w-1 h-6 bg-amber-500 rounded ${directionClasses.margin}`}
+                      ></span>
+                      {t("tourVideo")}
+                    </h3>
+                    <div
+                      className="relative w-full bg-gray-900 rounded-lg overflow-hidden cursor-pointer group"
+                      onClick={() => setShowVideoModal(true)}
+                    >
+                      <video
+                        src={selectedReview.videoUrl}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/50 transition-colors">
+                        <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+                          <i className="bi bi-play-fill text-white text-3xl"></i>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -702,6 +646,50 @@ const ReviewsDetails = () => {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={!!selectedImage}
+        footer={null}
+        onCancel={() => setSelectedImage(null)}
+        centered
+        width="auto"
+        styles={{
+          body: { padding: 0 },
+          content: { background: "transparent", boxShadow: "none" },
+        }}
+        closeIcon={<i className="bi bi-x-lg text-white text-xl"></i>}
+      >
+        <img
+          src={selectedImage}
+          alt="Preview"
+          className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg"
+        />
+      </Modal>
+
+      {/* Video Modal */}
+      <Modal
+        open={showVideoModal}
+        footer={null}
+        onCancel={() => setShowVideoModal(false)}
+        centered
+        width={800}
+        destroyOnClose
+        styles={{
+          body: { padding: 0 },
+          content: { borderRadius: 12 },
+        }}
+        closeIcon={<i className="bi bi-x-lg text-white text-xl"></i>}
+      >
+        {selectedReview?.videoUrl && (
+          <video
+            src={selectedReview.videoUrl}
+            controls
+            autoPlay
+            className="w-full rounded-lg"
+            style={{ maxHeight: "80vh" }}
+          />
+        )}
+      </Modal>
     </div>
   );
 };

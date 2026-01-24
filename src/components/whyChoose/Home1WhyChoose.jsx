@@ -3,7 +3,7 @@ import React from "react";
 const Home1WhyChoose = () => {
   return (
     <>
-      <div className="feature-card-section mb-[120px]">
+      <div className="feature-card-section mb-[60px]">
         <img
           src="/assets/img/home1/section-vector4.png"
           alt=""

@@ -1,0 +1,922 @@
+/* ============================================
+   FORGOT PASSWORD - RESPONSIVE STYLES
+   ============================================ */
+
+/* Forgot Password Specific Styles */
+.forgot-password-container {
+  padding: 20px;
+  min-height: 100vh;
+}
+
+.forgot-form-container {
+  width: 100%;
+  max-width: 500px !important;
+}
+
+.forgot-heading {
+  font-size: 28px !important;
+  margin-bottom: 8px;
+}
+
+.forgot-title {
+  padding: 28px 24px 40px !important;
+}
+
+.forgot-form-body {
+  padding: 28px 24px;
+}
+
+.forgot-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.forgot-btn {
+  font-size: 16px !important;
+  padding: 16px 24px !important;
+}
+
+.forgot-btn .btn-text {
+  white-space: nowrap;
+}
+
+.back-link-container {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.back-text {
+  color: #295557;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Step Indicator */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  gap: 0;
+  padding-bottom: 8px;
+}
+
+.step {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.step.active {
+  background: #e8a355;
+  border-color: #e8a355;
+  color: white;
+  box-shadow: 0 0 20px rgba(232, 163, 85, 0.4);
+}
+
+.step.completed {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.step-label {
+  position: absolute;
+  bottom: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.step-line {
+  width: 50px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.step-line.active {
+  background: #10b981;
+}
+
+/* Input with Icon */
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 16px;
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.modern-input.with-icon {
+  padding-left: 24px !important;
+}
+
+.modern-input.with-icon.has-toggle {
+  padding-right: 24px !important;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  transition: color 0.3s ease;
+  z-index: 2;
+}
+
+.password-toggle:hover {
+  color: #295557;
+}
+
+.password-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Password Strength */
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.strength-bars {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.strength-bar {
+  height: 4px;
+  flex: 1;
+  border-radius: 2px;
+  background: #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.strength-bar.active {
+  transform: scaleY(1.2);
+}
+
+.strength-text {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 50px;
+}
+
+/* Password Match */
+.password-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.password-match svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.password-match.match {
+  color: #10b981;
+}
+
+.password-match.no-match {
+  color: #ef4444;
+}
+
+/* ============================================
+   OTP MODAL STYLES
+   ============================================ */
+
+.otp-modal .ant-modal-content {
+  border-radius: 20px !important;
+  overflow: hidden;
+  padding: 0 !important;
+  border: 3px solid rgba(41, 85, 87, 0.2);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.otp-modal .ant-modal-body {
+  padding: 0 !important;
+}
+
+.otp-modal .ant-modal-close {
+  top: 12px;
+  right: 12px;
+}
+
+.otp-modal .ant-modal-close-x {
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  font-size: 16px;
+  color: #295557;
+}
+
+.otp-modal-content {
+  padding: 36px 28px;
+  text-align: center;
+  background: linear-gradient(180deg, #f8fafa 0%, #ffffff 100%);
+}
+
+/* OTP Icon */
+.otp-icon {
+  position: relative;
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 20px;
+}
+
+.otp-icon-inner {
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(135deg, #295557 0%, #1e3a3c 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.otp-icon-inner svg {
+  width: 32px;
+  height: 32px;
+  color: white;
+}
+
+.otp-icon-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #295557;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+  z-index: 1;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.otp-title {
+  color: #295557;
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.otp-description {
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.otp-description strong {
+  color: #295557;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+/* OTP Inputs */
+.otp-inputs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.otp-input {
+  width: 56px;
+  height: 64px;
+  border: 3px solid #e5e7eb;
+  border-radius: 14px;
+  font-size: 26px;
+  font-weight: 800;
+  text-align: center;
+  color: #295557;
+  background: white;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.otp-input:focus {
+  border-color: #e8a355;
+  box-shadow: 0 0 0 4px rgba(232, 163, 85, 0.15);
+  transform: translateY(-2px);
+}
+
+.otp-input.filled {
+  border-color: #295557;
+  background: rgba(41, 85, 87, 0.05);
+}
+
+.otp-input::placeholder {
+  color: #d1d5db;
+}
+
+/* Verify Button */
+.verify-btn {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.verify-btn:disabled {
+  background: #e5e7eb !important;
+  color: #9ca3af !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+/* Resend Section */
+.resend-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+.resend-timer {
+  color: #9ca3af;
+}
+
+.resend-timer strong {
+  color: #e8a355;
+  font-weight: 700;
+}
+
+.resend-btn {
+  background: none;
+  border: none;
+  color: #e8a355;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.3s ease;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.resend-btn:hover {
+  color: #d4941f;
+}
+
+.resend-btn:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Modal Footer Note */
+.modal-footer-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  background: rgba(41, 85, 87, 0.05);
+  border-radius: 10px;
+  margin-top: 4px;
+}
+
+.modal-footer-note svg {
+  width: 16px;
+  height: 16px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.modal-footer-note span {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* ============================================
+   TABLET STYLES (768px and below)
+   ============================================ */
+
+@media (max-width: 768px) {
+  .forgot-password-container {
+    padding: 16px;
+  }
+
+  .forgot-form-container {
+    max-width: 100% !important;
+  }
+
+  .forgot-heading {
+    font-size: 24px !important;
+  }
+
+  .forgot-title {
+    padding: 24px 20px 36px !important;
+  }
+
+  .forgot-form-body {
+    padding: 24px 20px;
+  }
+
+  .step {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .step-line {
+    width: 40px;
+  }
+
+  .step-label {
+    font-size: 10px;
+    bottom: -30px;
+  }
+
+  .modern-input {
+    height: 54px !important;
+    font-size: 15px !important;
+  }
+
+  .forgot-btn {
+    font-size: 15px !important;
+    padding: 14px 20px !important;
+  }
+
+  /* OTP Modal Tablet */
+  .otp-modal .ant-modal-content {
+    max-width: 380px;
+    border-radius: 18px !important;
+  }
+
+  .otp-modal-content {
+    padding: 30px 24px;
+  }
+
+  .otp-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .otp-icon-inner {
+    width: 64px;
+    height: 64px;
+  }
+
+  .otp-icon-inner svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .otp-title {
+    font-size: 20px;
+  }
+
+  .otp-input {
+    width: 52px;
+    height: 60px;
+    font-size: 24px;
+    border-radius: 12px;
+  }
+}
+
+/* ============================================
+   MOBILE STYLES (480px and below)
+   ============================================ */
+
+@media (max-width: 480px) {
+  .forgot-password-container {
+    padding: 12px;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+
+  .forgot-heading {
+    font-size: 20px !important;
+    line-height: 1.3;
+  }
+
+  .forgot-title {
+    padding: 20px 16px 32px !important;
+  }
+
+  .forgot-form-body {
+    padding: 20px 16px;
+  }
+
+  .forgot-form {
+    gap: 16px;
+  }
+
+  /* Step Indicator Mobile */
+  .step-indicator {
+    margin-top: 20px;
+    transform: scale(0.9);
+  }
+
+  .step {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .step-line {
+    width: 28px;
+    height: 2px;
+  }
+
+  .step-label {
+    font-size: 9px;
+    bottom: -26px;
+    letter-spacing: 0;
+  }
+
+  /* Form Elements Mobile */
+  .form-label {
+    font-size: 12px !important;
+  }
+
+  .modern-input {
+    height: 50px !important;
+    font-size: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  .modern-input.with-icon {
+    padding-left: 42px !important;
+  }
+
+  .modern-input.with-icon.has-toggle {
+    padding-right: 42px !important;
+  }
+
+  .input-icon {
+    left: 14px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .password-toggle {
+    right: 12px;
+  }
+
+  .password-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .forgot-btn {
+    font-size: 14px !important;
+    padding: 14px 16px !important;
+    border-radius: 10px !important;
+  }
+
+  .back-link-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .back-text {
+    font-size: 13px;
+  }
+
+  .modern-link {
+    font-size: 13px;
+  }
+
+  /* Password Strength Mobile */
+  .password-strength {
+    gap: 8px;
+  }
+
+  .strength-text {
+    font-size: 11px;
+    min-width: 45px;
+  }
+
+  /* Password Match Mobile */
+  .password-match {
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .password-match svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Error Message Mobile */
+  .error-message {
+    font-size: 12px !important;
+  }
+
+  /* OTP Modal Mobile */
+  .otp-modal .ant-modal {
+    max-width: calc(100vw - 24px) !important;
+    margin: 12px !important;
+  }
+
+  .otp-modal .ant-modal-content {
+    border-radius: 16px !important;
+    border-width: 2px;
+  }
+
+  .otp-modal-content {
+    padding: 24px 16px;
+  }
+
+  .otp-icon {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+  }
+
+  .otp-icon-inner {
+    width: 56px;
+    height: 56px;
+  }
+
+  .otp-icon-inner svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .otp-title {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .otp-description {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .otp-inputs {
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .otp-input {
+    width: 48px;
+    height: 56px;
+    font-size: 22px;
+    border-radius: 10px;
+    border-width: 2px;
+  }
+
+  .verify-btn {
+    font-size: 14px !important;
+    padding: 14px 16px !important;
+    margin-bottom: 14px;
+  }
+
+  .resend-section {
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  .modal-footer-note {
+    padding: 12px;
+    border-radius: 8px;
+    gap: 6px;
+  }
+
+  .modal-footer-note svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .modal-footer-note span {
+    font-size: 11px;
+  }
+}
+
+/* ============================================
+   EXTRA SMALL MOBILE (360px and below)
+   ============================================ */
+
+@media (max-width: 360px) {
+  .forgot-password-container {
+    padding: 8px;
+    padding-top: 24px;
+  }
+
+  .forgot-heading {
+    font-size: 18px !important;
+  }
+
+  .forgot-title {
+    padding: 16px 12px 28px !important;
+  }
+
+  .forgot-form-body {
+    padding: 16px 12px;
+  }
+
+  /* Step Indicator Extra Small */
+  .step-indicator {
+    transform: scale(0.8);
+  }
+
+  .step-line {
+    width: 20px;
+  }
+
+  /* OTP Modal Extra Small */
+  .otp-modal .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px !important;
+  }
+
+  .otp-modal-content {
+    padding: 20px 12px;
+  }
+
+  .otp-inputs {
+    gap: 6px;
+  }
+
+  .otp-input {
+    width: 44px;
+    height: 52px;
+    font-size: 20px;
+    border-radius: 8px;
+  }
+
+  .otp-title {
+    font-size: 16px;
+  }
+
+  .otp-description {
+    font-size: 12px;
+  }
+}
+
+/* ============================================
+   LANDSCAPE MOBILE
+   ============================================ */
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .forgot-password-container {
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .forgot-title {
+    padding: 16px 20px 28px !important;
+  }
+
+  .forgot-form-body {
+    padding: 16px 20px;
+  }
+
+  .otp-modal-content {
+    padding: 20px 24px;
+  }
+
+  .otp-icon {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 12px;
+  }
+
+  .otp-icon-inner {
+    width: 50px;
+    height: 50px;
+  }
+
+  .otp-icon-inner svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .otp-title {
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+
+  .otp-description {
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+
+  .otp-input {
+    width: 46px;
+    height: 52px;
+    font-size: 20px;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY - REDUCED MOTION
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .otp-icon-pulse {
+    animation: none;
+  }
+
+  .floating-particle {
+    animation: none;
+  }
+
+  .step,
+  .step-line,
+  .modern-input,
+  .modern-btn,
+  .otp-input {
+    transition: none;
+  }
+}
+
+/* ============================================
+   FOCUS STYLES FOR ACCESSIBILITY
+   ============================================ */
+
+.modern-input:focus-visible,
+.otp-input:focus-visible,
+.modern-btn:focus-visible,
+.password-toggle:focus-visible,
+.resend-btn:focus-visible {
+  outline: 3px solid #e8a355;
+  outline-offset: 2px;
+}
+
+/* ============================================
+   HIGH CONTRAST MODE
+   ============================================ */
+
+@media (prefers-contrast: high) {
+  .step {
+    border-width: 3px;
+  }
+
+  .otp-input {
+    border-width: 3px;
+  }
+
+  .modern-input {
+    border-width: 3px;
+  }
+}

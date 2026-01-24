@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   formatReservationForAPI,
   resetReservation,
+  selectPriceDetails, // ✅ استيراد selector
 } from "@/lib/redux/slices/tourReservationSlice";
 import { base_url } from "../../../../../../uitils/base_url";
 import axios from "axios";
@@ -13,7 +14,7 @@ import toast from "react-hot-toast";
 import { FaCheckCircle, FaSpinner, FaHome, FaReceipt } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 
-// Success Modal Component
+// Success Modal Component (نفس الكود السابق)
 const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
   const t = useTranslations("packageSummary");
   const router = useRouter();
@@ -34,23 +35,17 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={handleClose}
       />
-
-      {/* Modal Content */}
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-modal-in">
-        {/* Close Button */}
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
         >
           <IoClose size={24} />
         </button>
-
-        {/* Success Icon & Animation */}
         <div className="bg-gradient-to-br from-green-400 to-green-600 pt-8 pb-12 px-6 text-center">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4 animate-bounce-in">
             <FaCheckCircle className="text-green-500 text-5xl" />
@@ -63,8 +58,6 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
               "Your tour has been successfully booked."}
           </p>
         </div>
-
-        {/* Booking Details */}
         <div className="p-6">
           {bookingDetails && (
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -72,16 +65,6 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
                 {t("booking_details") || "Booking Details"}
               </h3>
               <div className="space-y-2 text-sm">
-                {bookingDetails.bookingId && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">
-                      {t("booking_id") || "Booking ID"}:
-                    </span>
-                    <span className="font-medium text-gray-800">
-                      #{bookingDetails.bookingId}
-                    </span>
-                  </div>
-                )}
                 {bookingDetails.tourName && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">
@@ -105,21 +88,11 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
               </div>
             </div>
           )}
-
           <p className="text-gray-600 text-center text-sm mb-6">
             {t("confirmation_email") ||
               "A confirmation email has been sent to your registered email address."}
           </p>
-
-          {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3">
-            {/* <button
-              onClick={handleViewBookings}
-              className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors"
-            >
-              <FaReceipt />
-              {t("view_bookings") || "View Bookings"}
-            </button> */}
             <button
               onClick={handleClose}
               className="flex-1 flex items-center justify-center gap-2 bg-[#295557] hover:bg-[#1e3e3a] text-white py-3 px-4 rounded-lg font-medium transition-colors"
@@ -130,8 +103,6 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
           </div>
         </div>
       </div>
-
-      {/* CSS Animation Styles */}
       <style jsx>{`
         @keyframes modal-in {
           from {
@@ -143,7 +114,6 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
             transform: scale(1) translateY(0);
           }
         }
-
         @keyframes bounce-in {
           0% {
             opacity: 0;
@@ -160,11 +130,9 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
             transform: scale(1);
           }
         }
-
         .animate-modal-in {
           animation: modal-in 0.3s ease-out;
         }
-
         .animate-bounce-in {
           animation: bounce-in 0.6s ease-out 0.2s both;
         }
@@ -173,14 +141,12 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
   );
 };
 
-// Loading Spinner Component
 const LoadingSpinner = ({ size = "md" }) => {
   const sizeClasses = {
     sm: "w-4 h-4",
     md: "w-5 h-5",
     lg: "w-6 h-6",
   };
-
   return <FaSpinner className={`${sizeClasses[size]} animate-spin`} />;
 };
 
@@ -191,45 +157,12 @@ const RightSummary = ({ lang }) => {
   const [bookingDetails, setBookingDetails] = useState(null);
 
   const reservation = useSelector((state) => state.tourReservation);
-  const { tourData, selectedByDay, numAdults, numChildren, numInfants } =
-    reservation;
+  const { tourData, numAdults, numChildren, numInfants } = reservation;
 
-  const calculatePrices = () => {
-    let subtotal = 0;
-
-    if (tourData) {
-      subtotal += parseFloat(tourData.per_adult || 0) * numAdults;
-      subtotal += parseFloat(tourData.per_child || 0) * numChildren;
-    }
-
-    Object.values(selectedByDay || {}).forEach((day) => {
-      if (day.hotel) {
-        subtotal += parseFloat(
-          day.hotel.adult_price || day.hotel.price_per_night || 0
-        );
-      }
-      if (day.car) {
-        subtotal += parseFloat(day.car.price_current || day.car.price || 0);
-      }
-      if (day.activities) {
-        day.activities.forEach((activity) => {
-          subtotal += parseFloat(activity.price_current || activity.price || 0);
-        });
-      }
-    });
-
-    const discount = 1.0;
-    return {
-      subtotal: subtotal.toFixed(2),
-      discount: discount.toFixed(2),
-      total: (subtotal - discount).toFixed(2),
-    };
-  };
-
-  const prices = calculatePrices();
+  // ✅ استخدام selector للحصول على تفاصيل الأسعار
+  const priceDetails = useSelector(selectPriceDetails);
 
   const handleConfirmBooking = async () => {
-    // Validation
     if (!reservation.userId) {
       toast.error(t("please_login") || "Please login to continue");
       return;
@@ -243,10 +176,6 @@ const RightSummary = ({ lang }) => {
     setLoading(true);
     try {
       const apiData = formatReservationForAPI(reservation);
-      // console.log("Sending booking data:", apiData);
-
-      // console.log(apiData);
-      // return;
 
       const response = await axios.post(
         `${base_url}/user/tours/reserve_tour.php`,
@@ -256,12 +185,11 @@ const RightSummary = ({ lang }) => {
       console.log("Booking response:", response.data);
 
       if (response.data.status === "success") {
-        // Set booking details for modal
         setBookingDetails({
           bookingId:
             response.data.booking_id || response.data.reservation_id || "N/A",
           tourName: tourData?.title || tourData?.name || "Tour Package",
-          total: prices.total,
+          total: priceDetails.total?.toFixed(2), // ✅ السعر النهائي بعد الخصم
           startDate: reservation.startDate,
           endDate: reservation.endDate,
           adults: numAdults,
@@ -335,19 +263,31 @@ const RightSummary = ({ lang }) => {
         )}
 
         <div className="border-t border-gray-200 pt-4">
+          {/* ✅ Subtotal */}
           <div className="flex justify-between py-2">
             <span className="text-gray-600">{t("subtotal")}</span>
-            <span className="font-medium">${prices.subtotal}</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-gray-600">{t("discount")}</span>
-            <span className="text-green-600">- ${prices.discount}</span>
+            <span className="font-medium">
+              ${priceDetails.subtotal?.toFixed(2)}
+            </span>
           </div>
 
+          {/* ✅ Discount */}
+          {priceDetails.discountPercentage > 0 && (
+            <div className="flex justify-between py-2">
+              <span className="text-green-600">
+                {t("discount")} ({priceDetails.discountPercentage}%)
+              </span>
+              <span className="text-green-600">
+                - ${priceDetails.discountAmount?.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {/* ✅ Total */}
           <div className="flex justify-between py-3 mt-2 border-t border-gray-200">
             <span className="font-semibold">{t("total")}</span>
             <span className="font-bold text-lg text-[#295557]">
-              ${prices.total}
+              ${priceDetails.total?.toFixed(2)}
             </span>
           </div>
 
@@ -372,7 +312,6 @@ const RightSummary = ({ lang }) => {
             </span>
           </div>
 
-          {/* Security Badge */}
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path
@@ -386,7 +325,6 @@ const RightSummary = ({ lang }) => {
         </div>
       </div>
 
-      {/* Success Modal */}
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={handleCloseModal}

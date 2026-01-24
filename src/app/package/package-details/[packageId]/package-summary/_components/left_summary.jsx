@@ -1,41 +1,61 @@
-import { Collapse, Tooltip } from "antd";
+import { Collapse, Tooltip, message } from "antd";
 import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { customExpandIcon } from "./customExpandIcon";
-import { IoCloseOutline, IoStarSharp } from "react-icons/io5";
+import { IoStarSharp } from "react-icons/io5";
 import { IoIosInformationCircleOutline } from "react-icons/io";
 import { Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import { useTranslations } from "next-intl";
+import { toggleTourGuide } from "@/lib/redux/slices/tourReservationSlice";
 
 const LeftSummary = ({ days, setDays, lang }) => {
   const t = useTranslations("packageSummary");
+  const dispatch = useDispatch();
+
+  // Get tour guide state from Redux
+  const selectedByDay = useSelector(
+    (state) => state.tourReservation.selectedByDay
+  );
 
   const [modal, setModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null); // 'enable' or 'disable'
 
   const toggleModal = () => setModal(!modal);
 
-  const handleCheckboxChange = (dayNumber) => {
-    const day = days.find((d) => d.day === dayNumber);
-
-    if (day.tour_gide) {
-      setSelectedDay(dayNumber);
-      toggleModal();
-    } else {
-      setDays((prevDays) =>
-        prevDays.map((day) =>
-          day.day === dayNumber ? { ...day, tour_gide: !day.tour_gide } : day
-        )
-      );
-    }
+  // Get tour guide value for a specific day from Redux
+  const getTourGuideForDay = (dayNumber) => {
+    const dayKey = String(dayNumber);
+    return selectedByDay[dayKey]?.tour_guide !== false;
   };
 
+  // Handle checkbox change - show confirmation for both enable and disable
+  const handleCheckboxChange = (dayNumber) => {
+    const isTourGuideActive = getTourGuideForDay(dayNumber);
+
+    setSelectedDay(dayNumber);
+    setPendingAction(isTourGuideActive ? "disable" : "enable");
+    setModal(true);
+  };
+
+  // Confirm toggle - just update Redux locally
   const confirmToggle = () => {
-    setDays((prevDays) =>
-      prevDays.map((day) =>
-        day.day === selectedDay ? { ...day, tour_gide: false } : day
-      )
+    if (!selectedDay) return;
+
+    // Update Redux state locally
+    dispatch(toggleTourGuide(selectedDay));
+
+    // Show success message
+    message.success(
+      pendingAction === "enable"
+        ? t("tour_guide_enabled") || "Tour guide enabled for this day"
+        : t("tour_guide_disabled") || "Tour guide removed for this day"
     );
-    toggleModal();
+
+    // Close modal and reset
+    setModal(false);
+    setSelectedDay(null);
+    setPendingAction(null);
   };
 
   const { Panel } = Collapse;
@@ -57,7 +77,7 @@ const LeftSummary = ({ days, setDays, lang }) => {
               key={day.day}
               header={
                 <div className="flex justify-between items-center">
-                  <div>
+                  <div className="flex items-center gap-3">
                     <h2 className="text-xl font-semibold">
                       {t("day")} {day.day}
                     </h2>
@@ -68,10 +88,7 @@ const LeftSummary = ({ days, setDays, lang }) => {
               style={{ padding: "0px" }}
             >
               <div className="px-4 pb-4">
-                {/* <div className="flex justify-between items-center mb-4">
-                  <p className="text-gray-700">{day.description[lang]}</p>
-                </div> */}
-
+                {/* Accommodation Section */}
                 <div className="mb-4">
                   <h3 className="text-lg font-medium text-gray-800 mb-2">
                     {t("accommodation")}
@@ -108,6 +125,7 @@ const LeftSummary = ({ days, setDays, lang }) => {
                   </div>
                 </div>
 
+                {/* Transportation Section */}
                 <div className="mb-4">
                   <h3 className="text-lg font-medium text-gray-800 mb-2">
                     {t("transportation")}
@@ -149,20 +167,44 @@ const LeftSummary = ({ days, setDays, lang }) => {
                   </div>
                 </div>
 
+                {/* Tour Guide Toggle */}
                 <div className="flex justify-between items-center w-full border-t border-gray-200 pt-3">
                   <div className="flex items-center gap-3">
-                    <div className="font-medium text-gray-700">
-                      {t("needing_guide")}
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className={`w-5 h-5 ${getTourGuideForDay(day.day) ? "text-[#295557]" : "text-gray-400"}`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span className="font-medium text-gray-700">
+                        {t("needing_guide")}
+                      </span>
                     </div>
+
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         className="sr-only peer"
                         onChange={() => handleCheckboxChange(day.day)}
-                        checked={day.tour_gide}
+                        checked={getTourGuideForDay(day.day)}
                       />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#295557]"></div>
                     </label>
+                  </div>
+
+                  {/* Status indicator */}
+                  <div
+                    className={`text-sm ${getTourGuideForDay(day.day) ? "text-green-600" : "text-gray-500"}`}
+                  >
+                    {getTourGuideForDay(day.day)
+                      ? t("guide_active") || "Guide Active"
+                      : t("guide_inactive") || "No Guide"}
                   </div>
                 </div>
               </div>
@@ -171,6 +213,7 @@ const LeftSummary = ({ days, setDays, lang }) => {
         </div>
       ))}
 
+      {/* Confirmation Modal */}
       <Modal
         centered
         className="rounded-lg overflow-hidden"
@@ -181,23 +224,73 @@ const LeftSummary = ({ days, setDays, lang }) => {
           toggle={toggleModal}
           className="bg-gray-50 border-b border-gray-200"
         >
-          {t("Tour Guide")}
+          <div className="flex items-center gap-2">
+            <svg
+              className={`w-5 h-5 ${pendingAction === "enable" ? "text-green-600" : "text-orange-500"}`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                clipRule="evenodd"
+              />
+            </svg>
+            {t("tour_guide") || "Tour Guide"} - {t("day")} {selectedDay}
+          </div>
         </ModalHeader>
+
         <ModalBody className="p-4">
-          <div className="text-center py-2">{t("confirmation")}</div>
+          <div className="text-center py-4">
+            {/* Message */}
+            <p className="text-lg font-medium text-gray-800 mb-2">
+              {pendingAction === "enable"
+                ? t("confirm_enable_guide") || "Enable Tour Guide?"
+                : t("confirm_disable_guide") || "Remove Tour Guide?"}
+            </p>
+
+            <p className="text-gray-600">
+              {pendingAction === "enable"
+                ? t("enable_guide_message") ||
+                  `Are you sure you want to add a tour guide for Day ${selectedDay}?`
+                : t("disable_guide_message") ||
+                  `Are you sure you want to remove the tour guide for Day ${selectedDay}?`}
+            </p>
+
+            {/* Info Box */}
+            <div
+              className={`mt-4 p-3 rounded-lg text-sm ${
+                pendingAction === "enable"
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-orange-50 text-orange-700 border border-orange-200"
+              }`}
+            >
+              {pendingAction === "enable"
+                ? t("guide_benefit") ||
+                  "A professional guide will accompany you throughout the day."
+                : t("no_guide_info") ||
+                  "You will explore this day on your own without a guide."}
+            </div>
+          </div>
         </ModalBody>
-        <ModalFooter className="flex justify-between border-t border-gray-200">
+
+        <ModalFooter className="flex justify-between border-t border-gray-200 bg-gray-50">
           <button
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
+            className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
             onClick={toggleModal}
           >
-            {t("cancel")}
+            {t("cancel") || "Cancel"}
           </button>
+
           <button
-            className="px-4 py-2 !bg-[#295557] text-white rounded hover:bg-[#1e3e3a] transition"
+            className={`px-5 py-2 text-white rounded-lg transition font-medium flex items-center gap-2 ${
+              pendingAction === "enable"
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-[#295557] hover:bg-[#1e3e3a]"
+            }`}
             onClick={confirmToggle}
           >
-            {t("Confirm")}
+            {t("confirm") || "Confirm"}
           </button>
         </ModalFooter>
       </Modal>

@@ -92,7 +92,7 @@
     "language": "Language",
     "locationMap": "Location Map",
     "customerReview": "Customer Review",
-    "reviewCount": "2590 Reviews",
+    "reviewCount": " Reviews",
     "writeReview": "Write Your Review",
     "name": "Name",
     "enterName": "Enter Your Name:",
@@ -130,6 +130,23 @@
   "packageSummary": {
     "warning": "Warning: This itinerary includes days without a tour guide. The traveler is responsible for driving and navigation. Please ensure you can handle these responsibilities before booking.",
     "bookings": "Your Bookings",
+    "processing": "Processing...",
+    "tour_guide": "Tour Guide",
+    "guide_included": "Guide",
+    "no_guide": "No Guide",
+    "guide_active": "Guide Active",
+    "guide_inactive": "No Guide",
+    "confirm_enable_guide": "Enable Tour Guide?",
+    "confirm_disable_guide": "Remove Tour Guide?",
+    "enable_guide_message": "Are you sure you want to add a tour guide for This Day?",
+    "disable_guide_message": "Are you sure you want to remove the tour guide for This Day?",
+    "guide_benefit": "A professional guide will accompany you throughout the day.",
+    "no_guide_info": "You will explore this day on your own without a guide.",
+    "tour_guide_enabled": "Tour guide enabled for this day",
+    "tour_guide_disabled": "Tour guide removed for this day",
+    "update_error": "Error updating tour guide status",
+    "updating": "Updating...",
+    "confirm": "Confirm",
     "day": "Day",
     "needing_guide": "Do You Need Tour Guide?",
     "needing_driver": "Do You Need Driver?",
@@ -173,6 +190,8 @@
   "bookingSidebar": {
     "travelDetails": "Travel Details",
     "travelDates": "Travel dates",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
     "travelers": "Travelers",
     "traveler": "traveler",
     "travelers_plural": "travelers",
@@ -214,6 +233,12 @@
     "hospitality": "Hospitality",
     "tourGallery": "Tour Gallery",
     "tourVideo": "Tour Video",
-    "reviewNotice": "All information will be collected through a form sent directly to the client after the tour duration is finished."
+    "reviewNotice": "All information will be collected through a form sent directly to the client after the tour duration is finished.",
+
+    "hotel": "Hotel",
+    "activity": "Activity",
+    "noReviewFound": "No Review Found",
+    "reviewNotExist": "The review you're looking for doesn't exist or has been removed.",
+    "backToPackage": "Back to Package"
   }
 }

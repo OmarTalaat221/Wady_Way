@@ -145,7 +145,7 @@ const Home1Banner2 = ({ data = [] }) => {
   const get = (i) => data?.[i] || null;
 
   return (
-    <div className="banner2-section mb-120">
+    <div className="banner2-section mb-[60px]">
       <div className="container">
         {/* Title */}
         <div className="row">
@@ -166,8 +166,7 @@ const Home1Banner2 = ({ data = [] }) => {
             const item = get(s.idx);
             if (!item) return null;
 
-            // default href (لو عندك لينك في الداتا غيره هنا)
-            const href = item?.href || "/package";
+            const href = `/package/package-details/${item?.tour_id}`;
 
             // LEFT (idx 0)
             if (s.type === "left") {
@@ -186,6 +185,10 @@ const Home1Banner2 = ({ data = [] }) => {
                         <h3>{item?.offer_percentage}</h3>
                         <Link href={href}>{item?.offer_descreption}</Link>
                       </div>
+
+                      <Link href={href} className="primary-btn1">
+                        {item?.cta_text || "Book Now"}
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -217,11 +220,14 @@ const Home1Banner2 = ({ data = [] }) => {
                               </Link>
                             </div>
 
+                            <Link href={href} className="primary-btn1">
+                              {item?.cta_text || "Book Now"}
+                            </Link>
+
                             {!!top?.offer_percentage && (
                               <div className="offer-batch">
                                 <span>
                                   <strong>{top?.offer_percentage}</strong>
-                                 
                                 </span>
                               </div>
                             )}
@@ -242,11 +248,14 @@ const Home1Banner2 = ({ data = [] }) => {
                             <div className="w-100">
                               <div className="banner2-content">
                                 <span>{bottom?.panner_title}</span>
-                                <h5>{bottom?.offer_percentage}</h5>
+                                <h5 className="!text-[21px] !mb-[5px]">
+                                  {bottom?.offer_percentage}
+                                </h5>
                                 <p>{bottom?.offer_descreption}</p>
                               </div>
                               <Link
-                                href={bottom?.href || "/package"}
+                                // onClick={() => console.log(href, "href")}
+                                href={`package/package-details/${bottom?.tour_id}`}
                                 className="primary-btn1"
                               >
                                 {bottom?.cta_text || "Book Now"}

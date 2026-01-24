@@ -46,6 +46,7 @@ export default function TourTab({ items = [] }) {
           : null,
         detailsHref: `/package/package-details/${item?.id}`,
         is_fav: item?.is_fav || false,
+        offer_percentage: item?.offer_percentage?.match(/\d+/)?.[0] || null,
       };
     });
   }, [items]);

@@ -1,25 +1,34 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { IoAirplane } from "react-icons/io5";
-import { IoMdSettings } from "react-icons/io";
-import { FaEarthAsia } from "react-icons/fa6";
-import { BsFillCaretRightFill } from "react-icons/bs";
-import "react-datepicker/dist/react-datepicker.css";
-import "./style.css";
-import TravelCard from "./../../components/cards/TravelCard";
+import BookingCard from "./../../components/cards/BookingCard";
 import axios from "axios";
 import { baseUrl } from "../../Constants/Const";
+import { IoGridOutline } from "react-icons/io5";
+import { MdTour, MdLocalActivity, MdHotel } from "react-icons/md";
+import { IoCarSport } from "react-icons/io5";
+import {
+  FiFilter,
+  FiCalendar,
+  FiPlay,
+  FiCheck,
+  FiClock,
+  FiChevronLeft,
+  FiChevronRight,
+  FiLoader,
+  FiAlertCircle,
+  FiRefreshCw,
+  FiX,
+} from "react-icons/fi";
 
 const Account = () => {
-  // Next.js router hooks
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   // State for API data
-  const [trips, setTrips] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
@@ -35,16 +44,23 @@ const Account = () => {
     return limitParam ? parseInt(limitParam) : 6;
   });
 
-  // Initialize status filter from URL params
+  // Initialize filters from URL params
   const [statusFilter, setStatusFilter] = useState(() => {
     return searchParams.get("status") || "all";
   });
+
+  // Active tab state
+  const [activeTab, setActiveTab] = useState(() => {
+    return searchParams.get("tab") || "all";
+  });
+
+  // Mobile filter visibility
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Function to update URL params
   const updateURLParams = (updates = {}) => {
     const params = new URLSearchParams(searchParams.toString());
 
-    // Update page
     const page = updates.page !== undefined ? updates.page : currentPage;
     if (page && page !== 1) {
       params.set("page", page.toString());
@@ -52,7 +68,6 @@ const Account = () => {
       params.delete("page");
     }
 
-    // Update limit
     const limit = updates.limit !== undefined ? updates.limit : itemsPerPage;
     if (limit && limit !== 6) {
       params.set("limit", limit.toString());
@@ -60,12 +75,18 @@ const Account = () => {
       params.delete("limit");
     }
 
-    // Update status filter
     const status = updates.status !== undefined ? updates.status : statusFilter;
     if (status && status !== "all") {
       params.set("status", status);
     } else {
       params.delete("status");
+    }
+
+    const tab = updates.tab !== undefined ? updates.tab : activeTab;
+    if (tab && tab !== "all") {
+      params.set("tab", tab);
+    } else {
+      params.delete("tab");
     }
 
     const newURL = params.toString()
@@ -79,14 +100,17 @@ const Account = () => {
     const pageParam = searchParams.get("page");
     const limitParam = searchParams.get("limit");
     const statusParam = searchParams.get("status");
+    const tabParam = searchParams.get("tab");
 
     const newPage = pageParam ? parseInt(pageParam) : 1;
     const newLimit = limitParam ? parseInt(limitParam) : 6;
     const newStatus = statusParam || "all";
+    const newTab = tabParam || "all";
 
     if (newPage !== currentPage) setCurrentPage(newPage);
     if (newLimit !== itemsPerPage) setItemsPerPage(newLimit);
     if (newStatus !== statusFilter) setStatusFilter(newStatus);
+    if (newTab !== activeTab) setActiveTab(newTab);
   }, [searchParams]);
 
   // Get user ID from localStorage
@@ -102,70 +126,194 @@ const Account = () => {
     }
   }, []);
 
-  // Determine status based on dates
-  const getStatusFromDates = (startDate, endDate) => {
-    const now = new Date();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    // Reset time to compare only dates
-    now.setHours(0, 0, 0, 0);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-
-    if (now < start) {
-      return "noStarted"; // Trip hasn't started yet
-    } else if (now >= start && now <= end) {
-      return "started"; // Trip is in progress
-    } else {
-      return "finished"; // Trip has ended
-    }
-  };
-
-  // Calculate progress based on dates
-  const calculateProgress = (startDate, endDate) => {
-    const now = new Date();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    now.setHours(0, 0, 0, 0);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-
-    // Not started yet
-    if (now < start) {
+  // Calculate progress based on dates (kept for UI purposes)
+  const calculateProgress = (startDate, endDate, status) => {
+    // If completed, return 100%
+    if (status === "completed") return 100;
+    // If upcoming or pending or rejected, return 0%
+    if (status === "upcoming" || status === "pending" || status === "rejected")
       return 0;
+
+    // For in_progress, calculate based on dates
+    if (status === "in_progress") {
+      const now = new Date();
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      now.setHours(0, 0, 0, 0);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+
+      if (now < start) return 0;
+      if (now > end) return 100;
+
+      const totalDuration = end - start;
+      const elapsed = now - start;
+      const progress = Math.round((elapsed / totalDuration) * 100);
+
+      return Math.min(Math.max(progress, 0), 100);
     }
 
-    // Already finished
-    if (now > end) {
-      return 100;
-    }
-
-    // In progress - calculate percentage
-    const totalDuration = end - start;
-    const elapsed = now - start;
-    const progress = Math.round((elapsed / totalDuration) * 100);
-
-    return Math.min(Math.max(progress, 0), 100);
+    return 0;
   };
-  // Fetch profile travels from API
-  const fetchProfileTravels = async () => {
+
+  // Get status config based on booking type and API status
+  const getStatusConfig = (bookingType, apiStatus) => {
+    const statusConfigs = {
+      // Pending status
+      pending: {
+        tour: {
+          label: "Pending",
+          icon: <FiClock className="w-3 h-3" />,
+          classes: "bg-amber-50 text-amber-600 border-amber-200",
+        },
+        activity: {
+          label: "Pending",
+          icon: <FiClock className="w-3 h-3" />,
+          classes: "bg-amber-50 text-amber-600 border-amber-200",
+        },
+        hotel: {
+          label: "Pending",
+          icon: <FiClock className="w-3 h-3" />,
+          classes: "bg-amber-50 text-amber-600 border-amber-200",
+        },
+        transportation: {
+          label: "Pending",
+          icon: <FiClock className="w-3 h-3" />,
+          classes: "bg-amber-50 text-amber-600 border-amber-200",
+        },
+      },
+      // Rejected status
+      rejected: {
+        tour: {
+          label: "Rejected",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-red-50 text-red-600 border-red-200",
+        },
+        activity: {
+          label: "Rejected",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-red-50 text-red-600 border-red-200",
+        },
+        hotel: {
+          label: "Rejected",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-red-50 text-red-600 border-red-200",
+        },
+        transportation: {
+          label: "Rejected",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-red-50 text-red-600 border-red-200",
+        },
+      },
+      // Upcoming status
+      upcoming: {
+        tour: {
+          label: "Upcoming Trip",
+          icon: <FiCalendar className="w-3 h-3" />,
+          classes: "bg-blue-50 text-blue-600 border-blue-200",
+        },
+        activity: {
+          label: "Scheduled",
+          icon: <FiCalendar className="w-3 h-3" />,
+          classes: "bg-blue-50 text-blue-600 border-blue-200",
+        },
+        hotel: {
+          label: "Upcoming Stay",
+          icon: <FiCalendar className="w-3 h-3" />,
+          classes: "bg-blue-50 text-blue-600 border-blue-200",
+        },
+        transportation: {
+          label: "Reserved",
+          icon: <IoCarSport className="w-3 h-3" />,
+          classes: "bg-blue-50 text-blue-600 border-blue-200",
+        },
+      },
+      // In Progress status
+      in_progress: {
+        tour: {
+          label: "On Trip",
+          icon: <FiPlay className="w-3 h-3" />,
+          classes: "bg-emerald-50 text-emerald-600 border-emerald-200",
+        },
+        activity: {
+          label: "Active",
+          icon: <FiPlay className="w-3 h-3" />,
+          classes: "bg-emerald-50 text-emerald-600 border-emerald-200",
+        },
+        hotel: {
+          label: "Checked In",
+          icon: <FiPlay className="w-3 h-3" />,
+          classes: "bg-emerald-50 text-emerald-600 border-emerald-200",
+        },
+        transportation: {
+          label: "Active Rental",
+          icon: <FiPlay className="w-3 h-3" />,
+          classes: "bg-emerald-50 text-emerald-600 border-emerald-200",
+        },
+      },
+      // Completed status
+      completed: {
+        tour: {
+          label: "Completed",
+          icon: <FiCheck className="w-3 h-3" />,
+          classes: "bg-purple-50 text-purple-600 border-purple-200",
+        },
+        activity: {
+          label: "Completed",
+          icon: <FiCheck className="w-3 h-3" />,
+          classes: "bg-purple-50 text-purple-600 border-purple-200",
+        },
+        hotel: {
+          label: "Checked Out",
+          icon: <FiCheck className="w-3 h-3" />,
+          classes: "bg-purple-50 text-purple-600 border-purple-200",
+        },
+        transportation: {
+          label: "Returned",
+          icon: <FiCheck className="w-3 h-3" />,
+          classes: "bg-purple-50 text-purple-600 border-purple-200",
+        },
+      },
+    };
+
+    return (
+      statusConfigs[apiStatus]?.[bookingType] || statusConfigs.pending.tour
+    );
+  };
+
+  // Fetch all bookings
+  const fetchAllBookings = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await axios.post(
-        `${baseUrl}/my_tours/select_my_tours_list.php`,
-        { user_id: userId }
-      );
+      const [toursRes, activitiesRes, transportationRes, hotelsRes] =
+        await Promise.all([
+          axios.post(`${baseUrl}/my_tours/select_my_tours_list.php`, {
+            user_id: userId,
+          }),
+          axios.post(`${baseUrl}/my_account/select_my_activity_list.php`, {
+            user_id: userId,
+          }),
+          axios.post(
+            `${baseUrl}/my_account/select_my_transportation_list.php`,
+            {
+              user_id: userId,
+            }
+          ),
+          axios.post(`${baseUrl}/my_account/select_my_hotels_list.php`, {
+            user_id: userId,
+          }),
+        ]);
 
-      if (res?.data?.status === "success") {
-        const mappedTrips = res.data.message.map((item) => {
+      let allBookings = [];
+
+      // Map Tours
+      if (toursRes?.data?.status === "success") {
+        const mappedTours = toursRes.data.message.map((item) => {
           const reservation = item.reservation;
           const tour = item.tour_details;
-
-          // Parse route for locations
           const routeLocations = tour.route
             ? tour.route.split("-").map((loc) => loc.trim())
             : [];
@@ -175,30 +323,35 @@ const Account = () => {
               ? tour.gallery.map((g) => g.image)
               : [tour.image];
 
-          const cardStatus = getStatusFromDates(
-            reservation.start_date,
-            reservation.end_date
-          );
+          // Use API status directly
+          const apiStatus = reservation.status || "pending";
           const progress = calculateProgress(
             reservation.start_date,
-            reservation.end_date
+            reservation.end_date,
+            apiStatus
           );
+
+          const statusConfig = getStatusConfig("tour", apiStatus);
 
           return {
             id: reservation.reservation_id,
+            bookingType: "tour",
             tour_id: reservation.tour_id,
             title: tour.title || reservation.tour_title,
             duration: tour.duration,
-            status: cardStatus,
-            apiStatus: reservation.status,
+            status: apiStatus,
+            apiStatus: apiStatus,
+            statusConfig: statusConfig,
             images: images,
-            image: tour?.image,
+            image:
+              reservation.background_image ||
+              tour.background_image ||
+              tour.image,
+            backgroundImage:
+              reservation.background_image || tour.background_image,
             mainLocations: routeLocations.slice(0, 2),
             additionalLocations: routeLocations,
             price: parseFloat(reservation.total_amount),
-            oldPrice: parseFloat(tour.price_original),
-            currentPrice: parseFloat(tour.price_current),
-            priceNote: tour.price_note || "TAXES INCL/PERS",
             priceCurrency: tour.price_currency || "$",
             numAdults: parseInt(reservation.num_adults),
             numChildren: parseInt(reservation.num_children),
@@ -207,20 +360,165 @@ const Account = () => {
             progress: progress,
             category: tour.category,
             countryName: tour.country_name,
-            tourDetails: tour,
-            reservation: reservation,
+            itinerary: tour.itinerary,
+            highlights: tour.highlights,
+            includes: tour.includes,
+            excludes: tour.excludes,
+            dayTourGuide: reservation.day_tour_guide,
           };
         });
-
-        setTrips(mappedTrips);
-      } else {
-        setTrips([]);
-        setError("No tours found");
+        allBookings = [...allBookings, ...mappedTours];
       }
+
+      // Map Activities
+      if (activitiesRes?.data?.status === "success") {
+        const mappedActivities = activitiesRes.data.message.map((item) => {
+          // Use API status directly
+          const apiStatus = item.status || "pending";
+          const progress = calculateProgress(item.date, item.date, apiStatus);
+
+          const statusConfig = getStatusConfig("activity", apiStatus);
+
+          return {
+            id: item.reserving_id,
+            bookingType: "activity",
+            activity_id: item.activity_id,
+            title: item.title,
+            duration: "1 Day",
+            status: apiStatus,
+            apiStatus: apiStatus,
+            statusConfig: statusConfig,
+            image: item.background_image,
+            backgroundImage: item.background_image,
+            price: parseFloat(item.total_amount),
+            priceCurrency: "$",
+            numAdults: parseInt(item.adults_num),
+            numChildren: parseInt(item.childs_num),
+            startDate: item.date,
+            endDate: item.date,
+            progress: progress,
+            features: item.activity_features,
+            ratings: item.activity_ratings,
+            countryId: item.country_id,
+          };
+        });
+        allBookings = [...allBookings, ...mappedActivities];
+      }
+
+      // Map Transportation
+      if (transportationRes?.data?.status === "success") {
+        const mappedTransportation = transportationRes.data.message.map(
+          (item) => {
+            // Use API status directly
+            const apiStatus = item.status || "pending";
+            const progress = calculateProgress(
+              item.start_date,
+              item.end_date,
+              apiStatus
+            );
+
+            const statusConfig = getStatusConfig("transportation", apiStatus);
+
+            const daysDiff = Math.ceil(
+              (new Date(item.end_date) - new Date(item.start_date)) /
+                (1000 * 60 * 60 * 24)
+            );
+
+            return {
+              id: item.reserving_id,
+              bookingType: "transportation",
+              car_id: item.car_id,
+              title: item.title,
+              duration: `${daysDiff} ${daysDiff === 1 ? "Day" : "Days"}`,
+              status: apiStatus,
+              apiStatus: apiStatus,
+              statusConfig: statusConfig,
+              image: item.background_image,
+              backgroundImage: item.background_image,
+              price: parseFloat(item.total_amount),
+              priceCurrency: "$",
+              type: item.type,
+              driverId: item.driver_id,
+              startDate: item.start_date,
+              endDate: item.end_date,
+              progress: progress,
+              features: item.car_features,
+              ratings: item.car_ratings,
+              countryId: item.country_id,
+            };
+          }
+        );
+        allBookings = [...allBookings, ...mappedTransportation];
+      }
+
+      // Map Hotels
+      if (hotelsRes?.data?.status === "success") {
+        const mappedHotels = hotelsRes.data.message.map((item) => {
+          // Use API status directly
+          const apiStatus = item.status || "pending";
+          const progress = calculateProgress(
+            item.start_date,
+            item.end_date,
+            apiStatus
+          );
+
+          const statusConfig = getStatusConfig("hotel", apiStatus);
+
+          // Parse additional services
+          const additionalServices = item.aditional_services
+            ? item.aditional_services.split("**").filter(Boolean)
+            : [];
+
+          // Calculate nights
+          const nights = Math.ceil(
+            (new Date(item.end_date) - new Date(item.start_date)) /
+              (1000 * 60 * 60 * 24)
+          );
+
+          return {
+            id: item.reserving_id,
+            bookingType: "hotel",
+            hotel_id: item.hotel_id,
+            title: item.title,
+            subtitle: item.subtitle,
+            description: item.description,
+            duration:
+              item.duration || `${nights} ${nights === 1 ? "Night" : "Nights"}`,
+            status: apiStatus,
+            apiStatus: apiStatus,
+            statusConfig: statusConfig,
+            image: item.background_image || item.image,
+            backgroundImage: item.background_image,
+            mainLocations: item.location ? [item.location] : [],
+            price: parseFloat(item.total_amount),
+            priceCurrency: item.price_currency || "USD",
+            pricePerNight: parseFloat(item.price_current),
+            originalPrice: parseFloat(item.price_original),
+            numAdults: parseInt(item.adults_num),
+            numChildren: 0,
+            startDate: item.start_date,
+            endDate: item.end_date,
+            progress: progress,
+            category: item.category,
+            location: item.location,
+            countryId: item.country_id,
+            amenities: item.hotel_amenities || [],
+            ratings: item.hotel_ratings || [],
+            additionalServices: additionalServices,
+            priceNote: item.price_note,
+          };
+        });
+        allBookings = [...allBookings, ...mappedHotels];
+      }
+
+      // Sort by start date (most recent first)
+      allBookings.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+
+      setBookings(allBookings);
     } catch (error) {
-      console.error("Error fetching tours:", error);
-      setError("Failed to load your tours. Please try again.");
-      setTrips([]);
+      console.error("Error fetching bookings:", error);
+      setError("Failed to load your bookings. Please try again.");
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -228,21 +526,128 @@ const Account = () => {
 
   useEffect(() => {
     if (userId) {
-      fetchProfileTravels();
+      fetchAllBookings();
     }
   }, [userId]);
 
-  // Filter trips by status
-  const filteredTrips =
-    statusFilter === "all"
-      ? trips
-      : trips.filter((trip) => trip.status === statusFilter);
+  // Tab configurations
+  const tabs = [
+    {
+      id: "all",
+      label: "All",
+      fullLabel: "All Bookings",
+      icon: <IoGridOutline className="w-4 h-4" />,
+      color: "#295557",
+    },
+    {
+      id: "tour",
+      label: "Tours",
+      fullLabel: "Tours",
+      icon: <MdTour className="w-4 h-4" />,
+      color: "#295557",
+    },
+    {
+      id: "hotel",
+      label: "Hotels",
+      fullLabel: "Hotels",
+      icon: <MdHotel className="w-4 h-4" />,
+      color: "#295557",
+    },
+    {
+      id: "activity",
+      label: "Activities",
+      fullLabel: "Activities",
+      icon: <MdLocalActivity className="w-4 h-4" />,
+      color: "#295557",
+    },
+    {
+      id: "transportation",
+      label: "Cars",
+      fullLabel: "Transportation",
+      icon: <IoCarSport className="w-4 h-4" />,
+      color: "#295557",
+    },
+  ];
+
+  // Status filter options - Only the 5 statuses from API
+  const getStatusFilters = () => {
+    return [
+      {
+        value: "all",
+        label: "All",
+        fullLabel: "All Status",
+        icon: <FiFilter className="w-3.5 h-3.5" />,
+      },
+      {
+        value: "pending",
+        label: "Pending",
+        fullLabel: "Pending",
+        icon: <FiClock className="w-3.5 h-3.5" />,
+      },
+      {
+        value: "rejected",
+        label: "Rejected",
+        fullLabel: "Rejected",
+        icon: <FiX className="w-3.5 h-3.5" />,
+      },
+      {
+        value: "upcoming",
+        label: "Upcoming",
+        fullLabel: "Upcoming",
+        icon: <FiCalendar className="w-3.5 h-3.5" />,
+      },
+      {
+        value: "in_progress",
+        label: "Active",
+        fullLabel: "In Progress",
+        icon: <FiPlay className="w-3.5 h-3.5" />,
+      },
+      {
+        value: "completed",
+        label: "Done",
+        fullLabel: "Completed",
+        icon: <FiCheck className="w-3.5 h-3.5" />,
+      },
+    ];
+  };
+
+  // Get count for each tab
+  const getTabCount = (tabId) => {
+    if (tabId === "all") return bookings.length;
+    return bookings.filter((b) => b.bookingType === tabId).length;
+  };
+
+  // Get status count
+  const getStatusCount = (statusValue) => {
+    let filtered = bookings;
+    if (activeTab !== "all") {
+      filtered = filtered.filter((b) => b.bookingType === activeTab);
+    }
+    if (statusValue === "all") return filtered.length;
+    return filtered.filter((b) => b.status === statusValue).length;
+  };
+
+  // Filter bookings based on active tab and status
+  const filteredBookings = bookings.filter((booking) => {
+    const tabMatch = activeTab === "all" || booking.bookingType === activeTab;
+    const statusMatch =
+      statusFilter === "all" || booking.status === statusFilter;
+    return tabMatch && statusMatch;
+  });
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredTrips.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedTrips = filteredTrips.slice(startIndex, endIndex);
+  const paginatedBookings = filteredBookings.slice(startIndex, endIndex);
+
+  // Handle tab change
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setCurrentPage(1);
+    setStatusFilter("all");
+    updateURLParams({ tab: tabId, page: 1, status: "all" });
+  };
 
   // Handle page change
   const handlePageChange = (page) => {
@@ -253,17 +658,11 @@ const Account = () => {
     }
   };
 
-  // Handle limit change
-  const handleLimitChange = (newLimit) => {
-    setItemsPerPage(newLimit);
-    setCurrentPage(1);
-    updateURLParams({ page: 1, limit: newLimit });
-  };
-
   // Handle status filter change
   const handleStatusFilterChange = (status) => {
     setStatusFilter(status);
     setCurrentPage(1);
+    setShowMobileFilters(false);
     updateURLParams({ page: 1, status });
   };
 
@@ -304,232 +703,337 @@ const Account = () => {
     return pages;
   };
 
-  // Status filter options
-  const statusFilters = [
-    { value: "all", label: "All Trips" },
-    { value: "noStarted", label: "Not Started" },
-    { value: "started", label: "In Progress" },
-    { value: "finished", label: "Completed" },
-  ];
+  // Get empty state message based on active tab
+  const getEmptyStateMessage = () => {
+    const messages = {
+      all: {
+        title: "No bookings found",
+        description: "You haven't made any bookings yet.",
+        icon: <FiCalendar className="w-16 h-16 text-gray-300" />,
+      },
+      tour: {
+        title: "No tours booked",
+        description:
+          "Start exploring amazing destinations with our tour packages.",
+        icon: <MdTour className="w-16 h-16 text-gray-300" />,
+      },
+      hotel: {
+        title: "No hotels booked",
+        description: "Find and book your perfect accommodation.",
+        icon: <MdHotel className="w-16 h-16 text-gray-300" />,
+      },
+      activity: {
+        title: "No activities booked",
+        description: "Discover exciting activities and experiences.",
+        icon: <MdLocalActivity className="w-16 h-16 text-gray-300" />,
+      },
+      transportation: {
+        title: "No transportation booked",
+        description: "Book a car or transportation for your travels.",
+        icon: <IoCarSport className="w-16 h-16 text-gray-300" />,
+      },
+    };
+
+    return messages[activeTab] || messages.all;
+  };
+
+  const statusFilters = getStatusFilters();
+  const emptyState = getEmptyStateMessage();
 
   // Loading state
   if (loading) {
     return (
-      <div className="row g-4">
-        <div className="col-12 text-center py-5">
-          <div
-            className="spinner-border"
-            role="status"
-            style={{ color: "#295557" }}
-          >
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-3">Loading your travels...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <FiLoader className="w-10 h-10 text-[#295557] animate-spin mb-4" />
+        <p className="text-gray-600 text-center">Loading your bookings...</p>
       </div>
     );
   }
 
   // Error state
-  if (error && trips.length === 0) {
+  if (error && bookings.length === 0) {
     return (
-      <div className="row g-4">
-        <div className="col-12 text-center py-5">
-          <i
-            className="bi bi-exclamation-circle"
-            style={{ fontSize: "48px", color: "#ef6161" }}
-          ></i>
-          <h4 className="mt-3">Oops! Something went wrong</h4>
-          <p className="text-muted">{error}</p>
-          <button
-            onClick={() => fetchProfileTravels()}
-            className="btn mt-3"
-            style={{ backgroundColor: "#295557", color: "white" }}
-          >
-            Try Again
-          </button>
-        </div>
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <FiAlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <h4 className="text-lg font-semibold text-gray-800 mb-2">
+          Oops! Something went wrong
+        </h4>
+        <p className="text-gray-500 text-center mb-4">{error}</p>
+        <button
+          onClick={() => fetchAllBookings()}
+          className="inline-flex items-center gap-2 bg-[#295557] hover:bg-[#1e3d3f] text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+          Try Again
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="travels-container">
-      {/* Filter and Results Info Section */}
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
-            {/* Status Filter Buttons */}
-            <div className="d-flex flex-wrap gap-2">
-              {statusFilters.map((filter) => (
-                <button
-                  key={filter.value}
-                  onClick={() => handleStatusFilterChange(filter.value)}
-                  className={`btn btn-sm ${
-                    statusFilter === filter.value
-                      ? "text-white"
-                      : "btn-outline-secondary"
-                  }`}
-                  style={
-                    statusFilter === filter.value
-                      ? { backgroundColor: "#295557", borderColor: "#295557" }
-                      : {}
+    <div className="px-2 sm:px-4 lg:px-0">
+      {/* Tabs Navigation */}
+      <div className="bg-gray-50 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 mb-4 overflow-x-auto no-scrollbar">
+        <div className="flex gap-1 sm:gap-2 min-w-max sm:min-w-0">
+          {tabs.map((tab) => {
+            const count = getTabCount(tab.id);
+            const isActive = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`
+                  flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 
+                  rounded-lg sm:rounded-xl font-medium text-sm sm:text-base
+                  transition-all duration-300 whitespace-nowrap
+                  ${
+                    isActive
+                      ? "bg-[#295557] text-white shadow-lg"
+                      : "text-gray-600 hover:bg-gray-100"
                   }
+                `}
+              >
+                <span className="hidden sm:inline-flex">{tab.icon}</span>
+                <span className="sm:hidden">{tab.label}</span>
+                <span className="hidden sm:inline">{tab.fullLabel}</span>
+                <span
+                  className={`
+                    px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold
+                    ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-[#295557]/10 text-[#295557]"
+                    }
+                  `}
                 >
-                  {filter.label}
-                  <span
-                    className="badge ms-2"
-                    style={{
-                      backgroundColor:
-                        statusFilter === filter.value ? "white" : "#295557",
-                      color:
-                        statusFilter === filter.value ? "#295557" : "white",
-                    }}
-                  >
-                    {filter.value === "all"
-                      ? trips.length
-                      : trips.filter((t) => t.status === filter.value).length}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Results Info */}
-      {filteredTrips.length > 0 && (
-        <div className="row mb-3">
-          <div className="col-12">
-            <p className="text-muted mb-0">
-              Showing {startIndex + 1}-
-              {Math.min(endIndex, filteredTrips.length)} of{" "}
-              {filteredTrips.length} trips
-              {totalPages > 1 && (
-                <span className="ms-2">
-                  (Page {currentPage} of {totalPages})
-                </span>
-              )}
-            </p>
+      {/* Status Filters - Desktop */}
+      <div className="hidden md:flex items-center gap-2 flex-wrap mb-4">
+        <span className="text-sm font-medium text-gray-600 flex items-center gap-1.5">
+          <FiFilter className="w-4 h-4" />
+          Filter:
+        </span>
+        {statusFilters.map((filter) => {
+          const count = getStatusCount(filter.value);
+          const isActive = statusFilter === filter.value;
+
+          return (
+            <button
+              key={filter.value}
+              onClick={() => handleStatusFilterChange(filter.value)}
+              className={`
+                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full 
+                text-sm font-medium border transition-all duration-200
+                ${
+                  isActive
+                    ? "bg-[#295557] border-[#295557] text-white"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"
+                }
+              `}
+            >
+              {filter.icon}
+              {filter.fullLabel}
+              <span
+                className={`
+                  px-1.5 py-0.5 rounded-full text-xs font-semibold
+                  ${isActive ? "bg-white/20" : "bg-gray-100"}
+                `}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Status Filters - Mobile */}
+      <div className="md:hidden mb-4">
+        <button
+          onClick={() => setShowMobileFilters(!showMobileFilters)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700"
+        >
+          <span className="flex items-center gap-2">
+            <FiFilter className="w-4 h-4" />
+            Filter:{" "}
+            {statusFilters.find((f) => f.value === statusFilter)?.fullLabel}
+          </span>
+          <FiChevronRight
+            className={`w-4 h-4 transition-transform ${
+              showMobileFilters ? "rotate-90" : ""
+            }`}
+          />
+        </button>
+
+        {showMobileFilters && (
+          <div className="mt-2 bg-white border border-gray-200 rounded-xl overflow-hidden">
+            {statusFilters.map((filter) => {
+              const count = getStatusCount(filter.value);
+              const isActive = statusFilter === filter.value;
+
+              return (
+                <button
+                  key={filter.value}
+                  onClick={() => handleStatusFilterChange(filter.value)}
+                  className={`
+                    w-full flex items-center justify-between px-4 py-3 text-sm
+                    border-b border-gray-100 last:border-b-0 transition-colors
+                    ${
+                      isActive
+                        ? "bg-[#295557]/5 text-[#295557] font-medium"
+                        : "text-gray-600 hover:bg-gray-50"
+                    }
+                  `}
+                >
+                  <span className="flex items-center gap-2">
+                    {filter.icon}
+                    {filter.fullLabel}
+                  </span>
+                  <span
+                    className={`
+                      px-2 py-0.5 rounded-full text-xs font-semibold
+                      ${isActive ? "bg-[#295557] text-white" : "bg-gray-100"}
+                    `}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
+        )}
+      </div>
+
+      {/* Results Info */}
+      {filteredBookings.length > 0 && (
+        <div className="mb-4">
+          <p className="text-sm text-gray-500">
+            Showing{" "}
+            <span className="font-medium text-gray-700">
+              {startIndex + 1}-{Math.min(endIndex, filteredBookings.length)}
+            </span>{" "}
+            of{" "}
+            <span className="font-medium text-gray-700">
+              {filteredBookings.length}
+            </span>{" "}
+            bookings
+            {totalPages > 1 && (
+              <span className="hidden sm:inline ml-1">
+                (Page {currentPage} of {totalPages})
+              </span>
+            )}
+          </p>
         </div>
       )}
 
-      {/* Trips Grid */}
-      {paginatedTrips.length > 0 ? (
-        <div className="row g-4">
-          {paginatedTrips.map((trip) => (
-            <div key={trip.id} className="col-lg-6 col-md-6">
-              <TravelCard
-                data={trip}
-                progress={trip.progress}
-                status={trip.status}
-                type="profile"
-              />
+      {/* Bookings Grid */}
+      {paginatedBookings.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          {paginatedBookings.map((booking) => (
+            <div key={`${booking.bookingType}-${booking.id}`}>
+              <BookingCard data={booking} />
             </div>
           ))}
         </div>
       ) : (
-        <div className="row">
-          <div className="col-12 text-center py-5">
-            <i
-              className="bi bi-airplane"
-              style={{ fontSize: "64px", color: "#ccc" }}
-            ></i>
-            <h4 className="mt-3">No trips found</h4>
-            <p className="text-muted">
-              {statusFilter === "all"
-                ? "You haven't booked any tours yet."
-                : `No ${statusFilters
-                    .find((f) => f.value === statusFilter)
-                    ?.label.toLowerCase()} trips found.`}
-            </p>
-            {statusFilter !== "all" && (
-              <button
-                onClick={() => handleStatusFilterChange("all")}
-                className="btn btn-outline-secondary mt-2"
-              >
-                View All Trips
-              </button>
-            )}
-          </div>
+        <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+          {emptyState.icon}
+          <h4 className="mt-4 text-lg font-semibold text-gray-800">
+            {emptyState.title}
+          </h4>
+          <p className="mt-2 text-gray-500 text-center max-w-md">
+            {statusFilter !== "all"
+              ? `No ${
+                  statusFilters.find((f) => f.value === statusFilter)?.fullLabel
+                } bookings found.`
+              : emptyState.description}
+          </p>
+          {statusFilter !== "all" && (
+            <button
+              onClick={() => handleStatusFilterChange("all")}
+              className="mt-4 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:border-[#295557] hover:text-[#295557] transition-colors"
+            >
+              View All{" "}
+              {activeTab !== "all"
+                ? tabs.find((t) => t.id === activeTab)?.fullLabel
+                : "Bookings"}
+            </button>
+          )}
         </div>
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && paginatedTrips.length > 0 && (
-        <div className="row mt-4">
-          <div className="col-12">
-            <nav className="d-flex justify-content-center">
-              <ul className="pagination">
-                {/* Previous Button */}
-                <li
-                  className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
-                >
-                  <button
-                    className="page-link"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    style={{
-                      color: currentPage === 1 ? "#ccc" : "#295557",
-                      borderColor: "#dee2e6",
-                    }}
-                  >
-                    <i className="bi bi-chevron-left"></i>
-                  </button>
-                </li>
+      {totalPages > 1 && paginatedBookings.length > 0 && (
+        <div className="mt-6 sm:mt-8 flex justify-center">
+          <nav className="flex items-center gap-1 sm:gap-2">
+            {/* Previous Button */}
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`
+                p-2 sm:p-2.5 rounded-lg border transition-colors
+                ${
+                  currentPage === 1
+                    ? "border-gray-200 text-gray-300 cursor-not-allowed"
+                    : "border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"
+                }
+              `}
+            >
+              <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
 
-                {/* Page Numbers */}
-                {getPaginationNumbers().map((page, index) => (
-                  <li
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1">
+              {getPaginationNumbers().map((page, index) =>
+                page === "..." ? (
+                  <span
                     key={index}
-                    className={`page-item ${
-                      page === currentPage ? "active" : ""
-                    } ${page === "..." ? "disabled" : ""}`}
+                    className="px-2 sm:px-3 py-1 text-gray-400 text-sm"
                   >
-                    {page === "..." ? (
-                      <span className="page-link">...</span>
-                    ) : (
-                      <button
-                        className="page-link"
-                        onClick={() => handlePageChange(page)}
-                        style={
-                          page === currentPage
-                            ? {
-                                backgroundColor: "#295557",
-                                borderColor: "#295557",
-                                color: "white",
-                              }
-                            : { color: "#295557", borderColor: "#dee2e6" }
-                        }
-                      >
-                        {page}
-                      </button>
-                    )}
-                  </li>
-                ))}
-
-                {/* Next Button */}
-                <li
-                  className={`page-item ${
-                    currentPage === totalPages ? "disabled" : ""
-                  }`}
-                >
+                    ...
+                  </span>
+                ) : (
                   <button
-                    className="page-link"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    style={{
-                      color: currentPage === totalPages ? "#ccc" : "#295557",
-                      borderColor: "#dee2e6",
-                    }}
+                    key={index}
+                    onClick={() => handlePageChange(page)}
+                    className={`
+                      w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-sm font-medium transition-colors
+                      ${
+                        page === currentPage
+                          ? "bg-[#295557] text-white"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }
+                    `}
                   >
-                    <i className="bi bi-chevron-right"></i>
+                    {page}
                   </button>
-                </li>
-              </ul>
-            </nav>
-          </div>
+                )
+              )}
+            </div>
+
+            {/* Next Button */}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`
+                p-2 sm:p-2.5 rounded-lg border transition-colors
+                ${
+                  currentPage === totalPages
+                    ? "border-gray-200 text-gray-300 cursor-not-allowed"
+                    : "border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"
+                }
+              `}
+            >
+              <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </nav>
         </div>
       )}
     </div>

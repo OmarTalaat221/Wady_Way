@@ -19,6 +19,7 @@ import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
 import { useTranslations } from "next-intl";
 import setLanguageValue from "../../../actions/set-language-action";
 import { Select } from "antd";
+import { FaChevronRight } from "react-icons/fa6";
 
 const initialState = {
   activeMenu: "",
@@ -225,28 +226,17 @@ const HeaderContent = ({
         <Link href="/">
           <img
             style={{
-              width: "150px",
+              width: "170px",
               height: "80px",
               objectFit: "contain",
             }}
-            src="https://res.cloudinary.com/dhgp9dzdt/image/upload/v1742474177/logo_qvee2o.png"
+            src="https://res.cloudinary.com/dkc5klynm/image/upload/v1768722765/wadi-way_lf8tyu.png"
             alt=""
           />
         </Link>
       </div>
 
       <div className={`main-menu ${state.isSidebarOpen ? "show-menu" : ""}`}>
-        <div className="mobile-logo-area d-lg-none d-flex justify-content-between align-items-center">
-          <div className="mobile-logo-wrap">
-            <Link href="/">
-              <img alt="image" src="/assets/img/logo.svg" />
-            </Link>
-          </div>
-          <div className="menu-close-btn" onClick={toggleSidebar}>
-            <i className="bi bi-x" />
-          </div>
-        </div>
-
         <ul className="menu-list flex flex-nowrap text-white">
           {navData.map((data, index) => {
             const { id, label, link, icon, subMenu } = data;
@@ -342,12 +332,7 @@ const HeaderContent = ({
                                 </span>
                                 {subItem.icon && (
                                   <>
-                                    <i className="bi bi-chevron-right text-black hidden lg:block" />
-                                    <i
-                                      className={`bi bi-chevron-${
-                                        subMenuIsOpen ? "up" : "down"
-                                      } text-black lg:hidden`}
-                                    />
+                                    <FaChevronRight className="text-[#295557] text-[12px] hidden lg:block" />
                                   </>
                                 )}
                               </div>
@@ -559,9 +544,8 @@ const Header = ({ currentLocale }) => {
 
   const changeLanguage = async (newLang) => {
     setLang(newLang);
-    const { setLanguageValue } = await import(
-      "../../../actions/set-language-action"
-    );
+    const { setLanguageValue } =
+      await import("../../../actions/set-language-action");
     startTransition(() => {
       setLanguageValue(newLang);
     });
@@ -631,7 +615,12 @@ const Header = ({ currentLocale }) => {
     };
   }, []);
 
-  if (pathname === "/login" || pathname === "/signup") {
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname.includes("pack-form")
+  ) {
     return null;
   }
 
@@ -645,7 +634,8 @@ const Header = ({ currentLocale }) => {
           right: 0;
           z-index: 999;
           transform: translateY(-100%);
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+          transition:
+            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
             box-shadow 0.3s ease-in-out;
           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
           animation: none;
@@ -672,7 +662,7 @@ const Header = ({ currentLocale }) => {
           transition: opacity 0.3s ease-in-out;
         }
 
-        @media (max-width: 991px) {
+        @media (max-width: 1023.5px) {
           .header-area-fixed {
             display: none !important;
           }

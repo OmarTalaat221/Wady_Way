@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import ModalVideo from "react-modal-video";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import QuantityCounter from "@/uitils/QuantityCounter";
@@ -10,7 +10,7 @@ import { FaClock, FaFlag, FaUser } from "react-icons/fa6";
 import { TiArrowForward } from "react-icons/ti";
 import { base_url } from "../../../uitils/base_url";
 import { useSearchParams } from "next/navigation";
-import ReviewModal from "@/components/reviews/ReviewModal"; // Import ReviewModal
+import ReviewModal from "@/components/reviews/ReviewModal";
 import toast from "react-hot-toast";
 
 const Page = () => {
@@ -46,6 +46,106 @@ const Page = () => {
 
   const searchParams = useSearchParams();
   const activityId = searchParams.get("id");
+
+  // Extract YouTube Video ID
+  const extractYouTubeVideoId = (url) => {
+    if (!url) return null;
+
+    // Already just an ID
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+      return url;
+    }
+
+    // Extract from various YouTube URL formats
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+
+    return null;
+  };
+
+  // Generate images array from activity data
+  const images = useMemo(() => {
+    if (
+      activityData?.image &&
+      activityData.image.split("//CAMP//")?.length > 0
+    ) {
+      return activityData.image.split("//CAMP//").map((image, index) => ({
+        id: index + 1,
+        imageBig: image,
+      }));
+    }
+    return [
+      {
+        id: 1,
+        imageBig: "/path/to/default-activity-image.jpg",
+      },
+    ];
+  }, [activityData?.image]);
+
+  // Extract video ID
+  const extractedVideoId = useMemo(() => {
+    return extractYouTubeVideoId(activityData?.video_link);
+  }, [activityData?.video_link]);
+
+  const hasVideo = !!extractedVideoId;
+  const imageCount = images.length;
+
+  // Max people calculation
+  const maxPeople = useMemo(() => {
+    const max = parseInt(activityData?.max_people) || 0;
+    return max > 0 ? max : null; // null means unlimited
+  }, [activityData?.max_people]);
+
+  // Calculate remaining slots
+  const remainingSlots = useMemo(() => {
+    if (!maxPeople) return null;
+    return maxPeople - (adultQuantity + childQuantity);
+  }, [maxPeople, adultQuantity, childQuantity]);
+
+  // Calculate max for adult quantity
+  const maxAdultQuantity = useMemo(() => {
+    if (!maxPeople) return 99; // No limit
+    return Math.max(1, maxPeople - childQuantity);
+  }, [maxPeople, childQuantity]);
+
+  // Calculate max for child quantity
+  const maxChildQuantity = useMemo(() => {
+    if (!maxPeople) return 99; // No limit
+    return Math.max(0, maxPeople - adultQuantity);
+  }, [maxPeople, adultQuantity]);
+
+  // Handle adult quantity change with max people validation
+  const handleAdultQuantityChange = (newQuantity) => {
+    if (maxPeople) {
+      const totalAfterChange = newQuantity + childQuantity;
+      if (totalAfterChange > maxPeople) {
+        toast.error(`Maximum ${maxPeople} people allowed for this activity`);
+        return;
+      }
+    }
+    setAdultQuantity(newQuantity);
+  };
+
+  // Handle child quantity change with max people validation
+  const handleChildQuantityChange = (newQuantity) => {
+    if (maxPeople) {
+      const totalAfterChange = adultQuantity + newQuantity;
+      if (totalAfterChange > maxPeople) {
+        toast.error(`Maximum ${maxPeople} people allowed for this activity`);
+        return;
+      }
+    }
+    setChildQuantity(newQuantity);
+  };
 
   // Calculate total price
   const calculateTotalPrice = () => {
@@ -92,8 +192,7 @@ const Page = () => {
   // Handle review submission success
   const handleReviewSuccess = (reviewData) => {
     console.log("Review submitted:", reviewData);
-    // toast.success("Thank you for your review!");
-    // fetchActivityData();
+    fetchActivityData();
   };
 
   const handleFormSubmit = (e) => {
@@ -111,6 +210,12 @@ const Page = () => {
 
     if (!selectedDate) {
       toast.error("Please select a booking date");
+      return;
+    }
+
+    // Validate max people
+    if (maxPeople && adultQuantity + childQuantity > maxPeople) {
+      toast.error(`Maximum ${maxPeople} people allowed for this activity`);
       return;
     }
 
@@ -195,38 +300,27 @@ const Page = () => {
     }
   }, [activityId]);
 
-  // Generate images array from activity data
-  const images = activityData?.image?.split("//CAMP//") || [];
-
-  const bigImages = images.map((image, index) => ({
-    id: index,
-    imageBig: image,
-  }));
-
-  useEffect(() => {
-    console.log(images, "images");
-  }, [images]);
-
   // Static FAQ data
-  const faqData = [
-    {
-      id: "travelcollapseOne",
-      question: `01. What is ${
-        activityData?.activity_type || "this activity"
-      }?`,
-      answer:
-        activityData?.description ||
-        "This activity offers an exciting adventure experience.",
-    },
-    {
-      id: "travelcollapseTwo",
-      question: "02. What equipment do I need?",
-      answer:
-        activityData?.features?.length > 0
-          ? `Essential equipment includes: ${activityData.features.join(", ")}`
-          : "All necessary equipment will be provided.",
-    },
-  ];
+  const faqData = useMemo(
+    () => [
+      {
+        id: "travelcollapseOne",
+        question: `01. What is ${activityData?.activity_type || "this activity"}?`,
+        answer:
+          activityData?.description ||
+          "This activity offers an exciting adventure experience.",
+      },
+      {
+        id: "travelcollapseTwo",
+        question: "02. What equipment do I need?",
+        answer:
+          activityData?.features?.length > 0
+            ? `Essential equipment includes: ${activityData.features.join(", ")}`
+            : "All necessary equipment will be provided.",
+      },
+    ],
+    [activityData]
+  );
 
   // Loading state
   if (loading) {
@@ -285,87 +379,186 @@ const Page = () => {
       <div className="package-details-area pt-120 mb-[30px]">
         <div className="container">
           <div className="row">
-            <div className="co-lg-12">
+            <div className="col-lg-12">
+              {/* Dynamic Gallery Section - Like Hotel */}
               <div className="package-img-group mb-50">
-                <div className="row align-items-center g-3">
-                  <div className="col-lg-6">
-                    <div className="gallery-img-wrap">
-                      <img src={images[0]} alt={activityData.title} />
-                      <a>
-                        <i
-                          className="bi bi-eye"
-                          onClick={() =>
-                            setOpenimg({ openingState: true, openingIndex: 0 })
+                <div className="row g-3">
+                  {/* Single Image */}
+                  {imageCount === 1 && (
+                    <div className="col-lg-12">
+                      <div className="gallery-img-wrap position-relative">
+                        <img
+                          src={
+                            images[0]?.imageBig || "/path/to/default-image.jpg"
                           }
+                          alt={activityData?.title || "Activity Image"}
+                          // onError={(e) => {
+                          //   e.target.src = "/path/to/fallback-image.jpg";
+                          // }}
                         />
-                      </a>
-                    </div>
-                  </div>
-                  <div className="col-lg-6 h-100">
-                    <div className="row g-3 h-100">
-                      <div className="col-6">
-                        <div className="gallery-img-wrap">
-                          <img src={images[1]} alt={activityData.title} />
-                          <a>
-                            <i
-                              className="bi bi-eye "
-                              onClick={() =>
-                                setOpenimg({
-                                  openingState: true,
-                                  openingIndex: 1,
-                                })
-                              }
-                            />
-                          </a>
-                        </div>
+                        <a>
+                          <i
+                            className="bi bi-eye"
+                            onClick={() =>
+                              setOpenimg({
+                                openingState: true,
+                                openingIndex: 0,
+                              })
+                            }
+                          />
+                        </a>
+                        {hasVideo && (
+                          <button
+                            className="position-absolute bottom-0 end-0 m-3 btn btn-primary"
+                            onClick={() => setOpenModalVideo(true)}
+                          >
+                            <i className="bi bi-play-circle me-2" />
+                            Watch Video
+                          </button>
+                        )}
                       </div>
-                      <div className="col-6">
+                    </div>
+                  )}
+
+                  {/* Two Images */}
+                  {imageCount === 2 && (
+                    <>
+                      {images.slice(0, 2).map((image, index) => (
+                        <div key={image.id} className="col-lg-6">
+                          <div className="gallery-img-wrap position-relative">
+                            <img
+                              src={
+                                image.imageBig || "/path/to/default-image.jpg"
+                              }
+                              alt={`${activityData?.title || "Activity"} Image ${index + 1}`}
+                              // onError={(e) => {
+                              //   e.target.src = "/path/to/fallback-image.jpg";
+                              // }}
+                            />
+                            <a>
+                              <i
+                                className="bi bi-eye"
+                                onClick={() =>
+                                  setOpenimg({
+                                    openingState: true,
+                                    openingIndex: index,
+                                  })
+                                }
+                              />{" "}
+                              View Activity
+                            </a>
+                            {index === 1 && hasVideo && (
+                              <button
+                                className="position-absolute bottom-0 end-0 m-3"
+                                style={{ cursor: "pointer" }}
+                                onClick={() => setOpenModalVideo(true)}
+                              >
+                                <i className="bi bi-play-circle" /> Watch Video
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Three or More Images */}
+                  {imageCount >= 3 && (
+                    <>
+                      <div className="col-lg-6">
                         <div className="gallery-img-wrap">
-                          <img src={images[2]} alt={activityData.title} />
+                          <img
+                            src={
+                              images[0]?.imageBig ||
+                              "/path/to/default-image.jpg"
+                            }
+                            alt={activityData?.title || "Activity Image"}
+                            // onError={(e) => {
+                            //   e.target.src = "/path/to/fallback-image.jpg";
+                            // }}
+                          />
                           <a>
                             <i
                               className="bi bi-eye"
                               onClick={() =>
                                 setOpenimg({
                                   openingState: true,
-                                  openingIndex: 2,
-                                })
-                              }
-                            />
-                          </a>
-                        </div>
-                      </div>
-                      <div className="col-6">
-                        <div className="gallery-img-wrap active">
-                          <img src={images[3]} alt={activityData.title} />
-                          <button className="StartSlideShowFirstImage">
-                            <i
-                              className="bi bi-plus-lg"
-                              onClick={() =>
-                                setOpenimg({
-                                  openingState: true,
-                                  openingIndex: 3,
+                                  openingIndex: 0,
                                 })
                               }
                             />{" "}
-                            View More Images
-                          </button>
-                        </div>
-                      </div>
-                      <div className="col-6">
-                        <div className="gallery-img-wrap active">
-                          <img src={images[3]} alt={activityData.title} />
-                          <a
-                            data-fancybox="gallery-01"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => setOpenModalVideo(true)}
-                          >
-                            <i className="bi bi-play-circle" /> Watch Video
+                            View Activity
                           </a>
                         </div>
                       </div>
-                    </div>
-                  </div>
+
+                      <div className="col-lg-6">
+                        <div className="row g-3">
+                          {images
+                            .slice(1, imageCount >= 5 ? 5 : imageCount)
+                            .map((image, index) => (
+                              <div key={image.id} className="col-6">
+                                <div
+                                  className={`gallery-img-wrap ${index >= 2 ? "active" : ""}`}
+                                >
+                                  <img
+                                    src={image.imageBig}
+                                    alt={`${activityData?.title || "Activity"} Image ${index + 2}`}
+                                    // onError={(e) => {
+                                    //   e.target.src =
+                                    //     "/path/to/fallback-image.jpg";
+                                    // }}
+                                  />
+                                  {/* Show +More on 4th image (index 3) if more than 5 images */}
+                                  {index === 3 && imageCount > 5 ? (
+                                    <button className="StartSlideShowFirstImage">
+                                      <i
+                                        className="bi bi-plus-lg"
+                                        onClick={() =>
+                                          setOpenimg({
+                                            openingState: true,
+                                            openingIndex: index + 1,
+                                          })
+                                        }
+                                      />{" "}
+                                      View More Images
+                                    </button>
+                                  ) : /* Show Video button on 3rd small image (index 2) */
+                                  index === 2 && hasVideo ? (
+                                    <a
+                                      data-fancybox="gallery-01"
+                                      style={{ cursor: "pointer" }}
+                                      onClick={() => setOpenModalVideo(true)}
+                                    >
+                                      <i className="bi bi-play-circle" /> Watch
+                                      Video
+                                    </a>
+                                  ) : /* Show +More on last small image if 4 images and no video */
+                                  index === 2 &&
+                                    !hasVideo &&
+                                    imageCount === 4 ? (
+                                    <button className="StartSlideShowFirstImage">
+                                      <i
+                                        className="bi bi-plus-lg"
+                                        onClick={() =>
+                                          setOpenimg({
+                                            openingState: true,
+                                            openingIndex: index + 1,
+                                          })
+                                        }
+                                      />{" "}
+                                      View More Images
+                                    </button>
+                                  ) : index === 3 && hasVideo ? (
+                                    <></>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -403,10 +596,12 @@ const Page = () => {
                   <FaClock />
                   {activityData.duration}
                 </li>
-                <li>
-                  <FaUser />
-                  Max People : 13
-                </li>
+                {maxPeople && (
+                  <li>
+                    <FaUser />
+                    Max People: {maxPeople}
+                  </li>
+                )}
                 <li>
                   <FaFlag />
                   {activityData.country_name}
@@ -414,19 +609,21 @@ const Page = () => {
               </ul>
               <p>{activityData.description}</p>
 
-              <div className="highlight-tour mb-[20px]">
-                <h4>Highlights of the Tour</h4>
-                <ul>
-                  {activityData.features?.map((feature, index) => (
-                    <li key={index}>
-                      <span>
-                        <i className="bi bi-check" />
-                      </span>{" "}
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {activityData.features?.length > 0 && (
+                <div className="highlight-tour mb-[20px]">
+                  <h4>Highlights of the Tour</h4>
+                  <ul>
+                    {activityData.features.map((feature, index) => (
+                      <li key={index}>
+                        <span>
+                          <i className="bi bi-check" />
+                        </span>{" "}
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="tour-location">
                 <h4>Location Map</h4>
@@ -489,6 +686,15 @@ const Page = () => {
                   Secure your spot for an unforgettable nature adventure now!
                 </p>
 
+                {/* Max People Notice */}
+                {maxPeople && (
+                  <div className="alert alert-info mb-3">
+                    <i className="bi bi-info-circle me-2"></i>
+                    Maximum <strong>{maxPeople}</strong> people allowed for this
+                    activity
+                  </div>
+                )}
+
                 <div className="tab-content" id="v-pills-tabContent2">
                   <div
                     className="tab-pane fade active show"
@@ -532,10 +738,11 @@ const Page = () => {
                             </label>
                             <QuantityCounter
                               quantity={adultQuantity}
-                              onQuantityChange={setAdultQuantity}
+                              onQuantityChange={handleAdultQuantityChange}
                               incIcon="bx bx-plus"
                               dcrIcon="bx bx-minus"
                               minQuantity={1}
+                              maxQuantity={maxAdultQuantity}
                             />
                           </div>
                           <div className="number-input-item children">
@@ -548,10 +755,11 @@ const Page = () => {
                             </label>
                             <QuantityCounter
                               quantity={childQuantity}
-                              onQuantityChange={setChildQuantity}
+                              onQuantityChange={handleChildQuantityChange}
                               incIcon="bx bx-plus"
                               dcrIcon="bx bx-minus"
                               minQuantity={0}
+                              maxQuantity={maxChildQuantity}
                             />
                           </div>
                         </div>
@@ -735,6 +943,15 @@ const Page = () => {
                                   </div>
                                 </div>
                               )}
+                              <div className="row mb-2">
+                                <div className="col-6">
+                                  <strong>Total Guests:</strong>
+                                </div>
+                                <div className="col-6">
+                                  {adultQuantity + childQuantity} people
+                                  {maxPeople && ` (Max: ${maxPeople})`}
+                                </div>
+                              </div>
                               <hr />
                               <div className="row">
                                 <div className="col-6">
@@ -793,8 +1010,8 @@ const Page = () => {
                     {bookingLoading
                       ? "Processing Booking..."
                       : bookingSuccess
-                      ? "Booking Submitted!"
-                      : "Booking Error"}
+                        ? "Booking Submitted!"
+                        : "Booking Error"}
                   </h5>
                   {!bookingLoading && (
                     <button
@@ -905,7 +1122,7 @@ const Page = () => {
             onClick={() => setOpenModalVideo(true)}
             isOpen={isOpenModalVideo}
             animationSpeed="350"
-            videoId="r4KpWiK08vM"
+            videoId={extractedVideoId || "r4KpWiK08vM"}
             ratio="16:9"
             onClose={() => setOpenModalVideo(false)}
           />
@@ -915,11 +1132,15 @@ const Page = () => {
           open={isOpenimg.openingState}
           plugins={[Fullscreen]}
           index={isOpenimg.openingIndex}
-          close={() => setOpenimg(false)}
+          close={() => setOpenimg({ openingState: false, openingIndex: 0 })}
           styles={{ container: { backgroundColor: "rgba(0, 0, 0, .9)" } }}
-          slides={images.map(function (elem) {
-            return { src: elem };
-          })}
+          slides={
+            images && images.length > 0
+              ? images.map(function (elem) {
+                  return { src: elem.imageBig };
+                })
+              : []
+          }
         />
       </div>
 

@@ -1,9 +1,12 @@
 "use client";
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 const PackageInfo = ({ tourData }) => {
   const t = useTranslations("packageDetails");
+
+  const hookLocale = useLocale();
+  const locale = hookLocale;
 
   if (!tourData) return null;
 
@@ -32,7 +35,7 @@ const PackageInfo = ({ tourData }) => {
           >
             <path d="M7 7C7.92826 7 8.8185 6.63125 9.47487 5.97487C10.1313 5.3185 10.5 4.42826 10.5 3.5C10.5 2.57174 10.1313 1.6815 9.47487 1.02513C8.8185 0.368749 7.92826 0 7 0C6.07174 0 5.1815 0.368749 4.52513 1.02513C3.86875 1.6815 3.5 2.57174 3.5 3.5C3.5 4.42826 3.86875 5.3185 4.52513 5.97487C5.1815 6.63125 6.07174 7 7 7ZM14 12.8333C14 14 12.8333 14 12.8333 14H1.16667C1.16667 14 0 14 0 12.8333C0 11.6667 1.16667 8.16667 7 8.16667C12.8333 8.16667 14 11.6667 14 12.8333Z"></path>
           </svg>
-          {t("people")}
+          Max People : {tourData.max_persons}
         </li>
         <li>
           <svg
@@ -51,7 +54,15 @@ const PackageInfo = ({ tourData }) => {
         </li>
       </ul>
 
-      <p>{tourData.description}</p>
+      <div
+        dangerouslySetInnerHTML={{
+          __html:
+            tourData.description ||
+            tourData.description?.[locale] ||
+            tourData.description?.en ||
+            t("noDescription"),
+        }}
+      />
 
       {/* <div className="price-info">
         <div className="price-display">

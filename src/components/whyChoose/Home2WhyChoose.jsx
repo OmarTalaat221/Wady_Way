@@ -24,7 +24,7 @@ const Home2WhyChoose = () => {
   }, []);
   return (
     <>
-      <div className="feature-card-section mb-[120px]">
+      <div className="feature-card-section mb-[60px]">
         <div className="container">
           <div className="row mb-50">
             <div className="col-lg-12">

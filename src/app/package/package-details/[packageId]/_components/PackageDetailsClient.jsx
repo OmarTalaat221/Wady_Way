@@ -120,6 +120,35 @@ const PackageDetailsClient = () => {
   // Data Transformation
   const transformedData = React.useMemo(() => {
     if (!tourData) return null;
+
+    const getYouTubeVideoId = (videoInput) => {
+      if (!videoInput) return null;
+
+      if (
+        videoInput.length === 11 &&
+        !videoInput.includes("/") &&
+        !videoInput.includes(".")
+      ) {
+        return videoInput;
+      }
+
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=)([^&\s]+)/,
+        /(?:youtube\.com\/embed\/)([^?\s]+)/,
+        /(?:youtu\.be\/)([^?\s]+)/,
+        /(?:youtube\.com\/v\/)([^?\s]+)/,
+        /(?:youtube\.com\/shorts\/)([^?\s]+)/,
+      ];
+
+      for (const pattern of patterns) {
+        const match = videoInput.match(pattern);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+
+      return videoInput;
+    };
     const images =
       tourData.gallery?.map((img, index) => ({
         id: index + 1,
@@ -176,7 +205,12 @@ const PackageDetailsClient = () => {
         };
       }) || [];
 
-    return { ...tourData, images, days };
+    return {
+      ...tourData,
+      images,
+      days,
+      videoId: getYouTubeVideoId(tourData.video_link),
+    };
   }, [tourData, dateValue]);
 
   // Handler functions
@@ -408,17 +442,17 @@ const PackageDetailsClient = () => {
   }, [people, dispatch]);
 
   useEffect(() => {
-    if (transformedData?.days?.length > 0) {
+    if (transformedData?.days?.length > 0 && tourData?.itinerary) {
       // Set tour data in Redux
       dispatch(setTourData(transformedData));
 
-      dispatch(initializeActivitiesFromDays(transformedData.days));
+      // ✅ استخدم tourData.itinerary الأصلي بدلاً من transformedData.days
+      dispatch(initializeActivitiesFromDays(tourData.itinerary));
 
       const initialActiveAcc = {};
       const initialActiveTransfers = {};
       const initialHotels = [];
       const initialTransfers = [];
-      const initialActivities = [];
 
       transformedData.days.forEach((day, index) => {
         const dayNumber = index + 1;
@@ -484,20 +518,7 @@ const PackageDetailsClient = () => {
             })
           );
         }
-
-        if (day.activities?.length > 0) {
-          day.activities.forEach((activity) => {
-            initialActivities.push({
-              day: dayNumber,
-              id: activity.id,
-              title: activity.title,
-              price: activity.price_current || activity.price || 0,
-            });
-          });
-        }
       });
-
-      console.log("📋 Initial Activities:", initialActivities);
 
       setActiveAccommodations(initialActiveAcc);
       setActiveTransfers(initialActiveTransfers);
@@ -506,13 +527,14 @@ const PackageDetailsClient = () => {
         title: transformedData.title,
         hotels: initialHotels,
         transfers: initialTransfers,
-        activities: initialActivities, // ✅ Add activities to local state
       }));
 
-      dispatch(calculateTotal());
+      // ✅ استدعاء calculateTotal بعد تهيئة كل شيء
+      setTimeout(() => {
+        dispatch(calculateTotal());
+      }, 100);
     }
-  }, [transformedData?.days?.length, dispatch]);
-
+  }, [transformedData?.days?.length, tourData?.itinerary, dispatch]);
   // Update dates when tour data loads
   useEffect(() => {
     if (tourData?.itinerary?.length) {
@@ -619,6 +641,7 @@ const PackageDetailsClient = () => {
               >
                 <GallerySection
                   images={transformedData.images}
+                  videoId={transformedData.videoId}
                   setOpenimg={setOpenimg}
                   isOpenimg={isOpenimg}
                   isOpen={isOpen}
@@ -686,7 +709,13 @@ const PackageDetailsClient = () => {
                   <div className="h-40 bg-gray-200 animate-pulse rounded-lg"></div>
                 }
               >
-                <Reviews />
+                <Reviews
+                  data={{
+                    reviews: tourData?.reviews || [],
+                    num_of_reviews: tourData?.num_of_reviews || 0,
+                    avg_rate: tourData?.avg_rate || 0,
+                  }}
+                />
               </Suspense>
             </div>
 
