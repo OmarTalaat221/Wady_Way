@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
   refreshUserId,
-  initializeTourGuides, // ✅ Import new action
+  initializeTourGuide, // ✅ غير هنا
 } from "@/lib/redux/slices/tourReservationSlice";
 import Breadcrumb from "../../../../../../components/common/Breadcrumb";
 import "./style.css";
@@ -22,6 +22,9 @@ const PageSummaryClient = ({ lang }) => {
   const tourData = useSelector((state) => state.tourReservation?.tourData);
   const selectedByDay = useSelector(
     (state) => state.tourReservation?.selectedByDay
+  );
+  const tourGuideByDay = useSelector(
+    (state) => state.tourReservation?.tourGuideByDay // ✅ جديد
   );
   const numAdults = useSelector(
     (state) => state.tourReservation?.numAdults || 1
@@ -44,21 +47,21 @@ const PageSummaryClient = ({ lang }) => {
     dispatch(refreshUserId());
   }, [dispatch]);
 
-  // ✅ Initialize tour guides for all days when tourData is available
+  // ✅ Initialize tour guides - لو مش متهيأ من قبل
   useEffect(() => {
-    if (tourData) {
-      const numberOfDays =
-        tourData.itinerary?.length || tourData.days?.length || 1;
-      dispatch(initializeTourGuides(numberOfDays));
+    if (tourData?.itinerary && Object.keys(tourGuideByDay || {}).length === 0) {
+      console.log("Initializing tour guide from PageSummary...");
+      dispatch(initializeTourGuide(tourData.itinerary));
     }
-  }, [tourData, dispatch]);
+  }, [tourData, tourGuideByDay, dispatch]);
 
   useEffect(() => {
     console.log("Redux State Debug:");
     console.log("Tour Data:", tourData);
     console.log("Selected By Day:", selectedByDay);
+    console.log("Tour Guide By Day:", tourGuideByDay); // ✅ جديد
     console.log("User ID:", userId);
-  }, [tourData, selectedByDay, userId]);
+  }, [tourData, selectedByDay, tourGuideByDay, userId]);
 
   useEffect(() => {
     if (tourData?.itinerary || tourData?.days) {
@@ -132,8 +135,6 @@ const PageSummaryClient = ({ lang }) => {
             ar: itineraryDay.description || `اليوم ${dayNumber}`,
           },
           title: itineraryDay.title || itineraryDay.location?.en || "",
-          // ✅ لم نعد نحتاج هذا لأننا نستخدم Redux
-          // tour_guide: selections.tour_guide ?? true,
           driver: true,
           location:
             itineraryDay.title || itineraryDay.location?.en || "Location",

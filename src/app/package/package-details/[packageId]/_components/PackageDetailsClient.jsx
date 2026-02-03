@@ -13,7 +13,8 @@ import {
   selectCar,
   calculateTotal,
   refreshUserId,
-  initializeActivitiesFromDays,
+  initializeTourGuide,
+  initializeActivities,
 } from "@/lib/redux/slices/tourReservationSlice";
 import useTourDetails from "../../../../../hooks/useTourDetails";
 import LoadingSpinner from "../../../../../components/common/LoadingSpinner";
@@ -50,13 +51,10 @@ const PackageDetailsClient = () => {
   const dispatch = useDispatch();
   const { tourData, loading, error } = useTourDetails(packageId);
 
-  // Get Redux state
   const selectedByDay = useSelector(
     (state) => state.tourReservation?.selectedByDay
   );
-  const reduxUserId = useSelector((state) => state.tourReservation?.userId);
 
-  // State Management
   const [isOpen, setOpen] = useState(false);
   const [mapModal, setMapModal] = useState(false);
   const [activeIndex, setActiveIndex] = useState(null);
@@ -79,7 +77,6 @@ const PackageDetailsClient = () => {
     activities: [],
   });
 
-  // Date handling
   const today = new Date();
   const oneDayLater = new Date(today);
   oneDayLater.setDate(today.getDate() + 1);
@@ -112,18 +109,15 @@ const PackageDetailsClient = () => {
         })
       : "Invalid Date";
 
-  // Refresh user ID from localStorage on mount
   useEffect(() => {
     dispatch(refreshUserId());
   }, [dispatch]);
 
-  // Data Transformation
   const transformedData = React.useMemo(() => {
     if (!tourData) return null;
 
     const getYouTubeVideoId = (videoInput) => {
       if (!videoInput) return null;
-
       if (
         videoInput.length === 11 &&
         !videoInput.includes("/") &&
@@ -131,7 +125,6 @@ const PackageDetailsClient = () => {
       ) {
         return videoInput;
       }
-
       const patterns = [
         /(?:youtube\.com\/watch\?v=)([^&\s]+)/,
         /(?:youtube\.com\/embed\/)([^?\s]+)/,
@@ -139,27 +132,27 @@ const PackageDetailsClient = () => {
         /(?:youtube\.com\/v\/)([^?\s]+)/,
         /(?:youtube\.com\/shorts\/)([^?\s]+)/,
       ];
-
       for (const pattern of patterns) {
         const match = videoInput.match(pattern);
-        if (match && match[1]) {
-          return match[1];
-        }
+        if (match && match[1]) return match[1];
       }
-
       return videoInput;
     };
+
     const images =
       tourData.gallery?.map((img, index) => ({
         id: index + 1,
         imageBig: img.image,
       })) || [];
+
     const days =
       tourData.itinerary?.map((day, index) => {
         const dayDate = new Date(dateValue[0]);
         dayDate.setDate(dayDate.getDate() + index);
+
         return {
           day: day.day,
+          isTourguide: day.isTourguide,
           date: formattedDate(dayDate),
           location: { en: day.title, ar: day.title },
           description: { en: day.description, ar: day.description },
@@ -191,7 +184,7 @@ const PackageDetailsClient = () => {
             })) || [],
           activities:
             day.activities_options?.map((activity) => ({
-              id: parseInt(activity.activity_id), // ✅ تأكد إنه parseInt
+              id: parseInt(activity.activity_id),
               activity_id: parseInt(activity.activity_id),
               title: { en: activity.title, ar: activity.title },
               duration: { en: "2 hours", ar: "ساعتان" },
@@ -213,20 +206,16 @@ const PackageDetailsClient = () => {
     };
   }, [tourData, dateValue]);
 
-  // Handler functions
   const calculatePriceDifference = (selectedPrice, defaultPrice) =>
     defaultPrice - (selectedPrice || defaultPrice);
 
   const handleToggle = (index) =>
     setActiveIndex(activeIndex === index ? null : index);
 
-  // Handle Accommodation Click - Syncs with Redux
   const handleAccommodationClick = (accommodation, dayIndex) => {
     if (activeAccommodations[dayIndex]?.id === accommodation.id) return;
-
     const dayNumber = dayIndex + 1;
 
-    // Update local state
     setActiveAccommodations((prev) => ({ ...prev, [dayIndex]: accommodation }));
     setSelectedTours((prevState) => ({
       ...prevState,
@@ -242,7 +231,6 @@ const PackageDetailsClient = () => {
       ],
     }));
 
-    // Dispatch to Redux
     dispatch(
       selectHotel({
         day: dayNumber,
@@ -263,20 +251,15 @@ const PackageDetailsClient = () => {
       })
     );
 
-    // Recalculate total
     dispatch(calculateTotal());
-
     setRooms([{ id: 1, adults: 1, children: 0, infants: 0 }]);
     setSelectedAccommodation({ ...accommodation, dayIndex });
   };
 
-  // Handle Transfer Click - Syncs with Redux
   const handleTransferClick = (transfer, dayIndex) => {
     if (activeTransfers[dayIndex]?.id === transfer.id) return;
-
     const dayNumber = dayIndex + 1;
 
-    // Update local state
     setActiveTransfers((prev) => ({ ...prev, [dayIndex]: transfer }));
     setSelectedTours((prevState) => ({
       ...prevState,
@@ -291,7 +274,6 @@ const PackageDetailsClient = () => {
       ],
     }));
 
-    // Dispatch to Redux
     dispatch(
       selectCar({
         day: dayNumber,
@@ -310,7 +292,6 @@ const PackageDetailsClient = () => {
       })
     );
 
-    // Recalculate total
     dispatch(calculateTotal());
   };
 
@@ -393,9 +374,7 @@ const PackageDetailsClient = () => {
     );
 
     if (assignedTravelers !== totalTravelers) {
-      alert(
-        `Please assign all ${totalTravelers} travelers to the rooms. You have only assigned ${assignedTravelers}.`
-      );
+      alert(`Please assign all ${totalTravelers} travelers.`);
       return;
     }
 
@@ -427,7 +406,6 @@ const PackageDetailsClient = () => {
   const scrollToDiv = (id) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
-  // Sync people count with Redux
   useEffect(() => {
     dispatch(
       setPeopleCount({
@@ -441,101 +419,108 @@ const PackageDetailsClient = () => {
     setIsFlipped(false);
   }, [people, dispatch]);
 
+  // ✅ التهيئة الرئيسية
   useEffect(() => {
-    if (transformedData?.days?.length > 0 && tourData?.itinerary) {
-      // Set tour data in Redux
-      dispatch(setTourData(transformedData));
-
-      // ✅ استخدم tourData.itinerary الأصلي بدلاً من transformedData.days
-      dispatch(initializeActivitiesFromDays(tourData.itinerary));
-
-      const initialActiveAcc = {};
-      const initialActiveTransfers = {};
-      const initialHotels = [];
-      const initialTransfers = [];
-
-      transformedData.days.forEach((day, index) => {
-        const dayNumber = index + 1;
-
-        // Initialize first hotel for each day
-        if (day.accommodation?.[0]) {
-          const acc = day.accommodation[0];
-          initialActiveAcc[index] = acc;
-          initialHotels.push({
-            day: dayNumber,
-            name: acc.name,
-            id: acc.id,
-            price: acc.price_per_night,
-            location: acc.location,
-          });
-
-          dispatch(
-            selectHotel({
-              day: dayNumber,
-              hotel: {
-                id: acc.id,
-                hotel_id: acc.id,
-                title: acc.name?.en || acc.name,
-                name: acc.name,
-                image: acc.image,
-                adult_price: acc.price_per_night,
-                price_per_night: acc.price_per_night,
-                rating: acc.rating,
-                category: acc.category,
-                location: acc.location,
-                ...acc.originalData,
-              },
-            })
-          );
-        }
-
-        // Initialize first transfer for each day
-        if (day.transfers?.[0]) {
-          const transfer = day.transfers[0];
-          initialActiveTransfers[index] = transfer;
-          initialTransfers.push({
-            day: dayNumber,
-            name: transfer.name,
-            id: transfer.id,
-            price: transfer.price,
-          });
-
-          dispatch(
-            selectCar({
-              day: dayNumber,
-              car: {
-                id: transfer.id,
-                car_id: transfer.id,
-                title: transfer.name?.en || transfer.name,
-                name: transfer.name,
-                image: transfer.image,
-                price_current: transfer.price,
-                price: transfer.price,
-                capacity: transfer.capacity,
-                category: transfer.category,
-                ...transfer.originalData,
-              },
-            })
-          );
-        }
-      });
-
-      setActiveAccommodations(initialActiveAcc);
-      setActiveTransfers(initialActiveTransfers);
-      setSelectedTours((prev) => ({
-        ...prev,
-        title: transformedData.title,
-        hotels: initialHotels,
-        transfers: initialTransfers,
-      }));
-
-      // ✅ استدعاء calculateTotal بعد تهيئة كل شيء
-      setTimeout(() => {
-        dispatch(calculateTotal());
-      }, 100);
+    if (!tourData?.itinerary || tourData.itinerary.length === 0) {
+      return;
     }
-  }, [transformedData?.days?.length, tourData?.itinerary, dispatch]);
-  // Update dates when tour data loads
+
+    console.log("🚀 Starting initialization...");
+    console.log("📦 tourData.itinerary:", tourData.itinerary);
+
+    // 1. تخزين بيانات التور
+    dispatch(setTourData(transformedData));
+
+    // 2. ✅ تهيئة Tour Guide
+    dispatch(initializeTourGuide(tourData.itinerary));
+
+    // 3. ✅ تهيئة Activities
+    dispatch(initializeActivities(tourData.itinerary));
+
+    // 4. تهيئة الفنادق والسيارات
+    const initialActiveAcc = {};
+    const initialActiveTransfers = {};
+    const initialHotels = [];
+    const initialTransfers = [];
+
+    transformedData.days.forEach((day, index) => {
+      const dayNumber = index + 1;
+
+      if (day.accommodation?.[0]) {
+        const acc = day.accommodation[0];
+        initialActiveAcc[index] = acc;
+        initialHotels.push({
+          day: dayNumber,
+          name: acc.name,
+          id: acc.id,
+          price: acc.price_per_night,
+          location: acc.location,
+        });
+
+        dispatch(
+          selectHotel({
+            day: dayNumber,
+            hotel: {
+              id: acc.id,
+              hotel_id: acc.id,
+              title: acc.name?.en || acc.name,
+              name: acc.name,
+              image: acc.image,
+              adult_price: acc.price_per_night,
+              price_per_night: acc.price_per_night,
+              rating: acc.rating,
+              category: acc.category,
+              location: acc.location,
+              ...acc.originalData,
+            },
+          })
+        );
+      }
+
+      if (day.transfers?.[0]) {
+        const transfer = day.transfers[0];
+        initialActiveTransfers[index] = transfer;
+        initialTransfers.push({
+          day: dayNumber,
+          name: transfer.name,
+          id: transfer.id,
+          price: transfer.price,
+        });
+
+        dispatch(
+          selectCar({
+            day: dayNumber,
+            car: {
+              id: transfer.id,
+              car_id: transfer.id,
+              title: transfer.name?.en || transfer.name,
+              name: transfer.name,
+              image: transfer.image,
+              price_current: transfer.price,
+              price: transfer.price,
+              capacity: transfer.capacity,
+              category: transfer.category,
+              ...transfer.originalData,
+            },
+          })
+        );
+      }
+    });
+
+    setActiveAccommodations(initialActiveAcc);
+    setActiveTransfers(initialActiveTransfers);
+    setSelectedTours((prev) => ({
+      ...prev,
+      title: transformedData.title,
+      hotels: initialHotels,
+      transfers: initialTransfers,
+    }));
+
+    setTimeout(() => {
+      dispatch(calculateTotal());
+    }, 100);
+  }, [tourData?.itinerary]);
+
   useEffect(() => {
     if (tourData?.itinerary?.length) {
       const newEndDate = calculateEndDate(
@@ -551,7 +536,7 @@ const PackageDetailsClient = () => {
         })
       );
     }
-  }, [tourData, dispatch]);
+  }, [tourData?.itinerary?.length]);
 
   const items = React.useMemo(() => {
     if (!transformedData) return [];
@@ -620,9 +605,7 @@ const PackageDetailsClient = () => {
       </div>
     );
 
-  const formattedRange = `${formatDate(dateValue[0])} - ${formatDate(
-    dateValue[1]
-  )}`;
+  const formattedRange = `${formatDate(dateValue[0])} - ${formatDate(dateValue[1])}`;
 
   return (
     <>

@@ -181,7 +181,9 @@
     "total_paid": "Total",
     "confirmation_email": "A confirmation email has been sent to your registered email address.",
     "view_bookings": "View Bookings",
-    "back_home": "Back to Home"
+    "back_home": "Back to Home",
+    "guide_not_available": "Guide Not Available",
+    "driver_not_available": "Driver Not Available"
   },
   "galleryPackage": {
     "viewMoreImages": "View More Images",

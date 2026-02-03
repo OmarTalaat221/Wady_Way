@@ -1007,20 +1007,24 @@ const Page = () => {
                               </div>
 
                               <div className="batch">
-                                <span className="date">{tour?.duration}</span>
-                                <div className="location">
-                                  <ul className="location-list">
-                                    {tour?.mainLocations?.map(
-                                      (mainLocat, index) => (
-                                        <li key={index}>
-                                          <Link href="/package">
-                                            {mainLocat}
-                                          </Link>
-                                        </li>
-                                      )
-                                    )}
-                                  </ul>
-                                </div>
+                                {tour?.duration && (
+                                  <span className="date">{tour?.duration}</span>
+                                )}
+                                {tour?.mainLocations?.length > 0 && (
+                                  <div className="location">
+                                    <ul className="location-list">
+                                      {tour?.mainLocations?.map(
+                                        (mainLocat, index) => (
+                                          <li key={index}>
+                                            <Link href="/package">
+                                              {mainLocat}
+                                            </Link>
+                                          </li>
+                                        )
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="package-card-content">

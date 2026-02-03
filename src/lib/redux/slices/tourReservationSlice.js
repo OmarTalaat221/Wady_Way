@@ -10,10 +10,8 @@ const getUserIdFromStorage = () => {
         const parsed = JSON.parse(userData);
         return parsed.id || parsed.user_id || null;
       }
-      const userId = localStorage.getItem("user_id");
-      return userId || null;
+      return localStorage.getItem("user_id") || null;
     } catch (error) {
-      console.error("Error getting user_id from localStorage:", error);
       return null;
     }
   }
@@ -30,10 +28,10 @@ const initialState = {
   numInfants: 0,
   tourData: null,
   selectedByDay: {},
+  tourGuideByDay: {},
   totalAmount: 0,
   discountPercentage: 0,
   subtotalAmount: 0,
-  activitiesInitialized: false,
 };
 
 const extractDiscountPercentage = (offerPercentage) => {
@@ -54,86 +52,113 @@ const tourReservationSlice = createSlice({
       );
     },
 
-    initializeTourGuides: (state, action) => {
-      const numberOfDays = action.payload;
+    // ✅ تهيئة Tour Guide - مع التأكد من الـ object موجود
+    initializeTourGuide: (state, action) => {
+      const itinerary = action.payload;
 
-      for (let i = 1; i <= numberOfDays; i++) {
-        const dayKey = String(i);
-        if (!state.selectedByDay[dayKey]) {
-          state.selectedByDay[dayKey] = {};
-        }
-        if (state.selectedByDay[dayKey].tour_guide === undefined) {
-          state.selectedByDay[dayKey].tour_guide = true;
-        }
-      }
-    },
+      console.log("========== TOUR GUIDE INIT ==========");
+      console.log("Received itinerary:", itinerary);
+      console.log("Current state.tourGuideByDay:", state.tourGuideByDay);
 
-    initializeActivitiesFromDays: (state, action) => {
-      const days = action.payload;
-
-      if (!days || !Array.isArray(days)) {
+      if (!itinerary || !Array.isArray(itinerary)) {
+        console.log("❌ No valid itinerary");
         return;
       }
 
-      days.forEach((day, index) => {
-        const dayKey = String(index + 1);
+      // ✅ تأكد إن الـ object موجود
+      if (!state.tourGuideByDay) {
+        console.log("⚠️ tourGuideByDay was undefined, initializing...");
+        state.tourGuideByDay = {};
+      }
+
+      // ✅ نظف البيانات القديمة ونبدأ من جديد
+      state.tourGuideByDay = {};
+
+      itinerary.forEach((day) => {
+        const dayNumber = String(day.day);
+        const rawValue = day.isTourguide;
+        const isAvailable = rawValue === "1" || rawValue === 1;
+
+        console.log(
+          `Day ${dayNumber}: isTourguide = "${rawValue}" => available = ${isAvailable}`
+        );
+
+        state.tourGuideByDay[dayNumber] = {
+          isAvailable: isAvailable,
+          isSelected: isAvailable,
+        };
+      });
+
+      console.log(
+        "Final tourGuideByDay:",
+        JSON.stringify(state.tourGuideByDay)
+      );
+      console.log("=====================================");
+    },
+
+    toggleTourGuide: (state, action) => {
+      const dayNumber = String(action.payload);
+
+      console.log(`Toggle day ${dayNumber}`);
+
+      // ✅ تأكد إن الـ object موجود
+      if (!state.tourGuideByDay) {
+        console.log("⚠️ tourGuideByDay is undefined!");
+        return;
+      }
+
+      if (!state.tourGuideByDay[dayNumber]) {
+        console.log("Day not found!");
+        return;
+      }
+
+      if (!state.tourGuideByDay[dayNumber].isAvailable) {
+        console.log("Tour guide not available for this day");
+        return;
+      }
+
+      state.tourGuideByDay[dayNumber].isSelected =
+        !state.tourGuideByDay[dayNumber].isSelected;
+
+      console.log("New state:", state.tourGuideByDay[dayNumber]);
+    },
+
+    initializeActivities: (state, action) => {
+      const itinerary = action.payload;
+
+      if (!itinerary || !Array.isArray(itinerary)) return;
+
+      itinerary.forEach((day) => {
+        const dayKey = String(day.day);
 
         if (!state.selectedByDay[dayKey]) {
-          state.selectedByDay[dayKey] = {
-            activities: [],
-            tour_guide: true,
-          };
+          state.selectedByDay[dayKey] = { activities: [] };
         }
 
         state.selectedByDay[dayKey].activities = [];
 
-        if (state.selectedByDay[dayKey].tour_guide === undefined) {
-          state.selectedByDay[dayKey].tour_guide = true;
-        }
+        const activities = day.activities_options || [];
+        activities.forEach((activity) => {
+          const activityId = activity.activity_id || activity.id;
+          if (!activityId) return;
 
-        const activitiesList = day.activities_options || day.activities || [];
-
-        if (activitiesList.length > 0) {
-          activitiesList.forEach((activity) => {
-            const activityId = activity.activity_id || activity.id;
-
-            if (!activityId) {
-              return;
-            }
-
-            const activityTitle =
-              typeof activity.title === "object"
-                ? activity.title?.en || activity.title?.ar || "Activity"
-                : activity.title || "Activity";
-
-            const activityPrice = parseFloat(
+          state.selectedByDay[dayKey].activities.push({
+            id: activityId,
+            activity_id: activityId,
+            tour_activity_id: activity.tour_activity_id,
+            title: activity.title,
+            name: activity.title,
+            image:
+              typeof activity.image === "string"
+                ? activity.image.split("//CAMP//")[0]
+                : activity.image,
+            price: parseFloat(activity.price_current || activity.price || 0),
+            price_current: parseFloat(
               activity.price_current || activity.price || 0
-            );
-
-            const newActivity = {
-              id: activityId,
-              activity_id: activityId,
-              tour_activity_id: activity.tour_activity_id,
-              title: activityTitle,
-              name: activityTitle,
-              image:
-                typeof activity.image === "string"
-                  ? activity.image.split("//CAMP//")[0]
-                  : activity.image,
-              price: activityPrice,
-              price_current: activityPrice,
-              duration: activity.duration,
-              difficulty: activity.difficulty,
-              isDefault: true,
-            };
-
-            state.selectedByDay[dayKey].activities.push(newActivity);
+            ),
           });
-        } else {
-        }
+        });
       });
-
-      state.activitiesInitialized = true;
     },
 
     setUserId: (state, action) => {
@@ -147,7 +172,6 @@ const tourReservationSlice = createSlice({
     setTourInfo: (state, action) => {
       const { userId, startDate, endDate, numAdults, numChildren, numInfants } =
         action.payload;
-
       if (userId !== undefined) state.userId = userId;
       if (startDate !== undefined) state.startDate = startDate;
       if (endDate !== undefined) state.endDate = endDate;
@@ -158,7 +182,6 @@ const tourReservationSlice = createSlice({
 
     setPeopleCount: (state, action) => {
       const { adults, children, infants } = action.payload;
-
       state.numAdults = adults || 1;
       state.numChildren = children || 0;
       state.numInfants = infants || 0;
@@ -167,9 +190,8 @@ const tourReservationSlice = createSlice({
     selectHotel: (state, action) => {
       const { day, hotel } = action.payload;
       const dayKey = String(day);
-
       if (!state.selectedByDay[dayKey]) {
-        state.selectedByDay[dayKey] = { tour_guide: true, activities: [] };
+        state.selectedByDay[dayKey] = { activities: [] };
       }
       state.selectedByDay[dayKey].hotel = hotel;
     },
@@ -177,9 +199,8 @@ const tourReservationSlice = createSlice({
     selectCar: (state, action) => {
       const { day, car } = action.payload;
       const dayKey = String(day);
-
       if (!state.selectedByDay[dayKey]) {
-        state.selectedByDay[dayKey] = { tour_guide: true, activities: [] };
+        state.selectedByDay[dayKey] = { activities: [] };
       }
       state.selectedByDay[dayKey].car = car;
     },
@@ -187,9 +208,8 @@ const tourReservationSlice = createSlice({
     selectActivity: (state, action) => {
       const { day, activity } = action.payload;
       const dayKey = String(day);
-
       if (!state.selectedByDay[dayKey]) {
-        state.selectedByDay[dayKey] = { activities: [], tour_guide: true };
+        state.selectedByDay[dayKey] = { activities: [] };
       }
       if (!state.selectedByDay[dayKey].activities) {
         state.selectedByDay[dayKey].activities = [];
@@ -204,28 +224,6 @@ const tourReservationSlice = createSlice({
       } else {
         state.selectedByDay[dayKey].activities[existingIndex] = activity;
       }
-    },
-
-    setTourGuide: (state, action) => {
-      const { day, value } = action.payload;
-      const dayKey = String(day);
-
-      if (!state.selectedByDay[dayKey]) {
-        state.selectedByDay[dayKey] = { activities: [] };
-      }
-      state.selectedByDay[dayKey].tour_guide = value;
-    },
-
-    toggleTourGuide: (state, action) => {
-      const day = action.payload;
-      const dayKey = String(day);
-
-      if (!state.selectedByDay[dayKey]) {
-        state.selectedByDay[dayKey] = { tour_guide: true, activities: [] };
-      }
-
-      state.selectedByDay[dayKey].tour_guide =
-        !state.selectedByDay[dayKey].tour_guide;
     },
 
     removeHotel: (state, action) => {
@@ -245,7 +243,6 @@ const tourReservationSlice = createSlice({
     removeActivity: (state, action) => {
       const { day, activityId } = action.payload;
       const dayKey = String(day);
-
       if (state.selectedByDay[dayKey]?.activities) {
         state.selectedByDay[dayKey].activities = state.selectedByDay[
           dayKey
@@ -261,73 +258,35 @@ const tourReservationSlice = createSlice({
       if (state.tourData) {
         const perAdult = parseFloat(state.tourData.per_adult || 0);
         const perChild = parseFloat(state.tourData.per_child || 0);
-        const numAdults = state.numAdults;
-        const numChildren = state.numChildren;
-
-        const adultsTotal = perAdult * numAdults;
-        const childrenTotal = perChild * numChildren;
-
-        subtotal += adultsTotal + childrenTotal;
+        subtotal += perAdult * state.numAdults + perChild * state.numChildren;
       }
 
-      const sortedDays = Object.keys(state.selectedByDay).sort(
-        (a, b) => parseInt(a) - parseInt(b)
-      );
-
-      sortedDays.forEach((dayKey) => {
+      Object.keys(state.selectedByDay).forEach((dayKey) => {
         const day = state.selectedByDay[dayKey];
-        let dayTotal = 0;
 
         if (day.hotel) {
-          const hotelPrice = parseFloat(
+          subtotal += parseFloat(
             day.hotel.adult_price || day.hotel.price_per_night || 0
           );
-          dayTotal += hotelPrice;
-          subtotal += hotelPrice;
-
-          const hotelName = day.hotel.title || day.hotel.name || "Hotel";
-        } else {
         }
 
         if (day.car) {
-          const carPrice = parseFloat(
-            day.car.price_current || day.car.price || 0
-          );
-          dayTotal += carPrice;
-          subtotal += carPrice;
-
-          const carName = day.car.title || day.car.name || "Car";
-        } else {
+          subtotal += parseFloat(day.car.price_current || day.car.price || 0);
         }
 
-        if (
-          day.activities &&
-          Array.isArray(day.activities) &&
-          day.activities.length > 0
-        ) {
-          day.activities.forEach((activity, index) => {
-            const activityPrice = parseFloat(
+        if (day.activities?.length > 0) {
+          day.activities.forEach((activity) => {
+            subtotal += parseFloat(
               activity.price_current || activity.price || 0
             );
-            dayTotal += activityPrice;
-            subtotal += activityPrice;
-
-            const activityName = activity.title || activity.name || "Activity";
           });
         }
       });
 
-      const roundedSubtotal = Math.round(subtotal * 100) / 100;
-      state.subtotalAmount = roundedSubtotal;
+      state.subtotalAmount = Math.round(subtotal * 100) / 100;
 
-      const discountPercentage = state.discountPercentage || 0;
-      const discountAmount = (subtotal * discountPercentage) / 100;
-      const roundedDiscount = Math.round(discountAmount * 100) / 100;
-
-      const total = subtotal - discountAmount;
-      const roundedTotal = Math.round(total * 100) / 100;
-
-      state.totalAmount = roundedTotal;
+      const discountAmount = (subtotal * (state.discountPercentage || 0)) / 100;
+      state.totalAmount = Math.round((subtotal - discountAmount) * 100) / 100;
     },
 
     setTotalAmount: (state, action) => {
@@ -355,22 +314,16 @@ export const {
   selectHotel,
   selectCar,
   selectActivity,
-  setTourGuide,
   toggleTourGuide,
-  initializeTourGuides,
   removeHotel,
   removeCar,
   removeActivity,
   calculateTotal,
   setTotalAmount,
   resetReservation,
-  initializeActivitiesFromDays,
+  initializeTourGuide,
+  initializeActivities,
 } = tourReservationSlice.actions;
-
-export const selectTourGuideForDay = (state, day) => {
-  const dayKey = String(day);
-  return state.tourReservation.selectedByDay[dayKey]?.tour_guide ?? true;
-};
 
 export const selectPriceDetails = (state) => {
   const { subtotalAmount, discountPercentage, totalAmount } =
@@ -404,46 +357,43 @@ export const formatReservationForAPI = (state) => {
 
   const formatActivities = () => {
     const allActivities = [];
-
-    const sortedDays = Object.entries(state.selectedByDay).sort(
-      ([a], [b]) => parseInt(a) - parseInt(b)
-    );
-
-    sortedDays.forEach(([day, data]) => {
-      if (data.activities?.length > 0) {
-        data.activities.forEach((activity) => {
-          const activityId = activity.id || activity.activity_id;
-          if (activityId) {
-            allActivities.push(`${day}**${activityId}`);
-          }
-        });
-      }
-    });
-
+    Object.entries(state.selectedByDay)
+      .sort(([a], [b]) => parseInt(a) - parseInt(b))
+      .forEach(([day, data]) => {
+        if (data.activities?.length > 0) {
+          data.activities.forEach((activity) => {
+            const activityId = activity.id || activity.activity_id;
+            if (activityId) {
+              allActivities.push(`${day}**${activityId}`);
+            }
+          });
+        }
+      });
     return allActivities.join("**day**");
   };
 
   const formatTourGuide = () => {
-    const numberOfDays =
-      state.tourData?.itinerary?.length ||
-      state.tourData?.days?.length ||
-      Object.keys(state.selectedByDay).length;
+    // ✅ تأكد إن الـ object موجود
+    if (
+      !state.tourGuideByDay ||
+      Object.keys(state.tourGuideByDay).length === 0
+    ) {
+      return "";
+    }
 
     const tourGuideData = [];
 
-    for (let i = 1; i <= numberOfDays; i++) {
-      const dayKey = String(i);
-      const hasTourGuide =
-        state.selectedByDay[dayKey]?.tour_guide !== false ? 1 : 0;
-      tourGuideData.push(`${i}**${hasTourGuide}`);
-    }
+    Object.entries(state.tourGuideByDay)
+      .sort(([a], [b]) => parseInt(a) - parseInt(b))
+      .forEach(([dayKey, data]) => {
+        const value = data.isAvailable && data.isSelected ? 1 : 0;
+        tourGuideData.push(`${dayKey}**${value}`);
+      });
 
-    const result = tourGuideData.join("**day**");
-
-    return result;
+    return tourGuideData.join("**day**");
   };
 
-  const result = {
+  return {
     tour_id: state.tourId?.toString(),
     user_id: state.userId?.toString(),
     num_adults: state.numAdults?.toString(),
@@ -456,8 +406,6 @@ export const formatReservationForAPI = (state) => {
     start_date: state.startDate,
     end_date: state.endDate,
   };
-
-  return result;
 };
 
 export default tourReservationSlice.reducer;

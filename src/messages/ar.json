@@ -115,7 +115,9 @@
     "capacity": "السعة",
     "showMore": "عرض المزيد",
     "showLess": "عرض أقل",
-    "more": "أكثر"
+    "more": "أكثر",
+    "guide_not_available": "Guide Not Available",
+    "driver_not_available": "Driver Not Available"
   },
   "packageSummary": {
     "warning": "تحذير : يحتوي هذا البرنامج على أيام بدون مرشد سياحي. المسافر مسؤول عن القيادة والتنقل. يرجى التأكد من قدرتك على التعامل مع هذه المسؤوليات قبل الحجز.",

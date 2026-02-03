@@ -6,6 +6,7 @@ const initialState = {
   toasts: [],
   permission: "default",
   error: null,
+  notificationsEnabled: true, // User preference for notifications
 };
 
 const notificationSlice = createSlice({
@@ -53,6 +54,16 @@ const notificationSlice = createSlice({
         localStorage.removeItem("fcm_token");
       }
     },
+    setNotificationsEnabled: (state, action) => {
+      state.notificationsEnabled = action.payload;
+      // Save to localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "notifications_enabled",
+          JSON.stringify(action.payload)
+        );
+      }
+    },
   },
 });
 
@@ -66,6 +77,7 @@ export const {
   removeToast,
   setError,
   clearToken,
+  setNotificationsEnabled,
 } = notificationSlice.actions;
 
 export default notificationSlice.reducer;

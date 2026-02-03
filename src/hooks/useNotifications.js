@@ -12,7 +12,7 @@ export default function useNotifications() {
     try {
       setLoading(true);
       const response = await fetch(
-        `${base_url}/admin/notifications/select_notifications.php`,
+        `${base_url}/user/notifications/select_notifications.php`,
         {
           method: "POST",
           headers: {
@@ -30,6 +30,7 @@ export default function useNotifications() {
           id: parseInt(notif.id),
           message: notif.notification_body,
           time: notif.time,
+          date: notif.date,
           isRead: notif.notification_seen === "1",
         }));
         setNotifications(transformedNotifications);

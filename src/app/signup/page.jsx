@@ -384,7 +384,7 @@ const Signup = () => {
         toast.success("Account created successfully!");
         setShowOtpModal(false);
         // Redirect to login
-        window.location.href = "/login";
+        router.push("/login");
       } else {
         toast.error(response.data.message || "Signup failed");
       }

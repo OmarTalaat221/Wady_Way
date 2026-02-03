@@ -1,5 +1,5 @@
 "use client";
-import { Button, Input, Modal, message, Spin, Progress } from "antd";
+import { Button, Input, Modal, message, Spin, Progress, Switch } from "antd";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import {
@@ -19,15 +19,23 @@ import {
   FaPassport,
   FaCar,
   FaUpload,
+  FaBell,
 } from "react-icons/fa";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
-import './style.css'
+import "./style.css";
+import { useDispatch, useSelector } from "react-redux";
+import { setNotificationsEnabled } from "../../../lib/redux/slices/notificationSlice";
+import { useNotification } from "../../../hooks/useNotification";
+import toast from "react-hot-toast";
 
 const base_url = "https://camp-coding.tech/wady-way";
 const API_BASE_URL = `${base_url}/user/auth`;
 
 export default function ProfilePage() {
+  const dispatch = useDispatch();
+  const { notificationsEnabled, requestPermission } = useNotification();
+
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -74,7 +82,7 @@ export default function ProfilePage() {
       // Get user_id from localStorage
       const user = localStorage.getItem("user");
       if (!user) {
-        message.error("Please login first");
+        toast.error("Please login first");
         return;
       }
 
@@ -105,11 +113,11 @@ export default function ProfilePage() {
         setProfileData(formattedData);
         setEditData(formattedData);
       } else {
-        message.error("Failed to load profile data");
+        toast.error("Failed to load profile data");
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-      message.error("Error loading profile. Please try again.");
+      toast.error("Error loading profile. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -195,7 +203,7 @@ export default function ProfilePage() {
       if (response.data.status === "success") {
         setProfileData(editData);
         setIsEditing(false);
-        message.success("Profile updated successfully!");
+        toast.success("Profile updated successfully!");
 
         // Update localStorage
         const user = JSON.parse(localStorage.getItem("user"));
@@ -210,11 +218,11 @@ export default function ProfilePage() {
         };
         localStorage.setItem("user", JSON.stringify(updatedUser));
       } else {
-        message.error(response.data.message || "Failed to update profile");
+        toast.error(response.data.message || "Failed to update profile");
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      message.error("Failed to update profile. Please try again.");
+      toast.error("Failed to update profile. Please try again.");
     } finally {
       setUpdating(false);
     }
@@ -222,11 +230,11 @@ export default function ProfilePage() {
 
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      message.error("New passwords do not match!");
+      toast.error("New passwords do not match!");
       return;
     }
     if (passwordData.newPassword.length < 6) {
-      message.error("Password must be at least 6 characters long!");
+      toast.error("Password must be at least 6 characters long!");
       return;
     }
 
@@ -238,14 +246,25 @@ export default function ProfilePage() {
       });
 
       if (response.data.status === "success") {
-        message.success("Password changed successfully!");
+        toast.success("Password changed successfully!");
         closePasswordModal();
       } else {
-        message.error(response.data.message || "Failed to change password");
+        toast.error(response.data.message || "Failed to change password");
       }
     } catch (error) {
       console.error("Error changing password:", error);
-      message.error("Error changing password. Please try again.");
+      toast.error("Error changing password. Please try again.");
+    }
+  };
+
+  const handleNotificationToggle = async (checked) => {
+    dispatch(setNotificationsEnabled(checked));
+
+    if (checked) {
+      // If enabling notifications, request permission
+      await requestPermission();
+    } else {
+      toast.info("Notifications disabled");
     }
   };
 
@@ -253,29 +272,29 @@ export default function ProfilePage() {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        message.error("File size must be less than 5MB");
+        toast.error("File size must be less than 5MB");
         return;
       }
 
       if (!file.type.startsWith("image/")) {
-        message.error("Please upload an image file");
+        toast.error("Please upload an image file");
         return;
       }
 
       try {
         setUploadingImage(true);
-        message.loading({ content: "Uploading image...", key: "upload" });
+        toast.loading({ content: "Uploading image...", key: "upload" });
 
         const imageUrl = await uploadFile(file, "avatar");
         setEditData({ ...editData, avatar: imageUrl });
 
-        message.success({
+        toast.success({
           content: "Image uploaded successfully!",
           key: "upload",
         });
       } catch (error) {
         console.error("Error uploading image:", error);
-        message.error({ content: "Failed to upload image", key: "upload" });
+        toast.error({ content: "Failed to upload image", key: "upload" });
       } finally {
         setUploadingImage(false);
         setUploadProgress((prev) => ({ ...prev, avatar: 0 }));
@@ -288,17 +307,17 @@ export default function ProfilePage() {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        message.error("File size must be less than 5MB");
+        toast.error("File size must be less than 5MB");
         return;
       }
 
       if (!file.type.startsWith("image/")) {
-        message.error("Please upload an image file");
+        toast.error("Please upload an image file");
         return;
       }
 
       try {
-        message.loading({
+        toast.loading({
           content: `Uploading ${documentType}...`,
           key: documentType,
         });
@@ -306,13 +325,13 @@ export default function ProfilePage() {
         const documentUrl = await uploadFile(file, documentType);
         setEditData({ ...editData, [documentType]: documentUrl });
 
-        message.success({
+        toast.success({
           content: `${documentType} uploaded successfully!`,
           key: documentType,
         });
       } catch (error) {
         console.error(`Error uploading ${documentType}:`, error);
-        message.error({
+        toast.error({
           content: `Failed to upload ${documentType}`,
           key: documentType,
         });
@@ -604,6 +623,71 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
+                  {/* Notification Settings Card */}
+                  <div className="relative overflow-hidden bg-white rounded-3xl border border-slate-200 hover:border-slate-300 transition-all shadow-sm hover:shadow-lg">
+                    <div
+                      className="absolute top-0 left-0 w-full h-1"
+                      style={{ backgroundColor: "#295557" }}
+                    ></div>
+                    <div className="p-8">
+                      <div className="flex items-center gap-6">
+                        <div className="relative">
+                          <div
+                            className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
+                            style={{ backgroundColor: "#295557" }}
+                          >
+                            <FaBell className="text-white text-xl" />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-slate-800 mb-1">
+                            Push Notifications
+                          </h3>
+                          <p className="text-slate-500 text-sm mb-4">
+                            Receive updates and alerts on your device
+                          </p>
+                          {!isEditing ? (
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-12 h-6 rounded-full transition-colors ${
+                                  notificationsEnabled
+                                    ? "bg-[#295557]"
+                                    : "bg-gray-300"
+                                }`}
+                              >
+                                <div
+                                  className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${
+                                    notificationsEnabled
+                                      ? "translate-x-6"
+                                      : "translate-x-0.5"
+                                  } mt-0.5`}
+                                ></div>
+                              </div>
+                              <span className="text-sm font-medium text-slate-700">
+                                {notificationsEnabled ? "Enabled" : "Disabled"}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <Switch
+                                checked={notificationsEnabled}
+                                onChange={handleNotificationToggle}
+                                style={{
+                                  backgroundColor: notificationsEnabled
+                                    ? "#295557"
+                                    : undefined,
+                                }}
+                              />
+                              <span className="text-sm font-medium text-slate-700">
+                                {notificationsEnabled ? "Enabled" : "Disabled"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Documents Section - Side by Side */}
                   {(profileData.driving_license || profileData.passport) && (
                     <div className="space-y-6">
@@ -854,9 +938,7 @@ export default function ProfilePage() {
       </div>
 
       {/* CSS for Animated Border and Phone Input Customization */}
-      <style jsx global>{`
-       
-      `}</style>
+      <style jsx global>{``}</style>
     </div>
   );
 }

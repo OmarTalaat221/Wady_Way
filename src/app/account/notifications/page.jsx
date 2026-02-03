@@ -1,3 +1,4 @@
+// Notifications.jsx (Main Component)
 "use client";
 
 import React from "react";
@@ -19,16 +20,27 @@ const Notifications = () => {
 
   if (loading) {
     return (
-      <div className="w-full pt-4">
-        <div className="flex items-center justify-center py-12">
-          <div className="text-gray-500">Loading notifications...</div>
+      <div className="notifications-page">
+        <NotificationHeader markAllAsRead={markAllAsRead} hasUnread={false} />
+        <div className="notifications-container">
+          {/* Skeleton Loading */}
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="notification-skeleton">
+              <div className="skeleton-content">
+                <div className="skeleton-text"></div>
+                <div className="skeleton-text short"></div>
+                <div className="skeleton-time"></div>
+              </div>
+              <div className="skeleton-action"></div>
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full pt-4">
+    <div className="notifications-page">
       {/* Header */}
       <NotificationHeader
         markAllAsRead={markAllAsRead}
