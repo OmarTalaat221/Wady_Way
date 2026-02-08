@@ -29,15 +29,10 @@ import { LiaLanguageSolid } from "react-icons/lia";
 import "react-datepicker/dist/react-datepicker.css";
 import Newslatter from "@/components/common/Newslatter";
 import { Dropdown, Collapse } from "antd";
-import Footer from "@/components/footer/Footer";
-import Header from "@/components/header/Header";
-import Topbar from "@/components/topbar/Topbar";
-import Calendar from "react-calendar";
+
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, EffectFade, Autoplay } from "swiper/modules";
-import Link from "../../../components/link";
-import LeftSummary from "../../package/package-details/[packageId]/package-summary/_components/left_summary";
 import DayDetails from "./_components/DayDetails";
 import SelfDeriveModal from "./_components/SelfDriveModal/SelfDeriveModal";
 
@@ -85,17 +80,16 @@ const ProfileTravelDetailsClient = ({ lang }) => {
 
   const customExpandIcon =
     (fontSize = "16px") =>
-    ({ isActive }) =>
-      (
-        <BsFillCaretRightFill
-          style={{
-            color: "#cd533b",
-            fontSize: fontSize,
-            transition: "transform 0.3s",
-            transform: isActive ? "rotate(90deg)" : "rotate(0deg)",
-          }}
-        />
-      );
+    ({ isActive }) => (
+      <BsFillCaretRightFill
+        style={{
+          color: "#cd533b",
+          fontSize: fontSize,
+          transition: "transform 0.3s",
+          transform: isActive ? "rotate(90deg)" : "rotate(0deg)",
+        }}
+      />
+    );
   const prevRef = useRef(null);
   const nextRef = useRef(null);
 

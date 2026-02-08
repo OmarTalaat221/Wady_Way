@@ -25,6 +25,8 @@ import PackageInfo from "./PackageInfo";
 import IncludedExcluded from "./IncludedExcluded";
 import TourHighlights from "./TourHighlights";
 import ItineraryDay from "./ItineraryDay";
+import TourMapWrapper from "./TourMapWrapper";
+import "./style.css";
 
 const GallerySection = dynamic(() => import("./GallerySection"), {
   loading: () => (
@@ -673,18 +675,31 @@ const PackageDetailsClient = () => {
               </div>
 
               <div className="tour-location">
-                <h4>{t("locationMap")}</h4>
-                <div className="map-area mb-30">
-                  <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d193325.0481540361!2d-74.06757856146028!3d40.79052383652264!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c24fa5d33f083b%3A0xc80b8f06e177fe62!2sNew%20York%2C%20NY%2C%20USA!5e0!3m2!1sen!2sbd!4v1660366711448!5m2!1sen!2sbd"
-                    width={600}
-                    height={450}
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
-                </div>
+                <h4
+                  className="mb-4"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    color: "#333",
+                  }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="#295557"
+                  >
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                  </svg>
+                  {t("locationMap")}
+                </h4>
+
+                <TourMapWrapper
+                  itinerary={tourData?.itinerary || []}
+                  height="450px"
+                  className="mb-30"
+                />
               </div>
 
               <Suspense

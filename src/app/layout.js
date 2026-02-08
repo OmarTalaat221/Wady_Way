@@ -34,6 +34,7 @@ import QueryProvider from "../uitils/QueryProvider";
 import MobileHeader from "../components/mobileHeader/MobileHeader";
 import NotificationHandler from "../components/notifications/NotificationHandler";
 import ToastContainer from "../components/notifications/ToastContainer";
+import "leaflet/dist/leaflet.css";
 
 export default async function RootLayout({ children }) {
   const locale = await getLocale();
