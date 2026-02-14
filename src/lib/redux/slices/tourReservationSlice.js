@@ -338,7 +338,7 @@ export const selectPriceDetails = (state) => {
   };
 };
 
-export const formatReservationForAPI = (state) => {
+export const formatReservationForAPI = (state, inviteCode = "") => {
   const formatDayData = (key) => {
     return Object.entries(state.selectedByDay)
       .sort(([a], [b]) => parseInt(a) - parseInt(b))
@@ -405,6 +405,7 @@ export const formatReservationForAPI = (state) => {
     day_tour_guide: formatTourGuide(),
     start_date: state.startDate,
     end_date: state.endDate,
+    invite_code: inviteCode,
   };
 };
 

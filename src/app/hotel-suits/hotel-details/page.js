@@ -11,7 +11,11 @@ import axios from "axios";
 import { base_url } from "../../../uitils/base_url";
 import { message } from "antd";
 import moment from "moment";
+import { FaTicket } from "react-icons/fa6";
+
 import ReviewModal from "../../../components/reviews/ReviewModal";
+import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
+import InvitationCodeModal from "@/components/modals/InvitationCodeModal";
 
 const Page = () => {
   // Initialize with proper dates
@@ -103,6 +107,18 @@ const Page = () => {
 
   const searchParams = useSearchParams();
   const hotelID = searchParams.get("hotel");
+
+  const {
+    inviteCode,
+    hasStoredCode,
+    isLoading: inviteCodeLoading,
+    setManualInviteCode,
+    clearCurrentInviteCode,
+  } = useInviteCode(INVITE_CODE_TYPES.HOTEL, hotelID);
+
+  // Add invitation modal states
+  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
+  const [invitationLoading, setInvitationLoading] = useState(false);
 
   // Modal handler functions
   const openConfirmModal = () => setIsConfirmModalOpen(true);
@@ -265,7 +281,6 @@ const Page = () => {
     setDateRange(update);
   };
 
-  // Handle booking with improved validation - now opens confirmation modal
   const handleBooking = async (e) => {
     e.preventDefault();
 
@@ -314,8 +329,24 @@ const Page = () => {
       return;
     }
 
-    // If validation passes, open confirmation modal
-    openConfirmModal();
+    // ✅ Check if invite code exists - skip modal if yes
+    if (hasStoredCode && inviteCode) {
+      openConfirmModal();
+    } else {
+      // No invite code, open invitation modal
+      openConfirmModal();
+      // setIsInvitationModalOpen(true);
+    }
+  };
+
+  const handleInvitationSubmit = (code) => {
+    setInvitationLoading(true);
+    setTimeout(() => {
+      setManualInviteCode(code);
+      setInvitationLoading(false);
+      setIsInvitationModalOpen(false);
+      openConfirmModal();
+    }, 600);
   };
 
   // Handle the actual booking confirmation
@@ -337,6 +368,7 @@ const Page = () => {
         adults: adults,
         children: children,
         days: totalDays,
+        invite_code: inviteCode || "",
       };
 
       console.log("Booking data being sent:", bookingData);
@@ -356,6 +388,8 @@ const Page = () => {
       if (response.data.success === "success") {
         setBookingSuccess(true);
         setBookingError(null);
+
+        clearCurrentInviteCode();
 
         // Reset form to initial state
         setTimeout(() => {
@@ -409,7 +443,7 @@ const Page = () => {
   const imageCount = images.length;
 
   // Loading state
-  if (loading) {
+  if (loading || inviteCodeLoading) {
     return (
       <>
         <Breadcrumb pagename="Hotel Details" pagetitle="Hotel Details" />
@@ -648,7 +682,7 @@ const Page = () => {
                     - <a href="#map-section">See Map</a>
                   </p>
                 </div> */}
-                <div className="review-area">
+                {/* <div className="review-area">
                   <ul>
                     {[...Array(5)].map((_, i) => (
                       <li key={i}>
@@ -660,7 +694,7 @@ const Page = () => {
                     <strong>{hotelData?.rating || "8.1"} Excellent</strong>{" "}
                     {hotelData?.review_count || "94"} reviews
                   </span>
-                </div>
+                </div> */}
               </div>
 
               <h2>{hotelData?.name || "Golden Tulip The Grandmark Dhaka"}</h2>
@@ -1431,6 +1465,16 @@ const Page = () => {
           </div>
         </div>
       )}
+
+      {/* <InvitationCodeModal
+        open={isInvitationModalOpen}
+        onClose={() => {
+          setIsInvitationModalOpen(false);
+          setInvitationLoading(false);
+        }}
+        onSubmit={handleInvitationSubmit}
+        loading={invitationLoading}
+      /> */}
 
       <ReviewModal
         open={isReviewModalOpen}

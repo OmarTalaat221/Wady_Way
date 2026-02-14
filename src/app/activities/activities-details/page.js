@@ -12,6 +12,9 @@ import { base_url } from "../../../uitils/base_url";
 import { useSearchParams } from "next/navigation";
 import ReviewModal from "@/components/reviews/ReviewModal";
 import toast from "react-hot-toast";
+import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
+// import InvitationCodeModal from "@/components/modals/InvitationCodeModal";
+import { FaTicket } from "react-icons/fa6";
 
 const Page = () => {
   const [isOpenModalVideo, setOpenModalVideo] = useState(false);
@@ -46,6 +49,19 @@ const Page = () => {
 
   const searchParams = useSearchParams();
   const activityId = searchParams.get("id");
+
+  // Add the invite code hook
+  const {
+    inviteCode,
+    hasStoredCode,
+    isLoading: inviteCodeLoading,
+    setManualInviteCode,
+    clearCurrentInviteCode, // ✅ للحذف بعد الحجز الناجح
+  } = useInviteCode(INVITE_CODE_TYPES.ACTIVITY, activityId);
+
+  // Add invitation modal states
+  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
+  const [invitationLoading, setInvitationLoading] = useState(false);
 
   // Extract YouTube Video ID
   const extractYouTubeVideoId = (url) => {
@@ -219,7 +235,22 @@ const Page = () => {
       return;
     }
 
-    setIsConfirmModalOpen(true);
+    // ✅ Check if invite code exists - skip modal if yes
+    if (hasStoredCode && inviteCode) {
+      setIsConfirmModalOpen(true);
+    } else {
+      setIsConfirmModalOpen(true);
+    }
+  };
+
+  const handleInvitationSubmit = (code) => {
+    setInvitationLoading(true);
+    setTimeout(() => {
+      setManualInviteCode(code);
+      setInvitationLoading(false);
+      setIsInvitationModalOpen(false);
+      setIsConfirmModalOpen(true);
+    }, 600);
   };
 
   // Handle actual booking submission
@@ -231,7 +262,6 @@ const Page = () => {
     setBookingSuccess(false);
 
     try {
-      // Get user ID
       const userData = localStorage.getItem("user");
       const user = JSON.parse(userData);
       const userId = user.user_id || user.id;
@@ -244,7 +274,10 @@ const Page = () => {
         additional_activities: null,
         total_amount: parseFloat(calculateTotalPrice()),
         date: selectedDate,
+        invite_code: inviteCode || "", // ✅ ADD THIS LINE
       };
+
+      console.log("📤 Booking with invite code:", inviteCode);
 
       const response = await fetch(
         `${base_url}/user/activities/reserve_activity.php`,
@@ -260,6 +293,10 @@ const Page = () => {
       const result = await response.json();
 
       if (result.status === "success") {
+        // ✅ حذف الكود من localStorage بعد النجاح
+        clearCurrentInviteCode();
+        console.log("🗑️ Invite code cleared after successful booking");
+
         setBookingSuccess(true);
       } else {
         setBookingError(result.message || "Booking failed. Please try again.");
@@ -274,7 +311,6 @@ const Page = () => {
       setBookingLoading(false);
     }
   };
-
   // Close confirmation modal
   const closeConfirmModal = () => {
     setIsConfirmModalOpen(false);
@@ -323,7 +359,7 @@ const Page = () => {
   );
 
   // Loading state
-  if (loading) {
+  if (loading || inviteCodeLoading) {
     return (
       <>
         <Breadcrumb

@@ -26,6 +26,7 @@ import IncludedExcluded from "./IncludedExcluded";
 import TourHighlights from "./TourHighlights";
 import ItineraryDay from "./ItineraryDay";
 import TourMapWrapper from "./TourMapWrapper";
+import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 import "./style.css";
 
 const GallerySection = dynamic(() => import("./GallerySection"), {
@@ -48,6 +49,7 @@ const Modals = dynamic(() => import("./Modals"), { ssr: false });
 
 const PackageDetailsClient = () => {
   const { packageId } = useParams();
+
   const t = useTranslations("packageDetails");
   const locale = useLocale();
   const dispatch = useDispatch();
@@ -78,6 +80,12 @@ const PackageDetailsClient = () => {
     transfers: [],
     activities: [],
   });
+
+  const {
+    inviteCode,
+    hasStoredCode,
+    isLoading: inviteCodeLoading,
+  } = useInviteCode(INVITE_CODE_TYPES.TOUR, packageId);
 
   const today = new Date();
   const oneDayLater = new Date(today);
@@ -739,6 +747,8 @@ const PackageDetailsClient = () => {
                   packageId={packageId}
                   tourData={transformedData}
                   selectedTours={selectedTours}
+                  inviteCode={inviteCode}
+                  hasInviteCode={hasStoredCode}
                 />
               </Suspense>
             </div>

@@ -30,6 +30,7 @@ const BookingSidebar = ({
   packageId,
   tourData,
   selectedTours,
+  inviteCode,
 }) => {
   const locale = useLocale();
   const t = useTranslations("bookingSidebar");
