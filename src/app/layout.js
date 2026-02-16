@@ -44,6 +44,13 @@ export default async function RootLayout({ children }) {
 
   return (
     <html lang={locale} dir={dir}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link
+          rel="icon"
+          href="https://res.cloudinary.com/dkc5klynm/image/upload/v1769242456/W_eaaxsn.png"
+        />
+      </head>
       <body className="min-h-screen">
         <QueryProvider>
           <StoreProvider>
