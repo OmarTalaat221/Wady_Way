@@ -45,6 +45,9 @@ const AccommodationCard = ({
   const isSelected = activeAccommodations[index]?.id === item.id;
   const canFlip = totalTravelers >= 3 && isSelected;
 
+  // استخراج الـ amenities من البيانات الأصلية
+  const amenities = item.amenities || item.originalData?.amenities || [];
+
   return (
     <div
       key={item.id}
@@ -95,59 +98,85 @@ const AccommodationCard = ({
               {item.name?.[locale] || item.name?.en || "Accommodation"}
             </h3>
 
+            {/* عرض الـ Amenities من الـ API */}
             <div className="gap-3 mb-3 transfer_feat_cont">
-              <div className="d-flex align-items-center gap-2 transfer_in">
-                <FaHotel />
-                <div className="d-flex flex-column transfer_cont">
-                  <div className="fw-bold">{t("category")}</div>
+              {amenities.length > 0 ? (
+                amenities.slice(0, 4).map((amenity, idx) => (
                   <div
-                    className="transfer_info"
-                    title={item.category?.[locale] || item.category?.en}
+                    key={amenity.amenity_id || idx}
+                    className="d-flex align-items-center gap-2 transfer_in"
                   >
-                    {item.category?.[locale] || item.category?.en || "Hotel"}
+                    <div
+                      className="amenity-icon"
+                      dangerouslySetInnerHTML={{ __html: amenity.icon }}
+                    />
+                    <div className="d-flex flex-column transfer_cont">
+                      <div className="fw-bold">{amenity.label}</div>
+                      <div className="transfer_info" title={amenity.name}>
+                        {amenity.name}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                ))
+              ) : (
+                // Fallback للبيانات القديمة
+                <>
+                  <div className="d-flex align-items-center gap-2 transfer_in">
+                    <FaHotel />
+                    <div className="d-flex flex-column transfer_cont">
+                      <div className="fw-bold">{t("category")}</div>
+                      <div
+                        className="transfer_info"
+                        title={item.category?.[locale] || item.category?.en}
+                      >
+                        {item.category?.[locale] ||
+                          item.category?.en ||
+                          "Hotel"}
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="d-flex align-items-center gap-2 transfer_in">
-                <FaClock />
-                <div className="d-flex flex-column transfer_cont">
-                  <div className="fw-bold">{t("checkIn")}</div>
-                  <div className="transfer_info" title={item.check_in_out}>
-                    {item.check_in_out || "15:00 / 11:00"}
+                  <div className="d-flex align-items-center gap-2 transfer_in">
+                    <FaClock />
+                    <div className="d-flex flex-column transfer_cont">
+                      <div className="fw-bold">{t("checkIn")}</div>
+                      <div className="transfer_info" title={item.check_in_out}>
+                        {item.check_in_out || "15:00 / 11:00"}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="d-flex align-items-center gap-2 transfer_in">
-                <FaLocationDot />
-                <div className="d-flex flex-column transfer_cont">
-                  <div className="fw-bold">{t("location")}</div>
-                  <div
-                    className="transfer_info"
-                    title={item.location?.[locale] || item.location?.en}
-                  >
-                    {item.location?.[locale] ||
-                      item.location?.en ||
-                      "City center"}
+                  <div className="d-flex align-items-center gap-2 transfer_in">
+                    <FaLocationDot />
+                    <div className="d-flex flex-column transfer_cont">
+                      <div className="fw-bold">{t("location")}</div>
+                      <div
+                        className="transfer_info"
+                        title={item.location?.[locale] || item.location?.en}
+                      >
+                        {item.location?.[locale] ||
+                          item.location?.en ||
+                          "City center"}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="d-flex align-items-center gap-2 transfer_in">
-                <FaSquareParking />
-                <div className="d-flex flex-column transfer_cont">
-                  <div className="fw-bold">{t("parking")}</div>
-                  <div
-                    className="transfer_info"
-                    title={item.parking?.[locale] || item.parking?.en}
-                  >
-                    {item.parking?.[locale] ||
-                      item.parking?.en ||
-                      t("notAvailable")}
+                  <div className="d-flex align-items-center gap-2 transfer_in">
+                    <FaSquareParking />
+                    <div className="d-flex flex-column transfer_cont">
+                      <div className="fw-bold">{t("parking")}</div>
+                      <div
+                        className="transfer_info"
+                        title={item.parking?.[locale] || item.parking?.en}
+                      >
+                        {item.parking?.[locale] ||
+                          item.parking?.en ||
+                          t("notAvailable")}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
 
             <div className="card-footer">
@@ -155,10 +184,10 @@ const AccommodationCard = ({
                 {isSelected
                   ? t("selected")
                   : priceDifference !== 0
-                  ? `${priceDifference > 0 ? "+" : ""}${priceDifference} USD`
-                  : priceDifference === 0
-                  ? t("samePrice")
-                  : `+${item.price_per_night || 0} USD`}
+                    ? `${priceDifference > 0 ? "+" : ""}${priceDifference} USD`
+                    : priceDifference === 0
+                      ? t("samePrice")
+                      : `+${item.price_per_night || 0} USD`}
               </span>
               <div className={`custom-radio ${isSelected ? "selected" : ""}`}>
                 <div className="radio-circle"></div>

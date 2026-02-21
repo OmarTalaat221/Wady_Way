@@ -24,6 +24,7 @@ const Page = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [allFeatures, setAllFeatures] = useState([]);
+
   const [userId, setUserId] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -38,6 +39,7 @@ const Page = () => {
     }
     return null;
   });
+
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -80,7 +82,6 @@ const Page = () => {
 
   const [searchText, setSearchText] = useState("");
 
-  // Replace minPrice and maxPrice state with:
   const [selectedPriceRanges, setSelectedPriceRanges] = useState(() => {
     const minPriceParam = searchParams.get("price_min");
     const maxPriceParam = searchParams.get("price_max");
@@ -112,12 +113,11 @@ const Page = () => {
 
   const [carTypes, setCarTypes] = useState([]);
 
-  // Add after other state declarations
   const [sortBy, setSortBy] = useState(() => {
     return searchParams.get("sort") || "";
   });
 
-  // ✅ Sort options from API
+  // ✅ Sort options
   const SORT_OPTIONS = [
     { value: "", label: "Default" },
     { value: "price_low", label: "Price: Low to High" },
@@ -133,6 +133,25 @@ const Page = () => {
     { id: "100to200", label: "$100 - $200/day", min: 100, max: 200 },
     { id: "over200", label: "$200+/day", min: 200, max: 10000 },
   ];
+
+  // ✅ Clean Icon Function
+  const cleanIcon = useCallback((icon) => {
+    if (!icon) return "";
+    let result = icon;
+    let prevResult = "";
+    while (prevResult !== result) {
+      prevResult = result;
+      result = result
+        .replace(/\\\\/g, "TEMP_BACKSLASH")
+        .replace(/\\"/g, '"')
+        .replace(/TEMP_BACKSLASH/g, "")
+        .replace(/\\n/g, "")
+        .replace(/\\r/g, "")
+        .replace(/\\t/g, "");
+    }
+    result = result.replace(/\\/g, "");
+    return result.trim();
+  }, []);
 
   // ✅ Prevent body scroll when mobile sidebar is open
   useEffect(() => {
@@ -180,14 +199,12 @@ const Page = () => {
         params.set("sort", sort);
       }
 
-      // ✅ Build URL manually for price to avoid encoding
       let baseURL = params.toString()
         ? `${pathname}?${params.toString()}`
         : pathname;
 
       const additionalParams = [];
 
-      // ✅ Handle multiple price ranges - without encoding
       if (priceRanges && priceRanges.length > 0) {
         const minPrices = priceRanges.map((r) => r.min).join(",");
         const maxPrices = priceRanges.map((r) => r.max).join(",");
@@ -195,7 +212,6 @@ const Page = () => {
         additionalParams.push(`price_max=${maxPrices}`);
       }
 
-      // ✅ Combine URL
       let finalURL = baseURL;
       if (additionalParams.length > 0) {
         const separator = baseURL.includes("?") ? "&" : "?";
@@ -219,6 +235,7 @@ const Page = () => {
       sortBy,
     ]
   );
+
   useEffect(() => {
     if (isUpdatingURL.current) return;
 
@@ -240,7 +257,6 @@ const Page = () => {
       : [];
     const newSort = sortParam || "";
 
-    // ✅ Parse price ranges
     let newPriceRanges = [];
     if (minPriceParam && maxPriceParam) {
       const mins = minPriceParam.split(",").map(Number);
@@ -331,10 +347,8 @@ const Page = () => {
         params.set("sort", sortBy);
       }
 
-      // ✅ Build API URL manually for price
       let apiUrl = `${base_url}/user/cars/select_car.php?${params.toString()}`;
 
-      // ✅ Handle multiple price ranges - append without encoding
       if (selectedPriceRanges && selectedPriceRanges.length > 0) {
         const minPrices = selectedPriceRanges.map((r) => r.min).join(",");
         const maxPrices = selectedPriceRanges.map((r) => r.max).join(",");
@@ -350,11 +364,20 @@ const Page = () => {
         setTotalPages(parseInt(data.total_pages) || 1);
         setTotalItems(parseInt(data.total_items) || 0);
 
-        // ✅ Use featurs_sort and type_sort from API response
-        if (data.featurs_sort && Array.isArray(data.featurs_sort)) {
-          setAllFeatures(data.featurs_sort);
+        // ✅ معالجة features_sort - استخراج الأسماء فقط
+        if (data.features_sort && Array.isArray(data.features_sort)) {
+          if (typeof data.features_sort[0] === "string") {
+            setAllFeatures(data.features_sort);
+          } else {
+            setAllFeatures(
+              data.features_sort.map((f) =>
+                typeof f === "string" ? f : f.name || ""
+              )
+            );
+          }
         }
 
+        // ✅ معالجة type_sort
         if (data.type_sort && Array.isArray(data.type_sort)) {
           setCarTypes(data.type_sort);
         }
@@ -374,7 +397,19 @@ const Page = () => {
               ? car.ratings[0].score
               : 4.0),
           reviews: car.review_count || Math.floor(Math.random() * 200) + 50,
-          features: car.features || [],
+          // ✅ معالجة الـ features مع تنظيف الـ icons
+          features: car.features
+            ? car.features.map((f) => {
+                if (typeof f === "string") {
+                  return { id: f, name: f, icon: "" };
+                }
+                return {
+                  id: f.feature_id || f.id || "",
+                  name: f.name || f.feature || "",
+                  icon: cleanIcon(f.icon),
+                };
+              })
+            : [],
           is_fav: car?.is_fav || false,
         }));
 
@@ -404,6 +439,7 @@ const Page = () => {
     selectedCarTypes,
     selectedPriceRanges,
     sortBy,
+    cleanIcon,
   ]);
 
   const fetchFilterOptions = useCallback(async () => {
@@ -425,16 +461,22 @@ const Page = () => {
       if (data.status == "success" && data.message) {
         const allCars = data.message;
 
+        // ✅ معالجة الـ features
         const featuresSet = new Set();
         allCars.forEach((car) => {
           if (car.features && Array.isArray(car.features)) {
             car.features.forEach((feature) => {
-              featuresSet.add(feature);
+              if (typeof feature === "string") {
+                featuresSet.add(feature);
+              } else if (feature && feature.name) {
+                featuresSet.add(feature.name);
+              }
             });
           }
         });
         setAllFeatures(Array.from(featuresSet).sort());
 
+        // ✅ معالجة الـ types
         const typesSet = new Set();
         allCars.forEach((car) => {
           const type = car.car_type || car.type;
@@ -513,6 +555,7 @@ const Page = () => {
   const copyToClipboard = (car) => {
     const url = `${window.location.origin}/transport/transport-details?id=${car.id}`;
     navigator.clipboard.writeText(url).then(() => {
+      toast.success("Link copied to clipboard!");
       closeShareModal();
     });
   };
@@ -523,19 +566,16 @@ const Page = () => {
 
   const handlePriceRangeChange = useCallback(
     (range) => {
-      // Check if this range is already selected
       const isSelected = selectedPriceRanges.some(
         (r) => r.min === range.min && r.max === range.max
       );
 
       let newRanges;
       if (isSelected) {
-        // Remove the range
         newRanges = selectedPriceRanges.filter(
           (r) => !(r.min === range.min && r.max === range.max)
         );
       } else {
-        // Add the range
         newRanges = [
           ...selectedPriceRanges,
           { min: range.min, max: range.max },
@@ -563,9 +603,11 @@ const Page = () => {
 
   const handleFeatureChange = useCallback(
     (feature) => {
-      const newFeatures = selectedFeatures.includes(feature)
-        ? selectedFeatures.filter((f) => f !== feature)
-        : [...selectedFeatures, feature];
+      const featureName =
+        typeof feature === "string" ? feature : feature?.name || "";
+      const newFeatures = selectedFeatures.includes(featureName)
+        ? selectedFeatures.filter((f) => f !== featureName)
+        : [...selectedFeatures, featureName];
 
       setSelectedFeatures(newFeatures);
       setCurrentPage(1);
@@ -579,9 +621,10 @@ const Page = () => {
 
   const handleCarTypeChange = useCallback(
     (type) => {
-      const newCarTypes = selectedCarTypes.includes(type)
-        ? selectedCarTypes.filter((t) => t !== type)
-        : [...selectedCarTypes, type];
+      const typeName = typeof type === "string" ? type : type?.name || "";
+      const newCarTypes = selectedCarTypes.includes(typeName)
+        ? selectedCarTypes.filter((t) => t !== typeName)
+        : [...selectedCarTypes, typeName];
 
       setSelectedCarTypes(newCarTypes);
       setCurrentPage(1);
@@ -597,11 +640,10 @@ const Page = () => {
     setSearchText("");
     setSelectedFeatures([]);
     setSelectedCarTypes([]);
-    setSelectedPriceRanges([]); // ✅ Clear price ranges
+    setSelectedPriceRanges([]);
     setCurrentPage(1);
 
     isUpdatingURL.current = true;
-    // ✅ Keep sort in URL
     const params = {};
     if (sortBy && sortBy !== "") {
       params.sort = sortBy;
@@ -614,17 +656,16 @@ const Page = () => {
     }, 100);
   }, [pathname, sortBy]);
 
-  // ✅ Active filters count
   const hasActiveFilters =
     searchText ||
     selectedCarTypes.length > 0 ||
     selectedFeatures.length > 0 ||
-    selectedPriceRanges.length > 0; // ✅ Changed
+    selectedPriceRanges.length > 0;
 
   const activeFiltersCount =
     selectedCarTypes.length +
     selectedFeatures.length +
-    selectedPriceRanges.length; // ✅ Changed
+    selectedPriceRanges.length;
 
   const filteredCars = useMemo(() => {
     let filtered = [...cars];
@@ -644,31 +685,12 @@ const Page = () => {
   // ✅ Sidebar Content Component
   const SidebarContent = () => (
     <>
-      {/* Search Box */}
-      {/* <div className="single-widget mb-30">
-        <h5 className="widget-title">Search Here</h5>
-        <form onSubmit={handleSearch}>
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Search by car name, type or location"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-            <button type="submit">
-              <i className="bx bx-search" />
-            </button>
-          </div>
-        </form>
-      </div> */}
-
       {/* Price Range Filter */}
       <div className="single-widget mb-30">
         <h5 className="widget-title">Filter by Price</h5>
         <div className="checkbox-container">
           <ul>
             {priceRanges.map((range) => {
-              // ✅ Check if this range is in selectedPriceRanges
               const isSelected = selectedPriceRanges.some(
                 (r) => r.min === range.min && r.max === range.max
               );
@@ -701,16 +723,19 @@ const Page = () => {
           <h5 className="widget-title">Car Type</h5>
           <div className="checkbox-container">
             <ul>
-              {carTypes.map((type) => {
-                const isSelected = selectedCarTypes.includes(type);
+              {carTypes.map((type, index) => {
+                const typeName =
+                  typeof type === "string" ? type : type?.name || "";
+                if (!typeName) return null;
+                const isSelected = selectedCarTypes.includes(typeName);
                 return (
-                  <li key={type}>
+                  <li key={typeName || index}>
                     <label className="containerss">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => {
-                          handleCarTypeChange(type);
+                          handleCarTypeChange(typeName);
                           if (window.innerWidth < 1024) {
                             setTimeout(
                               () => setIsMobileSidebarOpen(false),
@@ -720,7 +745,7 @@ const Page = () => {
                         }}
                       />
                       <span className="checkmark" />
-                      <span className="text">{type}</span>
+                      <span className="text">{typeName}</span>
                     </label>
                   </li>
                 );
@@ -736,16 +761,19 @@ const Page = () => {
           <h5 className="widget-title">Car Features</h5>
           <div className="checkbox-container">
             <ul>
-              {allFeatures.map((feature) => {
-                const isSelected = selectedFeatures.includes(feature);
+              {allFeatures.map((feature, index) => {
+                const featureName =
+                  typeof feature === "string" ? feature : feature?.name || "";
+                if (!featureName) return null;
+                const isSelected = selectedFeatures.includes(featureName);
                 return (
-                  <li key={feature}>
+                  <li key={featureName || index}>
                     <label className="containerss">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => {
-                          handleFeatureChange(feature);
+                          handleFeatureChange(featureName);
                           if (window.innerWidth < 1024) {
                             setTimeout(
                               () => setIsMobileSidebarOpen(false),
@@ -755,7 +783,7 @@ const Page = () => {
                         }}
                       />
                       <span className="checkmark" />
-                      <span className="text">{feature}</span>
+                      <span className="text">{featureName}</span>
                     </label>
                   </li>
                 );
@@ -776,7 +804,6 @@ const Page = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* ✅ Main Content */}
             <div className="lg:col-span-2 order-1">
-              {/* ✅ Header with Results Info and Filter Button */}
               {/* ✅ Header with Results Info, Sort and Filter Button */}
               <div className="flex flex-col sm:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
@@ -987,18 +1014,31 @@ const Page = () => {
                             )}
                           </div>
 
+                          {/* ✅ Features with Icons */}
                           {car?.features && car.features.length > 0 && (
-                            <div className="features-tags mb-3 flex flex-wrap gap-1">
+                            <div className="features-tags mb-3 flex flex-wrap gap-2">
                               {car.features.slice(0, 3).map((feature, idx) => (
                                 <span
-                                  key={idx}
-                                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
+                                  key={feature.id || idx}
+                                  className="group flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 text-gray-700 text-xs rounded-lg hover:bg-[#295557] hover:text-white transition-all duration-300"
                                 >
-                                  {feature}
+                                  {/* ✅ عرض الـ Icon */}
+                                  {feature.icon && (
+                                    <span
+                                      className="feature-icon flex-shrink-0 [&>span]:flex [&>span]:items-center [&_svg]:w-3.5 [&_svg]:h-3.5 group-hover:[&_svg]:stroke-white transition-colors duration-300"
+                                      dangerouslySetInnerHTML={{
+                                        __html: feature.icon,
+                                      }}
+                                    />
+                                  )}
+                                  {/* ✅ عرض الاسم */}
+                                  <span className="feature-name">
+                                    {feature.name}
+                                  </span>
                                 </span>
                               ))}
                               {car.features.length > 3 && (
-                                <span className="px-2 py-1 bg-gray-800 text-white text-xs rounded">
+                                <span className="px-2.5 py-1.5 bg-[#295557] text-white text-xs rounded-lg font-medium">
                                   +{car.features.length - 3} more
                                 </span>
                               )}
@@ -1220,6 +1260,21 @@ const Page = () => {
             <SidebarContent />
           </div>
         </div>
+
+        {/* ✅ Footer with Clear Button */}
+        {hasActiveFilters && (
+          <div className="p-4 border-t border-gray-200 bg-gray-50">
+            <button
+              className="w-full px-4 py-3 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-300"
+              onClick={() => {
+                clearAllFilters();
+                setIsMobileSidebarOpen(false);
+              }}
+            >
+              Clear All Filters ({activeFiltersCount})
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

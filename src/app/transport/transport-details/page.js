@@ -1,6 +1,11 @@
-// app/[locale]/transport-details/page.jsx
 "use client";
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import Calendar from "react-calendar";
@@ -114,6 +119,25 @@ const Page = () => {
     };
   }, []);
 
+  // ✅ Clean Icon Function
+  const cleanIcon = useCallback((icon) => {
+    if (!icon) return "";
+    let result = icon;
+    let prevResult = "";
+    while (prevResult !== result) {
+      prevResult = result;
+      result = result
+        .replace(/\\\\/g, "TEMP_BACKSLASH")
+        .replace(/\\"/g, '"')
+        .replace(/TEMP_BACKSLASH/g, "")
+        .replace(/\\n/g, "")
+        .replace(/\\r/g, "")
+        .replace(/\\t/g, "");
+    }
+    result = result.replace(/\\/g, "");
+    return result.trim();
+  }, []);
+
   // Fetch car data
   useEffect(() => {
     const fetchCarData = async () => {
@@ -129,7 +153,23 @@ const Page = () => {
           { headers: { "Content-Type": "application/json" } }
         );
         if (response.data.status === "success") {
-          setCarData(response.data.message[0]);
+          const car = response.data.message[0];
+
+          // ✅ معالجة الـ features مع تنظيف الـ icons
+          if (car.features && Array.isArray(car.features)) {
+            car.features = car.features.map((f) => {
+              if (typeof f === "string") {
+                return { id: f, name: f, icon: "" };
+              }
+              return {
+                id: f.feature_id || f.id || "",
+                name: f.name || f.feature || "",
+                icon: cleanIcon(f.icon),
+              };
+            });
+          }
+
+          setCarData(car);
         } else {
           setError("Car not found");
         }
@@ -141,7 +181,7 @@ const Page = () => {
       }
     };
     fetchCarData();
-  }, [carId]);
+  }, [carId, cleanIcon]);
 
   // Calculate night count
   useEffect(() => {
@@ -197,7 +237,6 @@ const Page = () => {
   // BOOKING FLOW
   // ============================================
 
-  // Step 1: Book Now clicked
   const handleFormSubmit = (e) => {
     e.preventDefault();
 
@@ -230,16 +269,9 @@ const Page = () => {
       return;
     }
 
-    // If invite code exists, go directly to confirm modal
-    if (hasStoredCode && inviteCode) {
-      setIsConfirmModalOpen(true);
-    } else {
-      // No invite code, open invitation modal
-      setIsConfirmModalOpen(true);
-    }
+    setIsConfirmModalOpen(true);
   };
 
-  // Step 2: Invitation code submitted
   const handleInvitationSubmit = (code) => {
     setInvitationLoading(true);
     setTimeout(() => {
@@ -250,7 +282,6 @@ const Page = () => {
     }, 600);
   };
 
-  // Step 3: Confirm booking
   const handleConfirmBooking = async () => {
     setIsConfirmModalOpen(false);
     setIsBookingModalOpen(true);
@@ -271,8 +302,6 @@ const Page = () => {
         end_date: moment(dateRange[1]).format("YYYY-MM-DD"),
         invite_code: inviteCode || "",
       };
-
-      console.log("📤 Booking with invite code:", inviteCode);
 
       const response = await axios.post(
         `${base_url}/user/cars/reserve_car.php`,
@@ -322,15 +351,12 @@ const Page = () => {
     }
   };
 
-  // Modal close functions
   const closeConfirmModal = () => setIsConfirmModalOpen(false);
-
   const closeBookingModal = () => {
     setIsBookingModalOpen(false);
     setBookingLoading(false);
     setBookingError(null);
   };
-
   const closeSuccessModal = () => {
     setIsSuccessModalOpen(false);
     setBookingDetails(null);
@@ -418,9 +444,7 @@ const Page = () => {
       <div className="transport-details-section pt-[50px] mb-[30px]">
         <div className="container">
           <div className="row g-lg-4 gy-5">
-            {/* ============================================ */}
             {/* LEFT COLUMN - Car Details */}
-            {/* ============================================ */}
             <div className="col-lg-8">
               {/* Car Images */}
               <div className="transport-image-area mb-50">
@@ -469,7 +493,7 @@ const Page = () => {
                 {carData.car_type}
               </p>
 
-              {/* Car Features */}
+              {/* ✅ Car Features with Icons */}
               {carData.features && carData.features.length > 0 && (
                 <>
                   <h4 className="text-xl font-semibold mt-5 mb-3">
@@ -477,16 +501,25 @@ const Page = () => {
                   </h4>
                   <div className="features-area mb-[20px]">
                     <div className="bg-[#f8f8f8] p-4 rounded-lg mb-4">
-                      <h5 className="text-lg font-semibold mb-3 text-[#e8a355]">
-                        {locale === "ar"
-                          ? "المميزات المتضمنة"
-                          : "Included Features"}
-                      </h5>
-                      <ul className="flex items-center gap-6 flex-wrap">
+                      <ul className="flex items-center gap-4 flex-wrap">
                         {carData.features.map((feature, i) => (
-                          <li key={i} className="mb-2 flex items-start">
-                            <i className="bi bi-check-lg text-green-600 mr-2" />
-                            {feature}
+                          <li
+                            key={feature.id || i}
+                            className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                          >
+                            {/* ✅ عرض الـ Icon */}
+                            {feature.icon && (
+                              <span
+                                className="feature-icon flex-shrink-0 [&>span]:flex [&>span]:items-center [&_svg]:w-5 [&_svg]:h-5 [&>span]:text-[#e8a355]"
+                                dangerouslySetInnerHTML={{
+                                  __html: feature.icon,
+                                }}
+                              />
+                            )}
+                            {/* ✅ عرض الاسم */}
+                            <span className="text-sm font-medium text-gray-700">
+                              {feature.name}
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -541,9 +574,7 @@ const Page = () => {
               </div>
             </div>
 
-            {/* ============================================ */}
             {/* RIGHT COLUMN - Booking Sidebar */}
-            {/* ============================================ */}
             <div className="col-lg-4">
               <div className="transport-sidebar">
                 <div className="booking-form-wrap">
@@ -557,20 +588,6 @@ const Page = () => {
                       ? "احجز السيارات في ثوانٍ. توفر فوري، جدولة مرنة، تسعير شفاف، ودعم على مدار الساعة."
                       : "Book cars in seconds. Real-time availability, flexible scheduling, transparent pricing, and 24/7 support."}
                   </p>
-
-                  {/* Invite Code Applied Notice */}
-                  {/* {hasStoredCode && inviteCode && (
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3 mb-4">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <FaTicket />
-                        <span className="text-sm font-medium">
-                          {locale === "ar"
-                            ? "سيتم تطبيق كود الإحالة تلقائياً"
-                            : "Referral code will be applied automatically"}
-                        </span>
-                      </div>
-                    </div>
-                  )} */}
 
                   <div className="tab-content" id="v-pills-tabContent2">
                     <div
@@ -748,21 +765,7 @@ const Page = () => {
         </div>
       </div>
 
-      {/* ============================================ */}
       {/* MODALS */}
-      {/* ============================================ */}
-
-      {/* Invitation Code Modal */}
-      {/* <InvitationCodeModal
-        open={isInvitationModalOpen}
-        onClose={() => {
-          setIsInvitationModalOpen(false);
-          setInvitationLoading(false);
-        }}
-        onSubmit={handleInvitationSubmit}
-        loading={invitationLoading}
-      /> */}
-
       {/* Confirmation Modal */}
       {isConfirmModalOpen && (
         <div
@@ -775,7 +778,6 @@ const Page = () => {
             ref={confirmModalRef}
             className="bg-white rounded-2xl w-full max-w-[600px] shadow-2xl animate-[slideUp_0.3s_ease-out] overflow-hidden"
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h5 className="text-lg font-bold flex items-center gap-2 m-0">
                 <i className="bi bi-check-circle text-blue-500"></i>
@@ -789,7 +791,6 @@ const Page = () => {
               </button>
             </div>
 
-            {/* Body */}
             <div className="px-6 py-5">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
                 <i className="bi bi-info-circle mr-2"></i>
@@ -827,14 +828,6 @@ const Page = () => {
                           ? "مع سائق"
                           : "With Driver",
                   },
-                  // {
-                  //   element: <FaTicket className="mr-2 text-[#e8a355]" />,
-                  //   label: locale === "ar" ? "كود الدعوة" : "Invitation Code",
-                  //   value:
-                  //     inviteCode ||
-                  //     (locale === "ar" ? "غير متوفر" : "Not provided"),
-                  //   highlight: !!inviteCode,
-                  // },
                   {
                     icon: "bi-calendar-check",
                     label: locale === "ar" ? "تاريخ البداية" : "Start Date",
@@ -884,16 +877,11 @@ const Page = () => {
                       } text-sm flex items-center`}
                     >
                       {row.icon && <i className={`bi ${row.icon} mr-2`}></i>}
-                      {row.element && row.element}
                       {row.label}:
                     </span>
                     <span
                       className={`font-semibold ${
-                        row.highlight
-                          ? "text-[#e8a355]"
-                          : row.isTotal
-                            ? "text-[#e8a355]"
-                            : "text-gray-800"
+                        row.isTotal ? "text-[#e8a355]" : "text-gray-800"
                       } text-sm`}
                     >
                       {row.value}
@@ -911,7 +899,6 @@ const Page = () => {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
               <button
                 onClick={closeConfirmModal}
@@ -944,7 +931,6 @@ const Page = () => {
             ref={bookingModalRef}
             className="bg-white rounded-2xl w-full max-w-[420px] shadow-2xl animate-[slideUp_0.3s_ease-out] overflow-hidden"
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h5 className="text-lg font-bold m-0">
                 {bookingLoading
@@ -965,7 +951,6 @@ const Page = () => {
               )}
             </div>
 
-            {/* Body */}
             <div className="px-6 py-8 text-center">
               {bookingLoading && (
                 <>
@@ -996,7 +981,6 @@ const Page = () => {
               )}
             </div>
 
-            {/* Footer */}
             {!bookingLoading && (
               <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
                 <button
@@ -1040,7 +1024,6 @@ const Page = () => {
         onSuccess={handleReviewSuccess}
       />
 
-      {/* Animation Keyframes */}
       <style jsx global>{`
         @keyframes slideUp {
           from {
@@ -1051,6 +1034,15 @@ const Page = () => {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+
+        /* Features with Icons Styling */
+        .feature-icon span {
+          color: #e8a355 !important;
+        }
+
+        .feature-icon svg {
+          stroke: #e8a355;
         }
       `}</style>
     </>

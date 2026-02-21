@@ -18,18 +18,18 @@ const TransferCard = ({
 
   if (!item) return null;
 
-  // Check if this transfer is selected for this day using activeTransfers
   const isSelected = activeTransfers?.[index]?.id === item.id;
 
-  // Calculate price difference from the currently selected transfer
   const selectedTransfer = activeTransfers?.[index];
   const priceDifference = selectedTransfer
     ? calculatePriceDifference(selectedTransfer.price, item.price)
     : 0;
 
+  // استخراج الـ features من البيانات الأصلية
+  const features = item.features || item.originalData?.features || [];
+
   const onTransferClick = () => {
     if (isSelected) return;
-    // Call the handler from parent which syncs with Redux
     handleTransferClick(item, index);
   };
 
@@ -51,33 +51,59 @@ const TransferCard = ({
       />
       <div className="card-content">
         <h3>{item.name?.[locale] || item.name?.en || "Transfer"}</h3>
+
+        {/* عرض الـ Features من الـ API */}
         <div className="gap-3 mb-3 transfer_feat_cont">
-          <div className="d-flex align-items-center gap-2 transfer_in">
-            <FaHotel />
-            <div className="d-flex flex-column transfer_cont">
-              <div className="fw-bold">{t("brand")}</div>
-              <div className="transfer_info" title={item.category?.en}>
-                {item.category?.[locale] || item.category?.en || "Standard"}
+          {features.length > 0 ? (
+            features.slice(0, 4).map((feature, idx) => (
+              <div
+                key={feature.feature_id || idx}
+                className="d-flex align-items-center gap-2 transfer_in"
+              >
+                <div
+                  className="feature-icon"
+                  dangerouslySetInnerHTML={{ __html: feature.icon }}
+                />
+                <div className="d-flex flex-column transfer_cont">
+                  <div className="fw-bold">{feature.label}</div>
+                  <div className="transfer_info" title={feature.feature}>
+                    {feature.feature}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="d-flex align-items-center gap-2 transfer_in">
-            <GiDuration />
-            <div className="d-flex flex-column transfer_cont">
-              <div className="fw-bold capitalize">{t("capacity")}</div>
-              <div className="transfer_info" title={item.capacity}>
-                {item.capacity || 4} {t("passengers")}
+            ))
+          ) : (
+            // Fallback للبيانات القديمة
+            <>
+              <div className="d-flex align-items-center gap-2 transfer_in">
+                <FaHotel />
+                <div className="d-flex flex-column transfer_cont">
+                  <div className="fw-bold">{t("brand")}</div>
+                  <div className="transfer_info" title={item.category?.en}>
+                    {item.category?.[locale] || item.category?.en || "Standard"}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+              <div className="d-flex align-items-center gap-2 transfer_in">
+                <GiDuration />
+                <div className="d-flex flex-column transfer_cont">
+                  <div className="fw-bold capitalize">{t("capacity")}</div>
+                  <div className="transfer_info" title={item.capacity}>
+                    {item.capacity || 4} {t("passengers")}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
+
         <div className="card-footer">
           <span className="price">
             {isSelected
               ? t("selected")
               : priceDifference !== 0
-              ? `${priceDifference > 0 ? "+" : ""}${priceDifference} USD`
-              : t("samePrice")}
+                ? `${priceDifference > 0 ? "+" : ""}${priceDifference} USD`
+                : t("samePrice")}
           </span>
           <div className={`custom-radio ${isSelected ? "selected" : ""}`}>
             <div className="radio-circle"></div>

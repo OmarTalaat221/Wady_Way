@@ -703,11 +703,11 @@ const PackageDetailsClient = () => {
                   {t("locationMap")}
                 </h4>
 
-                <TourMapWrapper
+                {/* <TourMapWrapper
                   itinerary={tourData?.itinerary || []}
                   height="450px"
                   className="mb-30"
-                />
+                /> */}
               </div>
 
               <Suspense
