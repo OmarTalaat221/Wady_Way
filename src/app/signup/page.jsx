@@ -10,10 +10,11 @@ import { base_url } from "../../uitils/base_url";
 import { motion } from "framer-motion";
 import "../signup/_components/style.css";
 import toast from "react-hot-toast";
-
+import { useRouter } from "next/navigation";
 const { Dragger } = Upload;
 
 const Signup = () => {
+  const router = useRouter();
   // Form state
   const [formData, setFormData] = useState({
     full_name: "",
