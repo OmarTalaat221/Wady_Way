@@ -650,11 +650,11 @@ const Page = () => {
                   <h4>Highlights of the Tour</h4>
                   <ul>
                     {activityData.features.map((feature, index) => (
-                      <li key={index}>
+                      <li key={feature.id || index}>
                         <span>
                           <i className="bi bi-check" />
                         </span>{" "}
-                        {feature}
+                        <strong>{feature.label}:</strong> {feature.name}
                       </li>
                     ))}
                   </ul>
