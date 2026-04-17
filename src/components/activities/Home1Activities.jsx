@@ -14,9 +14,8 @@ import SurfingTab from "./tabs/SurfingTab";
 
 const Home1Activities = () => {
   const [isOpen, setOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("ziplining"); // إضافة state للتاب النشط
+  const [activeTab, setActiveTab] = useState("ziplining");
 
-  // بيانات التابات
   const tabs = [
     {
       id: "ziplining",
@@ -146,10 +145,7 @@ const Home1Activities = () => {
         <div className="row">
           <div className="col-lg-12">
             <div className="section-title text-center mb-[60px]">
-              <span>
-                {/* SVG icons هنا */}
-                Are you ready to travel?
-              </span>
+              <span>Are you ready to travel?</span>
               <h2>Explore Your Activities</h2>
             </div>
           </div>
@@ -158,11 +154,15 @@ const Home1Activities = () => {
           <div className="row g-xl-4 gy-5">
             <div className="col-xl-5">
               <div className="verticle-tab-sidebar">
-                <ul className="nav nav-pills" id="pills-tab5" role="tablist">
+                <ul
+                  className="nav nav-pills !grid !grid-cols-1 sm:!grid-cols-2 !gap-3 !w-full"
+                  id="pills-tab5"
+                  role="tablist"
+                >
                   {tabs.map((tab) => (
-                    <li className="nav-item" role="presentation" key={tab.id}>
+                    <li className="nav-item !w-full" role="presentation" key={tab.id}>
                       <div
-                        className={`nav-link ${
+                        className={`nav-link !w-full ${
                           activeTab === tab.id ? "active" : ""
                         }`}
                         onClick={() => setActiveTab(tab.id)}

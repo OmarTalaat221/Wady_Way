@@ -161,7 +161,7 @@ const MobileHeader = ({ currentLocale }) => {
       {/* Logo */}
       <Link href="/" className="mobile-logo">
         <img
-          src="https://res.cloudinary.com/dkc5klynm/image/upload/v1768722951/LOGO_WADI_WAY_og9z1l.png"
+          src="https://res.cloudinary.com/dbvh5i83q/image/upload/v1775980904/W_ppfn8j.png"
           alt="Logo"
         />
       </Link>

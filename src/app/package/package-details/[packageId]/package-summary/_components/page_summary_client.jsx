@@ -177,12 +177,12 @@ const PageSummaryClient = ({ lang }) => {
 
       <div className="container">
         <div className="mb-24 pt-10">
-          <Alert
+          {/* <Alert
             color="warning"
             className="bg-amber-50 border-amber-300 rounded-lg"
           >
             <div className="text-amber-800 font-medium">{t("warning")}</div>
-          </Alert>
+          </Alert> */}
 
           {/* Summary Header with User Info */}
           <div className="summary-header mt-6 mb-4">

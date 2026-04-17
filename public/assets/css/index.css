@@ -124,7 +124,8 @@
 }
 
 .travel_button {
-  box-shadow: rgba(51, 51, 51, 0.15) 0px 4px 8px,
+  box-shadow:
+    rgba(51, 51, 51, 0.15) 0px 4px 8px,
     rgba(51, 51, 51, 0.1) 0px 2px 4px;
   border: 1px solid #295557;
   border-radius: 50%;

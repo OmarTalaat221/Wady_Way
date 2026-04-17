@@ -165,7 +165,10 @@ const TourDetailsModal = ({ open, onClose, data }) => {
     return (
       <div className="space-y-3">
         <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-sm text-gray-700">{dayData.description}</p>
+          <div
+            className="text-sm text-gray-700"
+            dangerouslySetInnerHTML={{ __html: dayData.description }}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3">
@@ -397,18 +400,18 @@ const TourDetailsModal = ({ open, onClose, data }) => {
         </Descriptions>
 
         {(data.status === "started" || data.status === "in_progress") && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+          <div className="bg-emerald-50 border border-[#295557] rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-emerald-700">
+              <span className="text-sm font-medium text-[#295557]">
                 Trip Progress
               </span>
-              <span className="text-sm font-bold text-emerald-700">
+              <span className="text-sm font-bold text-[#295557]">
                 {data.progress}%
               </span>
             </div>
             <div className="w-full h-2 bg-emerald-200 rounded-full overflow-hidden">
               <div
-                className="h-full bg-emerald-500 transition-all duration-300"
+                className="h-full bg-[#295557] transition-all duration-300"
                 style={{ width: `${data.progress}%` }}
               />
             </div>

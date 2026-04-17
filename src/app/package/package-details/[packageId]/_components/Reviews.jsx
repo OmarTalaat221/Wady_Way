@@ -293,9 +293,7 @@ const Reviews = ({ data }) => {
                             key={category}
                             className="d-flex justify-content-between align-items-center mb-2"
                           >
-                            <span className="text-capitalize">
-                              {t(category)}
-                            </span>
+                            <span className="text-capitalize">{category}</span>
                             <div className="rating-stars">
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <i

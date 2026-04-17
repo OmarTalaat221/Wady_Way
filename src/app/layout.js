@@ -54,7 +54,7 @@ export const metadata = {
   // Title Configuration
   title: {
     default: seoConfig.defaultTitle,
-    template: seoConfig.titleTemplate, // '%s | Wady Way'
+    template: seoConfig.titleTemplate, // '%s | Wadi Way'
   },
 
   // Description

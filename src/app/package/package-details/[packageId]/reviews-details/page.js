@@ -387,7 +387,7 @@ const ReviewsDetails = () => {
                   {t("reviews")} ({filteredReviews.length})
                 </h3>
               </div>
-              <div className="max-h-[600px] overflow-y-auto no-scrollbar">
+              <div className="max-h-[800px] overflow-y-auto no-scrollbar">
                 {filteredReviews.map((review, index) => (
                   <div
                     key={review.id || index}

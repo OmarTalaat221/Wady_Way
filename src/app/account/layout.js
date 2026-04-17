@@ -18,6 +18,7 @@ import "react-datepicker/dist/react-datepicker.css";
 
 import Link from "../../components/link";
 import { usePathname } from "next/navigation";
+import { logout } from "../../uitils/logout";
 
 // Fixed header height - adjust this based on your actual header height
 const HEADER_HEIGHT = 80;
@@ -51,9 +52,7 @@ const Layout = ({ children }) => {
 
   // Logout function
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    router.push("/login");
+    logout(router);
   };
 
   // Menu items array

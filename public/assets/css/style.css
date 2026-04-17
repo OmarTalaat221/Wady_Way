@@ -9593,21 +9593,28 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
 .verticle-tab-section {
   position: relative;
 }
-.verticle-tab-section .verticle-tab-wrapper .verticle-tab-sidebar {
-  padding-right: 15px;
-}
+
 .verticle-tab-section .verticle-tab-wrapper .verticle-tab-sidebar .nav-pills {
   display: block;
   -moz-columns: 2;
   columns: 2;
 }
-.verticle-tab-section
+
+@media (max-width: 576px) {
+  .verticle-tab-section .verticle-tab-wrapper .verticle-tab-sidebar .nav-pills {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+/* .verticle-tab-section
   .verticle-tab-wrapper
   .verticle-tab-sidebar
   .nav-pills
   .nav-item {
   margin-bottom: 20px;
-}
+} */
+
 .verticle-tab-section
   .verticle-tab-wrapper
   .verticle-tab-sidebar
@@ -22575,7 +22582,7 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   overflow: hidden;
 }
 .activity-card img {
-  border-radius: 5px;
+  /* border-radius: 5px; */
   transition: all 0.5s ease-out;
 }
 @media (max-width: 991px) {

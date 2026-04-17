@@ -3,6 +3,21 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { removeToast } from "../../lib/redux/slices/notificationSlice";
 
+// ✅ Strip HTML helper
+const stripHtml = (html) => {
+  if (!html) return "";
+  if (typeof html !== "string") return String(html);
+  let text = html.replace(/<[^>]*>/g, "");
+  text = text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, " ");
+  return text.replace(/\s+/g, " ").trim();
+};
+
 export default function Toast({ id, type, title, message, duration = 4000 }) {
   const dispatch = useDispatch();
 
@@ -10,7 +25,6 @@ export default function Toast({ id, type, title, message, duration = 4000 }) {
     const timer = setTimeout(() => {
       dispatch(removeToast(id));
     }, duration);
-
     return () => clearTimeout(timer);
   }, [id, duration, dispatch]);
 
@@ -42,6 +56,10 @@ export default function Toast({ id, type, title, message, duration = 4000 }) {
     }
   };
 
+  // ✅ Clean the message before displaying
+  const cleanMessage = stripHtml(message);
+  const cleanTitle = stripHtml(title);
+
   return (
     <div
       style={{
@@ -55,7 +73,7 @@ export default function Toast({ id, type, title, message, duration = 4000 }) {
         boxShadow:
           "0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)",
         minWidth: "300px",
-        maxWidth: "450px", // زودت العرض شوية
+        maxWidth: "450px",
         width: "fit-content",
         animation: "slideIn 0.3s ease-out",
       }}
@@ -65,7 +83,7 @@ export default function Toast({ id, type, title, message, duration = 4000 }) {
           fontSize: "24px",
           fontWeight: "bold",
           lineHeight: "1",
-          flexShrink: 0, // عشان الأيقونة ما تتصغرش
+          flexShrink: 0,
         }}
       >
         {getIcon()}
@@ -74,8 +92,8 @@ export default function Toast({ id, type, title, message, duration = 4000 }) {
       <div
         style={{
           flex: 1,
-          minWidth: 0, // مهم عشان يسمح بال wrap
-          overflow: "hidden", // يمنع الـ overflow
+          minWidth: 0,
+          overflow: "hidden",
         }}
       >
         <h4
@@ -87,22 +105,25 @@ export default function Toast({ id, type, title, message, duration = 4000 }) {
           }}
           className="text-white"
         >
-          {title}
+          {/* ✅ Plain text - no dangerouslySetInnerHTML */}
+          {cleanTitle}
         </h4>
         <p
           style={{
             margin: 0,
             fontSize: "14px",
             opacity: 0.9,
-            whiteSpace: "pre-wrap", // يحافظ على الـ line breaks ويعمل wrap
-            wordBreak: "break-word", // يكسر الكلمات الطويلة
-            overflowWrap: "break-word", // بديل لـ word-wrap
-            lineHeight: "1.5", // مسافة بين السطور
-            maxHeight: "150px", // أقصى ارتفاع (اختياري)
-            overflowY: "auto", // لو الرسالة طويلة جداً يظهر scroll
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+            lineHeight: "1.5",
+            maxHeight: "150px",
+            overflowY: "auto",
           }}
-          dangerouslySetInnerHTML={{ __html: message }}
-        />
+        >
+          {/* ✅ Plain text - no dangerouslySetInnerHTML */}
+          {cleanMessage}
+        </p>
       </div>
 
       <button
@@ -116,7 +137,7 @@ export default function Toast({ id, type, title, message, duration = 4000 }) {
           padding: "0",
           lineHeight: "1",
           opacity: 0.8,
-          flexShrink: 0, // عشان الزرار ما يتصغرش
+          flexShrink: 0,
         }}
       >
         ✕

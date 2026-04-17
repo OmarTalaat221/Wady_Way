@@ -1,3 +1,4 @@
+// PackageDetailsClient.jsx
 "use client";
 import React, { useEffect, useState, Suspense } from "react";
 import dynamic from "next/dynamic";
@@ -15,6 +16,7 @@ import {
   refreshUserId,
   initializeTourGuide,
   initializeActivities,
+  restoreSavedSelections,
 } from "@/lib/redux/slices/tourReservationSlice";
 import useTourDetails from "../../../../../hooks/useTourDetails";
 import LoadingSpinner from "../../../../../components/common/LoadingSpinner";
@@ -28,6 +30,15 @@ import ItineraryDay from "./ItineraryDay";
 import TourMapWrapper from "./TourMapWrapper";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 import "./style.css";
+
+// ✅ Helper - تحويل التاريخ بالتوقيت المحلي بدون مشاكل UTC/timezone
+const formatDateLocal = (date) => {
+  if (!date || !(date instanceof Date) || isNaN(date)) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const GallerySection = dynamic(() => import("./GallerySection"), {
   loading: () => (
@@ -81,6 +92,9 @@ const PackageDetailsClient = () => {
     activities: [],
   });
 
+  // ✅ Track if we restored saved data
+  const [hasRestored, setHasRestored] = useState(false);
+
   const {
     inviteCode,
     hasStoredCode,
@@ -119,9 +133,14 @@ const PackageDetailsClient = () => {
         })
       : "Invalid Date";
 
+  // ✅ Step 1: Refresh user + restore saved selections
   useEffect(() => {
     dispatch(refreshUserId());
-  }, [dispatch]);
+    if (packageId) {
+      dispatch(restoreSavedSelections(packageId));
+      setHasRestored(true);
+    }
+  }, [dispatch, packageId]);
 
   const transformedData = React.useMemo(() => {
     if (!tourData) return null;
@@ -188,7 +207,7 @@ const PackageDetailsClient = () => {
               name: { en: car.title, ar: car.title },
               category: { en: "Car", ar: "سيارة" },
               price: parseFloat(car.price_current || 0),
-              capacity: car.capacity || 4,
+              capacity: car.max_people,
               features: car.features || [],
               originalData: car,
             })) || [],
@@ -226,7 +245,10 @@ const PackageDetailsClient = () => {
     if (activeAccommodations[dayIndex]?.id === accommodation.id) return;
     const dayNumber = dayIndex + 1;
 
-    setActiveAccommodations((prev) => ({ ...prev, [dayIndex]: accommodation }));
+    setActiveAccommodations((prev) => ({
+      ...prev,
+      [dayIndex]: accommodation,
+    }));
     setSelectedTours((prevState) => ({
       ...prevState,
       hotels: [
@@ -262,8 +284,19 @@ const PackageDetailsClient = () => {
     );
 
     dispatch(calculateTotal());
-    setRooms([{ id: 1, adults: 1, children: 0, infants: 0 }]);
-    setSelectedAccommodation({ ...accommodation, dayIndex });
+
+    // ✅ Auto-flip if travelers >= 3 AND hotel has rooms
+    const totalTravelers = people.adults + people.children;
+    const hasRooms =
+      accommodation.rooms?.length > 0 ||
+      accommodation.originalData?.rooms?.length > 0;
+    if (totalTravelers >= 3 && hasRooms) {
+      setSelectedAccommodation({ ...accommodation, dayIndex });
+      setIsFlipped(true);
+    } else {
+      setIsFlipped(false);
+      setSelectedAccommodation(null);
+    }
   };
 
   const handleTransferClick = (transfer, dayIndex) => {
@@ -398,6 +431,7 @@ const PackageDetailsClient = () => {
     setRooms([{ id: 1, adults: 1, children: 0, infants: 0 }]);
   };
 
+  // ✅ Fixed: استخدام formatDateLocal بدل toISOString
   const handleDateChange = (newValue) => {
     const [start] = newValue;
     const duration = transformedData?.days?.length || 3;
@@ -407,8 +441,8 @@ const PackageDetailsClient = () => {
 
     dispatch(
       setTourInfo({
-        startDate: start.toISOString().split("T")[0],
-        endDate: end.toISOString().split("T")[0],
+        startDate: formatDateLocal(start), // ✅ Fixed
+        endDate: formatDateLocal(end), // ✅ Fixed
       })
     );
   };
@@ -416,6 +450,7 @@ const PackageDetailsClient = () => {
   const scrollToDiv = (id) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
+  // ✅ People count sync
   useEffect(() => {
     dispatch(
       setPeopleCount({
@@ -429,108 +464,311 @@ const PackageDetailsClient = () => {
     setIsFlipped(false);
   }, [people, dispatch]);
 
-  // ✅ التهيئة الرئيسية
+  // ✅ Main initialization - with restore support
   useEffect(() => {
     if (!tourData?.itinerary || tourData.itinerary.length === 0) {
       return;
     }
 
+    if (!transformedData) return;
+
     console.log("🚀 Starting initialization...");
     console.log("📦 tourData.itinerary:", tourData.itinerary);
+    console.log("📦 hasRestored:", hasRestored);
 
-    // 1. تخزين بيانات التور
+    // 1. Store tour data
     dispatch(setTourData(transformedData));
 
-    // 2. ✅ تهيئة Tour Guide
+    // 2. Initialize Tour Guide (skips if already restored)
     dispatch(initializeTourGuide(tourData.itinerary));
 
-    // 3. ✅ تهيئة Activities
+    // 3. Initialize Activities (skips if already restored)
     dispatch(initializeActivities(tourData.itinerary));
 
-    // 4. تهيئة الفنادق والسيارات
-    const initialActiveAcc = {};
-    const initialActiveTransfers = {};
-    const initialHotels = [];
-    const initialTransfers = [];
+    // 4. Check if we have restored saved selections
+    const hasRestoredHotels = Object.values(selectedByDay || {}).some(
+      (day) => day?.hotel
+    );
+    const hasRestoredCars = Object.values(selectedByDay || {}).some(
+      (day) => day?.car
+    );
+    const hasSavedData = hasRestoredHotels || hasRestoredCars;
 
-    transformedData.days.forEach((day, index) => {
-      const dayNumber = index + 1;
+    if (hasSavedData && hasRestored) {
+      // ✅ Restore local state from saved Redux data
+      console.log("♻️ Restoring local state from saved selections...");
 
-      if (day.accommodation?.[0]) {
-        const acc = day.accommodation[0];
-        initialActiveAcc[index] = acc;
-        initialHotels.push({
-          day: dayNumber,
-          name: acc.name,
-          id: acc.id,
-          price: acc.price_per_night,
-          location: acc.location,
-        });
+      const restoredActiveAcc = {};
+      const restoredActiveTransfers = {};
+      const restoredHotels = [];
+      const restoredTransfers = [];
 
-        dispatch(
-          selectHotel({
+      transformedData.days.forEach((day, index) => {
+        const dayNumber = index + 1;
+        const dayKey = String(dayNumber);
+        const savedDay = selectedByDay[dayKey];
+
+        // Restore hotel
+        if (savedDay?.hotel) {
+          const hotelId =
+            parseInt(savedDay.hotel.id) || parseInt(savedDay.hotel.hotel_id);
+          const matchedAcc = day.accommodation?.find((a) => a.id === hotelId);
+
+          if (matchedAcc) {
+            restoredActiveAcc[index] = matchedAcc;
+            restoredHotels.push({
+              day: dayNumber,
+              name: matchedAcc.name,
+              id: matchedAcc.id,
+              price: matchedAcc.price_per_night,
+              location: matchedAcc.location,
+            });
+          } else {
+            console.log(
+              `⚠️ Day ${dayNumber}: Saved hotel ${hotelId} not found, using first option`
+            );
+            if (day.accommodation?.[0]) {
+              const acc = day.accommodation[0];
+              restoredActiveAcc[index] = acc;
+              restoredHotels.push({
+                day: dayNumber,
+                name: acc.name,
+                id: acc.id,
+                price: acc.price_per_night,
+                location: acc.location,
+              });
+
+              dispatch(
+                selectHotel({
+                  day: dayNumber,
+                  hotel: {
+                    id: acc.id,
+                    hotel_id: acc.id,
+                    title: acc.name?.en || acc.name,
+                    name: acc.name,
+                    image: acc.image,
+                    adult_price: acc.price_per_night,
+                    price_per_night: acc.price_per_night,
+                    rating: acc.rating,
+                    category: acc.category,
+                    location: acc.location,
+                    ...acc.originalData,
+                  },
+                })
+              );
+            }
+          }
+        }
+
+        // Restore car/transfer
+        if (savedDay?.car) {
+          const carId =
+            parseInt(savedDay.car.id) || parseInt(savedDay.car.car_id);
+          const matchedTransfer = day.transfers?.find((t) => t.id === carId);
+
+          if (matchedTransfer) {
+            restoredActiveTransfers[index] = matchedTransfer;
+            restoredTransfers.push({
+              day: dayNumber,
+              name: matchedTransfer.name,
+              id: matchedTransfer.id,
+              price: matchedTransfer.price,
+            });
+          } else {
+            console.log(
+              `⚠️ Day ${dayNumber}: Saved car ${carId} not found, using first option`
+            );
+            if (day.transfers?.[0]) {
+              const transfer = day.transfers[0];
+              restoredActiveTransfers[index] = transfer;
+              restoredTransfers.push({
+                day: dayNumber,
+                name: transfer.name,
+                id: transfer.id,
+                price: transfer.price,
+              });
+
+              dispatch(
+                selectCar({
+                  day: dayNumber,
+                  car: {
+                    id: transfer.id,
+                    car_id: transfer.id,
+                    title: transfer.name?.en || transfer.name,
+                    name: transfer.name,
+                    image: transfer.image,
+                    price_current: transfer.price,
+                    price: transfer.price,
+                    capacity: transfer.capacity,
+                    category: transfer.category,
+                    ...transfer.originalData,
+                  },
+                })
+              );
+            }
+          }
+        }
+
+        // If no saved hotel for this day, use first option
+        if (!savedDay?.hotel && day.accommodation?.[0]) {
+          const acc = day.accommodation[0];
+          restoredActiveAcc[index] = acc;
+          restoredHotels.push({
             day: dayNumber,
-            hotel: {
-              id: acc.id,
-              hotel_id: acc.id,
-              title: acc.name?.en || acc.name,
-              name: acc.name,
-              image: acc.image,
-              adult_price: acc.price_per_night,
-              price_per_night: acc.price_per_night,
-              rating: acc.rating,
-              category: acc.category,
-              location: acc.location,
-              ...acc.originalData,
-            },
-          })
-        );
-      }
+            name: acc.name,
+            id: acc.id,
+            price: acc.price_per_night,
+            location: acc.location,
+          });
 
-      if (day.transfers?.[0]) {
-        const transfer = day.transfers[0];
-        initialActiveTransfers[index] = transfer;
-        initialTransfers.push({
-          day: dayNumber,
-          name: transfer.name,
-          id: transfer.id,
-          price: transfer.price,
-        });
+          dispatch(
+            selectHotel({
+              day: dayNumber,
+              hotel: {
+                id: acc.id,
+                hotel_id: acc.id,
+                title: acc.name?.en || acc.name,
+                name: acc.name,
+                image: acc.image,
+                adult_price: acc.price_per_night,
+                price_per_night: acc.price_per_night,
+                rating: acc.rating,
+                category: acc.category,
+                location: acc.location,
+                ...acc.originalData,
+              },
+            })
+          );
+        }
 
-        dispatch(
-          selectCar({
+        // If no saved car for this day, use first option
+        if (!savedDay?.car && day.transfers?.[0]) {
+          const transfer = day.transfers[0];
+          restoredActiveTransfers[index] = transfer;
+          restoredTransfers.push({
             day: dayNumber,
-            car: {
-              id: transfer.id,
-              car_id: transfer.id,
-              title: transfer.name?.en || transfer.name,
-              name: transfer.name,
-              image: transfer.image,
-              price_current: transfer.price,
-              price: transfer.price,
-              capacity: transfer.capacity,
-              category: transfer.category,
-              ...transfer.originalData,
-            },
-          })
-        );
-      }
-    });
+            name: transfer.name,
+            id: transfer.id,
+            price: transfer.price,
+          });
 
-    setActiveAccommodations(initialActiveAcc);
-    setActiveTransfers(initialActiveTransfers);
-    setSelectedTours((prev) => ({
-      ...prev,
-      title: transformedData.title,
-      hotels: initialHotels,
-      transfers: initialTransfers,
-    }));
+          dispatch(
+            selectCar({
+              day: dayNumber,
+              car: {
+                id: transfer.id,
+                car_id: transfer.id,
+                title: transfer.name?.en || transfer.name,
+                name: transfer.name,
+                image: transfer.image,
+                price_current: transfer.price,
+                price: transfer.price,
+                capacity: transfer.capacity,
+                category: transfer.category,
+                ...transfer.originalData,
+              },
+            })
+          );
+        }
+      });
+
+      setActiveAccommodations(restoredActiveAcc);
+      setActiveTransfers(restoredActiveTransfers);
+      setSelectedTours((prev) => ({
+        ...prev,
+        title: transformedData.title,
+        hotels: restoredHotels,
+        transfers: restoredTransfers,
+      }));
+    } else {
+      // ✅ Fresh initialization - no saved data
+      console.log("🆕 Fresh initialization - no saved data");
+
+      const initialActiveAcc = {};
+      const initialActiveTransfers = {};
+      const initialHotels = [];
+      const initialTransfers = [];
+
+      transformedData.days.forEach((day, index) => {
+        const dayNumber = index + 1;
+
+        if (day.accommodation?.[0]) {
+          const acc = day.accommodation[0];
+          initialActiveAcc[index] = acc;
+          initialHotels.push({
+            day: dayNumber,
+            name: acc.name,
+            id: acc.id,
+            price: acc.price_per_night,
+            location: acc.location,
+          });
+
+          dispatch(
+            selectHotel({
+              day: dayNumber,
+              hotel: {
+                id: acc.id,
+                hotel_id: acc.id,
+                title: acc.name?.en || acc.name,
+                name: acc.name,
+                image: acc.image,
+                adult_price: acc.price_per_night,
+                price_per_night: acc.price_per_night,
+                rating: acc.rating,
+                category: acc.category,
+                location: acc.location,
+                ...acc.originalData,
+              },
+            })
+          );
+        }
+
+        if (day.transfers?.[0]) {
+          const transfer = day.transfers[0];
+          initialActiveTransfers[index] = transfer;
+          initialTransfers.push({
+            day: dayNumber,
+            name: transfer.name,
+            id: transfer.id,
+            price: transfer.price,
+          });
+
+          dispatch(
+            selectCar({
+              day: dayNumber,
+              car: {
+                id: transfer.id,
+                car_id: transfer.id,
+                title: transfer.name?.en || transfer.name,
+                name: transfer.name,
+                image: transfer.image,
+                price_current: transfer.price,
+                price: transfer.price,
+                capacity: transfer.capacity,
+                category: transfer.category,
+                ...transfer.originalData,
+              },
+            })
+          );
+        }
+      });
+
+      setActiveAccommodations(initialActiveAcc);
+      setActiveTransfers(initialActiveTransfers);
+      setSelectedTours((prev) => ({
+        ...prev,
+        title: transformedData.title,
+        hotels: initialHotels,
+        transfers: initialTransfers,
+      }));
+    }
 
     setTimeout(() => {
       dispatch(calculateTotal());
     }, 100);
-  }, [tourData?.itinerary]);
+  }, [tourData?.itinerary, hasRestored]);
 
+  // ✅ Fixed: Date sync - استخدام formatDateLocal
   useEffect(() => {
     if (tourData?.itinerary?.length) {
       const newEndDate = calculateEndDate(
@@ -541,8 +779,8 @@ const PackageDetailsClient = () => {
 
       dispatch(
         setTourInfo({
-          startDate: dateValue[0].toISOString().split("T")[0],
-          endDate: newEndDate.toISOString().split("T")[0],
+          startDate: formatDateLocal(dateValue[0]), // ✅ Fixed
+          endDate: formatDateLocal(newEndDate), // ✅ Fixed
         })
       );
     }
@@ -665,19 +903,15 @@ const PackageDetailsClient = () => {
                     activeAccommodations={activeAccommodations}
                     activeTransfers={activeTransfers}
                     isFlipped={isFlipped}
+                    setIsFlipped={setIsFlipped} // ✅ pass setter
                     selectedAccommodation={selectedAccommodation}
+                    setSelectedAccommodation={setSelectedAccommodation} // ✅ pass setter
                     handleAccommodationClick={handleAccommodationClick}
                     handleTransferClick={handleTransferClick}
-                    handleFlip={handleFlip}
                     setMapModal={setMapModal}
                     people={people}
                     calculatePriceDifference={calculatePriceDifference}
-                    rooms={rooms}
-                    handleRoomChange={handleRoomChange}
-                    addRoom={addRoom}
-                    removeRoom={removeRoom}
-                    confirmRoomSelection={confirmRoomSelection}
-                    cancelRoomSelection={cancelRoomSelection}
+                    // ✅ rooms props removed - each day manages its own
                   />
                 ))}
               </div>
@@ -703,11 +937,11 @@ const PackageDetailsClient = () => {
                   {t("locationMap")}
                 </h4>
 
-                {/* <TourMapWrapper
+                <TourMapWrapper
                   itinerary={tourData?.itinerary || []}
                   height="450px"
                   className="mb-30"
-                /> */}
+                />
               </div>
 
               <Suspense

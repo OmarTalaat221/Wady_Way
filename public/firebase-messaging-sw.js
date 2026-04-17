@@ -18,22 +18,89 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-
 const messaging = firebase.messaging();
 
+// ✅ Strip HTML
+const stripHtml = (html) => {
+  if (!html) return "";
+  let text = html.replace(/<[^>]*>/g, "");
+  text = text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, " ");
+  return text.replace(/\s+/g, " ").trim();
+};
+
+// ✅ Let Firebase handle background via onBackgroundMessage ONLY
 messaging.onBackgroundMessage((payload) => {
-  console.log(
-    "[firebase-messaging-sw.js] Received background message ",
-    payload
-  );
+  console.log("[SW] Background message received:", payload);
 
-  const notificationTitle = payload.notification.title;
-  const notificationOptions = {
-    body: payload.notification.body,
+  // ✅ Close any existing notifications with same tag to prevent duplicates
+  self.registration
+    .getNotifications({ tag: "fcm-notification" })
+    .then((notifications) => {
+      notifications.forEach((n) => n.close());
+    });
+
+  const rawTitle =
+    payload.notification?.title ||
+    payload.data?.notification_title ||
+    payload.data?.title ||
+    "New Notification";
+
+  const rawBody =
+    payload.notification?.body ||
+    payload.data?.notification_body ||
+    payload.data?.body ||
+    "";
+
+  const cleanTitle = stripHtml(rawTitle);
+  const cleanBody = stripHtml(rawBody);
+
+  console.log("[SW] Showing notification:", cleanTitle, cleanBody);
+
+  return self.registration.showNotification(cleanTitle, {
+    body: cleanBody,
     icon: "https://res.cloudinary.com/dhgp9dzdt/image/upload/v1742474177/logo_qvee2o.png",
-    badge: "/badge-icon.png",
-    data: payload.data,
-  };
+    badge: "/logo.png",
+    data: payload.data || {},
+    // ✅ Same tag = replace duplicate
+    tag: "fcm-notification",
+    renotify: true,
+  });
+});
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+// ✅ Handle notification click
+self.addEventListener("notificationclick", (event) => {
+  console.log("[SW] Notification clicked");
+  event.notification.close();
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && "focus" in client) {
+            return client.focus();
+          }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow("/");
+        }
+      })
+  );
+});
+
+// ✅ Force activate immediately
+self.addEventListener("install", () => {
+  console.log("[SW] Installing...");
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  console.log("[SW] Activated");
+  event.waitUntil(clients.claim());
 });

@@ -18,9 +18,11 @@ import TourDetailsModal from "../modals/TourDetailsModal";
 import ActivityDetailsModal from "../modals/ActivityDetailsModal";
 import HotelDetailsModal from "../modals/HotelDetailsModal";
 import TransportationDetailsModal from "../modals/TransportationDetailsModal";
+import EditTourBookingModal from "../modals/EditTourBookingModal";
 
-const BookingCard = ({ data }) => {
+const BookingCard = ({ data, refetchTours }) => {
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   // Get main image - prioritize backgroundImage
   const mainImage =
@@ -268,7 +270,35 @@ const BookingCard = ({ data }) => {
               <span className="hidden xs:inline">{typeConfig.label}</span>
             </span>
 
-            {/* Progress Overlay - Only for started bookings */}
+            {/* ✅ Edit Button - فوق على اليمين فوق الصورة */}
+            {data?.status === "pending" && data?.bookingType === "tour" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditModalOpen(true);
+                }}
+                className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10 flex items-center gap-1 bg-white/90 hover:bg-white text-[#295557] backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] sm:text-xs font-semibold shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="sm:w-3 sm:h-3"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span className="hidden xs:inline">Edit</span>
+              </button>
+            )}
+
+            {/* Progress Overlay */}
             {data?.status === "started" && (
               <div className="absolute bottom-0 inset-x-0">
                 <div className="bg-black/50 backdrop-blur-sm px-2 py-1.5 sm:px-3 sm:py-2">
@@ -334,7 +364,7 @@ const BookingCard = ({ data }) => {
             </div>
 
             {/* Footer */}
-            <div className="mt-auto flex items-center justify-between pt-2 sm:pt-3 border-t border-gray-100 gap-2">
+            <div className="mt-auto flex items-center justify-between pt-2 sm:pt-3 border-t border-gray-100 gap-2 flex-wrap">
               {/* Guests & Price */}
               <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                 {/* Guests */}
@@ -359,13 +389,18 @@ const BookingCard = ({ data }) => {
                 </span>
               </div>
 
-              {/* View Button */}
-              <button
-                onClick={() => setModalOpen(true)}
-                className="inline-flex items-center gap-1 sm:gap-1.5 bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all group/btn flex-shrink-0"
-              >
-                <span>View Details</span>
-              </button>
+              {/* Buttons */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 sm:gap-1.5 bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all group/btn"
+                >
+                  <span>View Details</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -373,6 +408,19 @@ const BookingCard = ({ data }) => {
 
       {/* Render Modal */}
       {renderModal()}
+
+      {/* Edit Modal */}
+      {editModalOpen && (
+        <EditTourBookingModal
+          open={editModalOpen}
+          onClose={() => {
+            setEditModalOpen(false);
+            refetchTours();
+          }}
+          data={data}
+          tourId={data?.tourId || data?.tour_id || data?.id}
+        />
+      )}
     </>
   );
 };

@@ -1,4 +1,6 @@
-/* Tour Itinerary Collapse Styles */
+/* ══════════════════════════════════════════════════════
+   TOUR ITINERARY COLLAPSE STYLES
+══════════════════════════════════════════════════════ */
 .tour-itinerary-collapse {
   background: transparent;
   border: none;
@@ -67,7 +69,9 @@
   }
 }
 
-/* Scrollbar for modal body */
+/* ══════════════════════════════════════════════════════
+   TOUR DETAILS MODAL SCROLLBAR
+══════════════════════════════════════════════════════ */
 .tour-details-modal .ant-modal-body {
   max-height: 75vh;
   overflow-y: auto;
@@ -89,5 +93,170 @@
 }
 
 .tour-details-modal .ant-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #1e3d3f;
+}
+
+/* ══════════════════════════════════════════════════════
+   EDIT TOUR MODAL - CARD BASE
+══════════════════════════════════════════════════════ */
+.edit-tour-modal .card:not(.activity-card) {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 400px !important;
+  perspective: 1000px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  scroll-snap-align: start;
+  justify-content: space-between;
+  color: #000;
+  background: white;
+  border-radius: 10px;
+  border: 2px solid #ddd;
+}
+
+.edit-tour-modal .card.selected {
+  border-color: #295557;
+  box-shadow: 0px 4px 8px rgba(41, 85, 87, 0.3);
+}
+
+/* ── Card Inner ── */
+.edit-tour-modal .card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+/* ── Flipped State ── */
+.edit-tour-modal .card.flipped .card-inner {
+  transform: rotateY(180deg);
+}
+
+/* ── Card Front ── */
+
+/* لما الكارد مش flipped */
+.edit-tour-modal .card:not(.flipped) .card-front {
+  position: relative !important;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: #fff;
+}
+
+/* لما الكارد flipped */
+.edit-tour-modal .card.flipped .card-front {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: #fff;
+}
+
+/* ── Card Back ── */
+.edit-tour-modal .card-back {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: rotateY(180deg);
+  border-radius: 8px;
+  overflow-y: auto;
+  background-color: #fff;
+  color: #333;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Cards Container ── */
+.edit-tour-modal .cards-container {
+  display: flex !important;
+  gap: 20px;
+  padding-bottom: 0 !important;
+}
+
+/* ══════════════════════════════════════════════════════
+   CARD FRONT - BADGES (Learn More & Location)
+══════════════════════════════════════════════════════ */
+.card-front .cards-container-learnmore {
+  position: absolute;
+  font-size: 15px;
+  color: white;
+  padding: 5px;
+  right: 10px;
+  top: 10px;
+  border-radius: 5px;
+  background-color: #295557;
+  transition: 0.3s ease;
+  z-index: 10;
+}
+
+.card-front .cards-container-location-icon {
+  position: absolute;
+  font-size: 15px;
+  color: white;
+  padding: 5px;
+  left: 10px;
+  top: 10px;
+  border-radius: 5px;
+  background-color: #295557;
+  transition: 0.3s ease;
+  z-index: 10;
+}
+
+.card-front .cards-container-learnmore:hover,
+.card-front .cards-container-location-icon:hover {
+  scale: 1.1;
+}
+
+p {
+  margin-bottom: 0;
+}
+
+h4 {
+  margin-bottom: 0;
+}
+
+/* ══════════════════════════════════════════════════════
+   CARD BACK - ROOM SELECTION SCROLLBAR
+══════════════════════════════════════════════════════ */
+.edit-tour-modal .card-back::-webkit-scrollbar {
+  width: 4px;
+}
+
+.edit-tour-modal .card-back::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.edit-tour-modal .card-back::-webkit-scrollbar-thumb {
+  background: #295557;
+  border-radius: 10px;
+}
+
+.edit-tour-modal .card-back::-webkit-scrollbar-thumb:hover {
   background: #1e3d3f;
 }

@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef } from "react";
+import React, { useRef, useState, useCallback, useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, EffectFade, Autoplay } from "swiper/modules";
 import { Collapse } from "antd";
@@ -12,6 +12,8 @@ import { customExpandIcon } from "./CustomExpandIcon";
 import { useLocale, useTranslations } from "next-intl";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleTourGuide } from "@/lib/redux/slices/tourReservationSlice";
+import toast from "react-hot-toast";
+import { FaPlus } from "react-icons/fa6";
 
 const { Panel } = Collapse;
 
@@ -25,19 +27,14 @@ const ItineraryDay = ({
   activeAccommodations,
   activeTransfers,
   isFlipped,
+  setIsFlipped,
   selectedAccommodation,
+  setSelectedAccommodation,
   handleAccommodationClick,
   handleTransferClick,
-  handleFlip,
   setMapModal,
   people,
   calculatePriceDifference,
-  rooms,
-  handleRoomChange,
-  addRoom,
-  removeRoom,
-  confirmRoomSelection,
-  cancelRoomSelection,
 }) => {
   const prevRef = useRef(null);
   const nextRef = useRef(null);
@@ -48,22 +45,265 @@ const ItineraryDay = ({
 
   const dayNumber = index + 1;
 
-  // ✅ جلب Tour Guide من المكان الجديد
+  // ✅ Tour Guide
   const tourGuideData = useSelector(
-    (state) => state.tourReservation.tourGuideByDay[dayNumber]
+    (state) => state.tourReservation.tourGuideByDay?.[dayNumber]
   );
-
   const isAvailable = tourGuideData?.isAvailable || false;
   const isSelected = tourGuideData?.isSelected || false;
 
-  // ✅ Debug log
-  console.log(
-    `Day ${dayNumber}: isAvailable=${isAvailable}, isSelected=${isSelected}`
+  // ✅ Per-day room state - كل يوم عنده rooms مستقلة
+  const [localRooms, setLocalRooms] = useState([
+    { id: 1, adults: 1, children: 0 },
+  ]);
+
+  const [selectedCars, setSelectedCars] = useState([]);
+
+  // ✅ Check if THIS day's card is flipped
+  const isDayFlipped = isFlipped && selectedAccommodation?.dayIndex === index;
+
+  // ✅ Computed: total travelers (without infants)
+  const totalAdults = people.adults;
+  const totalChildren = people.children;
+  const totalTravelers = totalAdults + totalChildren;
+
+  // ✅ Computed: assigned counts across all rooms
+  const assignedCounts = useMemo(() => {
+    return localRooms.reduce(
+      (acc, room) => ({
+        adults: acc.adults + room.adults,
+        children: acc.children + room.children,
+      }),
+      { adults: 0, children: 0 }
+    );
+  }, [localRooms]);
+
+  // ════════════════════════════════════════
+  // ROOM MANAGEMENT - Per Day
+  // ════════════════════════════════════════
+
+  const handleRoomChange = useCallback(
+    (action, roomId, type) => {
+      setLocalRooms((prev) =>
+        prev.map((room) => {
+          if (room.id !== roomId) return room;
+
+          if (action === "increase") {
+            // ✅ Check max per type
+            const currentTotalOfType = prev.reduce(
+              (sum, r) => sum + r[type],
+              0
+            );
+            const maxAllowed = type === "adults" ? totalAdults : totalChildren;
+
+            if (currentTotalOfType >= maxAllowed) {
+              toast.error(
+                `All ${type} are already assigned (${maxAllowed} total)`
+              );
+              return room;
+            }
+
+            // ✅ Check total doesn't exceed travelers
+            const totalAssigned = prev.reduce(
+              (sum, r) => sum + r.adults + r.children,
+              0
+            );
+            if (totalAssigned >= totalTravelers) {
+              toast.error("All travelers are already assigned to rooms");
+              return room;
+            }
+
+            return { ...room, [type]: room[type] + 1 };
+          } else if (action === "decrease") {
+            // ✅ Adults can't go below 1 (each room needs at least 1 adult)
+            if (type === "adults" && room.adults <= 1) {
+              toast.error("Each room must have at least 1 adult");
+              return room;
+            }
+            if (type === "children" && room.children <= 0) return room;
+
+            return { ...room, [type]: room[type] - 1 };
+          }
+
+          return room;
+        })
+      );
+    },
+    [totalAdults, totalChildren, totalTravelers]
   );
 
-  if (!hotel) {
-    return null;
-  }
+  const addRoom = useCallback(() => {
+    if (localRooms.length >= 5) {
+      toast.error("Maximum 5 rooms allowed");
+      return;
+    }
+
+    // ✅ Check if there are unassigned adults
+    const assignedAdults = localRooms.reduce((sum, r) => sum + r.adults, 0);
+    const remainingAdults = totalAdults - assignedAdults;
+
+    if (remainingAdults <= 0) {
+      toast.error(
+        "No remaining adults to assign. Each room needs at least 1 adult."
+      );
+      return;
+    }
+
+    setLocalRooms((prev) => [
+      ...prev,
+      {
+        id: Math.max(...prev.map((r) => r.id)) + 1,
+        adults: 1,
+        children: 0,
+      },
+    ]);
+  }, [localRooms, totalAdults]);
+
+  const removeRoom = useCallback(
+    (roomId) => {
+      if (localRooms.length <= 1) {
+        toast.error("At least 1 room is required");
+        return;
+      }
+      setLocalRooms((prev) => prev.filter((r) => r.id !== roomId));
+    },
+    [localRooms.length]
+  );
+
+  const confirmRoomSelection = useCallback(() => {
+    // ✅ Validate: all travelers assigned
+    const assigned = localRooms.reduce(
+      (sum, r) => sum + r.adults + r.children,
+      0
+    );
+
+    if (assigned !== totalTravelers) {
+      toast.error(
+        `Please assign all ${totalTravelers} travelers. Currently assigned: ${assigned}`
+      );
+      return;
+    }
+
+    // ✅ Validate: no room with only children
+    const roomWithOnlyChildren = localRooms.find(
+      (room) => room.adults === 0 && room.children > 0
+    );
+    if (roomWithOnlyChildren) {
+      toast.error(
+        "Children cannot stay alone in a room. Each room must have at least 1 adult."
+      );
+      return;
+    }
+
+    // ✅ Validate: all adults assigned
+    if (assignedCounts.adults !== totalAdults) {
+      toast.error(
+        `${totalAdults - assignedCounts.adults} adult(s) not assigned to any room`
+      );
+      return;
+    }
+
+    // ✅ Validate: all children assigned (if any)
+    if (totalChildren > 0 && assignedCounts.children !== totalChildren) {
+      toast.error(
+        `${totalChildren - assignedCounts.children} child(ren) not assigned to any room`
+      );
+      return;
+    }
+
+    setIsFlipped(false);
+    setSelectedAccommodation(null);
+    toast.success("Room selection confirmed!");
+  }, [
+    localRooms,
+    totalTravelers,
+    totalAdults,
+    totalChildren,
+    assignedCounts,
+    setIsFlipped,
+    setSelectedAccommodation,
+  ]);
+
+  const cancelRoomSelection = useCallback(() => {
+    setIsFlipped(false);
+    setSelectedAccommodation(null);
+    // Reset to default
+    setLocalRooms([{ id: 1, adults: 1, children: 0 }]);
+  }, [setIsFlipped, setSelectedAccommodation]);
+
+  const handleFlip = useCallback(
+    (dayIdx) => {
+      if (activeAccommodations[dayIdx]) {
+        setSelectedAccommodation({
+          ...activeAccommodations[dayIdx],
+          dayIndex: dayIdx,
+        });
+        setIsFlipped(true);
+      }
+    },
+    [activeAccommodations, setSelectedAccommodation, setIsFlipped]
+  );
+
+  // ════════════════════════════════════════
+  // CAR MANAGEMENT - Per Day
+  // ════════════════════════════════════════
+
+  const totalPassengers = useMemo(() => {
+    const drivers = selectedCars.filter((c) => c.withDriver).length;
+    return totalAdults + totalChildren + drivers;
+  }, [selectedCars, totalAdults, totalChildren]);
+
+  const totalCarCapacity = useMemo(() => {
+    return selectedCars.reduce(
+      (sum, c) => sum + (parseInt(c.carData?.capacity) || 4),
+      0
+    );
+  }, [selectedCars]);
+
+  const isCapacitySufficient = totalCarCapacity >= totalPassengers;
+
+  const addCar = useCallback(
+    (carItem) => {
+      setSelectedCars((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          carData: carItem,
+          withDriver: false,
+        },
+      ]);
+      // Also update the parent selection for the first car
+      if (selectedCars.length === 0) {
+        handleTransferClick(carItem, index);
+      }
+    },
+    [selectedCars.length, handleTransferClick, index]
+  );
+
+  const removeCar = useCallback((carId) => {
+    setSelectedCars((prev) => {
+      const updated = prev.filter((c) => c.id !== carId);
+      // If we removed all, reset parent selection
+      if (updated.length === 0) {
+        // Optionally reset activeTransfer
+      }
+      return updated;
+    });
+  }, []);
+
+  const toggleDriver = useCallback((carId) => {
+    setSelectedCars((prev) =>
+      prev.map((c) =>
+        c.id === carId ? { ...c, withDriver: !c.withDriver } : c
+      )
+    );
+  }, []);
+
+  // ════════════════════════════════════════
+  // REST OF COMPONENT
+  // ════════════════════════════════════════
+
+  if (!hotel) return null;
 
   const handleTourGuideToggle = () => {
     dispatch(toggleTourGuide(dayNumber));
@@ -112,7 +352,6 @@ const ItineraryDay = ({
             <span>
               {t("day")} {dayNumber}
             </span>
-            {/* ✅ Badge فقط لو متاح */}
             {isAvailable && (
               <span
                 className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
@@ -216,75 +455,7 @@ const ItineraryDay = ({
               </div>
             }
           >
-            {/* ✅ Tour Guide Section - يظهر فقط لو isAvailable === true */}
-            {/* {isAvailable && (
-              <div className="day-section-bg mb-4">
-                <p className="section-title !text-[22px]">
-                  <FaUserTie /> {t("tourGuide") || "Tour Guide"}
-                </p>
-                <div className="bg-gradient-to-r from-[#295557]/10 to-[#295557]/5 p-4 rounded-lg border border-[#295557]/20">
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`p-3 rounded-full transition-colors ${
-                          isSelected
-                            ? "bg-[#295557] text-white"
-                            : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        <FaUserTie size={24} />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-800">
-                          {t("professionalGuide") || "Professional Tour Guide"}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {t("guideDescription") ||
-                            "Expert local guide to enhance your experience"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={isSelected}
-                          onChange={handleTourGuideToggle}
-                        />
-                        <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#295557]/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[#295557]"></div>
-                      </label>
-                      <span
-                        className={`text-sm font-medium min-w-[80px] ${isSelected ? "text-[#295557]" : "text-gray-500"}`}
-                      >
-                        {isSelected ? "Included" : "Not Included"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {!isSelected && (
-                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-sm text-yellow-700 flex items-center gap-2">
-                        <span>⚠️</span>
-                        Removing the tour guide is at your own responsibility.
-                      </p>
-                    </div>
-                  )}
-
-                  {isSelected && (
-                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
-                      <p className="text-sm text-green-700 flex items-center gap-2">
-                        <span>✓</span>A professional guide will accompany you on
-                        this day
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )} */}
-
-            {/* Accommodation Section */}
+            {/* Accommodation */}
             <div className="day-section-bg">
               <p className="section-title !text-[22px]">
                 <FaBed /> {t("accommodation")}
@@ -298,7 +469,7 @@ const ItineraryDay = ({
                         item={item}
                         index={index}
                         activeAccommodations={activeAccommodations}
-                        isFlipped={isFlipped}
+                        isFlipped={isDayFlipped}
                         selectedAccommodation={selectedAccommodation}
                         selectedTours={selectedTours}
                         setSelectedTours={setSelectedTours}
@@ -307,12 +478,14 @@ const ItineraryDay = ({
                         setMapModal={setMapModal}
                         people={people}
                         calculatePriceDifference={calculatePriceDifference}
-                        rooms={rooms}
+                        rooms={localRooms}
                         handleRoomChange={handleRoomChange}
                         addRoom={addRoom}
                         removeRoom={removeRoom}
                         confirmRoomSelection={confirmRoomSelection}
                         cancelRoomSelection={cancelRoomSelection}
+                        assignedCounts={assignedCounts}
+                        totalTravelers={totalTravelers}
                       />
                     ))
                   ) : (
@@ -324,25 +497,156 @@ const ItineraryDay = ({
               </div>
             </div>
 
-            {/* Transfers Section */}
+            {/* Transfers */}
+            {/* Transfers / Cars */}
             <div className="day-section-bg">
               <p className="section-title !text-[22px]">
                 <MdEmojiTransportation /> {t("cars")}
               </p>
+
+              {/* Capacity Status Bar */}
+              {selectedCars.length > 0 && (
+                <div
+                  className={`flex items-center justify-between px-4 py-3 rounded-xl mb-4 border ${
+                    isCapacitySufficient
+                      ? "bg-green-50 border-green-200"
+                      : "bg-red-50 border-red-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm">
+                      <span className="font-semibold">
+                        {selectedCars.length}{" "}
+                        {selectedCars.length === 1 ? "car" : "cars"}
+                      </span>
+                      <span className="text-gray-500 mx-1">•</span>
+                      <span>Capacity: {totalCarCapacity} seats</span>
+                    </div>
+                  </div>
+                  <div className="text-sm">
+                    <span
+                      className={`font-semibold ${
+                        isCapacitySufficient ? "text-green-700" : "text-red-700"
+                      }`}
+                    >
+                      {totalPassengers} people
+                      {selectedCars.filter((c) => c.withDriver).length > 0 &&
+                        ` (incl. ${
+                          selectedCars.filter((c) => c.withDriver).length
+                        } driver${
+                          selectedCars.filter((c) => c.withDriver).length > 1
+                            ? "s"
+                            : ""
+                        })`}
+                    </span>
+                    {!isCapacitySufficient && (
+                      <span className="text-red-600 text-xs block">
+                        Need {totalPassengers - totalCarCapacity} more seat(s)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Selected Cars List */}
+              {selectedCars.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {selectedCars.map((car, carIdx) => (
+                    <div
+                      key={car.id}
+                      className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={
+                            car.carData?.image ||
+                            "https://via.placeholder.com/60x40"
+                          }
+                          alt={
+                            car.carData?.name?.[locale] ||
+                            car.carData?.name?.en ||
+                            car.carData?.title
+                          }
+                          className="w-[60px] h-[40px] object-cover rounded-lg"
+                          onError={(e) => {
+                            e.target.src = "https://via.placeholder.com/60x40";
+                          }}
+                        />
+                        <div>
+                          <p className="text-sm font-semibold mb-0">
+                            {car.carData?.name?.[locale] ||
+                              car.carData?.name?.en ||
+                              car.carData?.title ||
+                              `Car ${carIdx + 1}`}
+                          </p>
+                          <p className="text-xs text-gray-500 mb-0">
+                            Capacity: {parseInt(car.carData?.capacity)} seats
+                            {car.withDriver && " (1 seat for driver)"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {/* Driver Toggle */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleDriver(car.id);
+                          }}
+                          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all ${
+                            car.withDriver
+                              ? "bg-[#295557] text-white border-[#295557]"
+                              : "bg-white text-gray-600 border-gray-300 hover:border-[#295557]"
+                          }`}
+                        >
+                          <FaUserTie size={10} />
+                          Driver
+                        </button>
+
+                        {/* Remove */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeCar(car.id);
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition-colors text-sm"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Available Cars to Add */}
               <div className="cards-container-parent">
                 <div className="cards-container">
                   {hotel.transfers?.length > 0 ? (
                     hotel.transfers.map((item) => (
-                      <TransferCard
-                        key={item.id}
-                        item={item}
-                        index={index}
-                        activeTransfers={activeTransfers}
-                        selectedTours={selectedTours}
-                        setSelectedTours={setSelectedTours}
-                        handleTransferClick={handleTransferClick}
-                        calculatePriceDifference={calculatePriceDifference}
-                      />
+                      <div key={item.id} className="relative">
+                        <TransferCard
+                          item={item}
+                          index={index}
+                          activeTransfers={activeTransfers}
+                          selectedTours={selectedTours}
+                          setSelectedTours={setSelectedTours}
+                          handleTransferClick={() => addCar(item)}
+                          calculatePriceDifference={calculatePriceDifference}
+                        />
+                        {/* Add Car Button Overlay */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addCar(item);
+                          }}
+                          className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#295557] text-white shadow-lg hover:bg-[#1e3e40] transition-colors"
+                          title="Add this car"
+                        >
+                          <FaPlus size={12} />
+                        </button>
+                      </div>
                     ))
                   ) : (
                     <p className="no-options-msg">{t("noTransferOptions")}</p>
@@ -351,7 +655,7 @@ const ItineraryDay = ({
               </div>
             </div>
 
-            {/* Activities Section */}
+            {/* Activities */}
             {hotel.activities?.length > 0 && (
               <div className="day-section-bg">
                 <p className="section-title !text-[22px]">

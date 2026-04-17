@@ -3,12 +3,12 @@
 export const seoConfig = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://wady-way.vercel.app",
 
-  siteName: "Wady Way",
-  defaultTitle: "Wady Way - Book Your Perfect Trip",
-  titleTemplate: "%s | Wady Way",
+  siteName: "Wadi Way",
+  defaultTitle: "Wadi Way - Book Your Perfect Trip",
+  titleTemplate: "%s | Wadi Way",
 
   defaultDescription:
-    "Discover and book amazing travel packages, hotels, transportation, and activities. Plan your perfect trip with Wady Way - your trusted travel booking platform.",
+    "Discover and book amazing travel packages, hotels, transportation, and activities. Plan your perfect trip with Wadi Way - your trusted travel booking platform.",
 
   defaultKeywords: [
     "wady way",
@@ -39,7 +39,7 @@ export const seoConfig = {
   },
 
   organization: {
-    name: "Wady Way",
+    name: "Wadi Way",
     logo: "/images/logo.png",
     email: "support@wadyway.com", // 🔴 غيّره
     phone: "+968XXXXXXXX", // 🔴 رقم عُماني

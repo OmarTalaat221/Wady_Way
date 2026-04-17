@@ -154,6 +154,16 @@ const Login = () => {
             animate="visible"
           >
             <motion.div className="modern-title" variants={titleVariants}>
+              <Link
+                href={"/"}
+                className=" flex justify-center w-20 h-20 m-auto pointer"
+              >
+                <img
+                  className=" !w-full !h-full !object-cover"
+                  src="https://res.cloudinary.com/dbvh5i83q/image/upload/v1775980904/W_ppfn8j.png"
+                  alt="Logo"
+                />
+              </Link>
               <h2>Welcome Back</h2>
               <p>Sign in to continue your journey</p>
             </motion.div>

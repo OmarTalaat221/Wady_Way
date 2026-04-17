@@ -230,7 +230,7 @@ const HeaderContent = ({
               height: "80px",
               objectFit: "contain",
             }}
-            src="https://res.cloudinary.com/dkc5klynm/image/upload/v1768722765/wadi-way_lf8tyu.png"
+            src="https://res.cloudinary.com/dbvh5i83q/image/upload/v1775980868/wadi-way_gnrjns.png"
             alt=""
           />
         </Link>
@@ -275,7 +275,7 @@ const HeaderContent = ({
                   <ul
                     className={`
                       ${
-                        label === "More"
+                        label === "More" || label === "Services"
                           ? "absolute left-0 top-full bg-white rounded-md shadow-lg p-2 text-gray-800 z-50 min-w-[200px]"
                           : "sub-menu"
                       }

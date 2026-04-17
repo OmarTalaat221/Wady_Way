@@ -56,12 +56,19 @@ const Page = () => {
     hasStoredCode,
     isLoading: inviteCodeLoading,
     setManualInviteCode,
-    clearCurrentInviteCode, // ✅ للحذف بعد الحجز الناجح
+    clearCurrentInviteCode,
   } = useInviteCode(INVITE_CODE_TYPES.ACTIVITY, activityId);
 
   // Add invitation modal states
   const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
   const [invitationLoading, setInvitationLoading] = useState(false);
+
+  // ─── Derived: is this activity suitable for children? ───────────────────────
+  const isForChildren = useMemo(() => {
+    return (
+      activityData?.for_children === "1" || activityData?.for_children === 1
+    );
+  }, [activityData?.for_children]);
 
   // Extract YouTube Video ID
   const extractYouTubeVideoId = (url) => {
@@ -118,7 +125,7 @@ const Page = () => {
   // Max people calculation
   const maxPeople = useMemo(() => {
     const max = parseInt(activityData?.max_people) || 0;
-    return max > 0 ? max : null; // null means unlimited
+    return max > 0 ? max : null;
   }, [activityData?.max_people]);
 
   // Calculate remaining slots
@@ -129,15 +136,24 @@ const Page = () => {
 
   // Calculate max for adult quantity
   const maxAdultQuantity = useMemo(() => {
-    if (!maxPeople) return 99; // No limit
+    if (!maxPeople) return 99;
+    // If not for children, children will always be 0 so adults can fill all slots
     return Math.max(1, maxPeople - childQuantity);
   }, [maxPeople, childQuantity]);
 
   // Calculate max for child quantity
   const maxChildQuantity = useMemo(() => {
-    if (!maxPeople) return 99; // No limit
+    if (!isForChildren) return 0; // hard cap — no children allowed
+    if (!maxPeople) return 99;
     return Math.max(0, maxPeople - adultQuantity);
-  }, [maxPeople, adultQuantity]);
+  }, [isForChildren, maxPeople, adultQuantity]);
+
+  // Reset child quantity to 0 if activity is not for children
+  useEffect(() => {
+    if (activityData && !isForChildren && childQuantity > 0) {
+      setChildQuantity(0);
+    }
+  }, [isForChildren, activityData]);
 
   // Handle adult quantity change with max people validation
   const handleAdultQuantityChange = (newQuantity) => {
@@ -153,6 +169,11 @@ const Page = () => {
 
   // Handle child quantity change with max people validation
   const handleChildQuantityChange = (newQuantity) => {
+    // Guard: activity not suitable for children
+    if (!isForChildren) {
+      toast.error("This activity is not suitable for children");
+      return;
+    }
     if (maxPeople) {
       const totalAfterChange = adultQuantity + newQuantity;
       if (totalAfterChange > maxPeople) {
@@ -168,7 +189,10 @@ const Page = () => {
     if (!activityData) return 0;
 
     const adultTotal = parseFloat(activityData.per_adult) * adultQuantity;
-    const childTotal = parseFloat(activityData.per_child) * childQuantity;
+    // If not for children, child total is always 0
+    const childTotal = isForChildren
+      ? parseFloat(activityData.per_child) * childQuantity
+      : 0;
 
     return (adultTotal + childTotal).toFixed(2);
   };
@@ -235,12 +259,13 @@ const Page = () => {
       return;
     }
 
-    // ✅ Check if invite code exists - skip modal if yes
-    if (hasStoredCode && inviteCode) {
-      setIsConfirmModalOpen(true);
-    } else {
-      setIsConfirmModalOpen(true);
+    // Guard: children selected but activity not for children (extra safety)
+    if (!isForChildren && childQuantity > 0) {
+      toast.error("This activity is not suitable for children");
+      return;
     }
+
+    setIsConfirmModalOpen(true);
   };
 
   const handleInvitationSubmit = (code) => {
@@ -269,12 +294,12 @@ const Page = () => {
       const bookingData = {
         user_id: userId,
         activity_id: parseInt(activityId),
-        childs_num: childQuantity,
+        childs_num: isForChildren ? childQuantity : 0,
         adults_num: adultQuantity,
         additional_activities: null,
         total_amount: parseFloat(calculateTotalPrice()),
         date: selectedDate,
-        invite_code: inviteCode || "", // ✅ ADD THIS LINE
+        invite_code: inviteCode || "",
       };
 
       console.log("📤 Booking with invite code:", inviteCode);
@@ -293,10 +318,8 @@ const Page = () => {
       const result = await response.json();
 
       if (result.status === "success") {
-        // ✅ حذف الكود من localStorage بعد النجاح
         clearCurrentInviteCode();
         console.log("🗑️ Invite code cleared after successful booking");
-
         setBookingSuccess(true);
       } else {
         setBookingError(result.message || "Booking failed. Please try again.");
@@ -311,6 +334,7 @@ const Page = () => {
       setBookingLoading(false);
     }
   };
+
   // Close confirmation modal
   const closeConfirmModal = () => {
     setIsConfirmModalOpen(false);
@@ -335,28 +359,6 @@ const Page = () => {
       fetchActivityData();
     }
   }, [activityId]);
-
-  // Static FAQ data
-  const faqData = useMemo(
-    () => [
-      {
-        id: "travelcollapseOne",
-        question: `01. What is ${activityData?.activity_type || "this activity"}?`,
-        answer:
-          activityData?.description ||
-          "This activity offers an exciting adventure experience.",
-      },
-      {
-        id: "travelcollapseTwo",
-        question: "02. What equipment do I need?",
-        answer:
-          activityData?.features?.length > 0
-            ? `Essential equipment includes: ${activityData.features.join(", ")}`
-            : "All necessary equipment will be provided.",
-      },
-    ],
-    [activityData]
-  );
 
   // Loading state
   if (loading || inviteCodeLoading) {
@@ -416,7 +418,7 @@ const Page = () => {
         <div className="container">
           <div className="row">
             <div className="col-lg-12">
-              {/* Dynamic Gallery Section - Like Hotel */}
+              {/* Dynamic Gallery Section */}
               <div className="package-img-group mb-50">
                 <div className="row g-3">
                   {/* Single Image */}
@@ -428,9 +430,6 @@ const Page = () => {
                             images[0]?.imageBig || "/path/to/default-image.jpg"
                           }
                           alt={activityData?.title || "Activity Image"}
-                          // onError={(e) => {
-                          //   e.target.src = "/path/to/fallback-image.jpg";
-                          // }}
                         />
                         <a>
                           <i
@@ -467,9 +466,6 @@ const Page = () => {
                                 image.imageBig || "/path/to/default-image.jpg"
                               }
                               alt={`${activityData?.title || "Activity"} Image ${index + 1}`}
-                              // onError={(e) => {
-                              //   e.target.src = "/path/to/fallback-image.jpg";
-                              // }}
                             />
                             <a>
                               <i
@@ -509,9 +505,6 @@ const Page = () => {
                               "/path/to/default-image.jpg"
                             }
                             alt={activityData?.title || "Activity Image"}
-                            // onError={(e) => {
-                            //   e.target.src = "/path/to/fallback-image.jpg";
-                            // }}
                           />
                           <a>
                             <i
@@ -540,27 +533,21 @@ const Page = () => {
                                   <img
                                     src={image.imageBig}
                                     alt={`${activityData?.title || "Activity"} Image ${index + 2}`}
-                                    // onError={(e) => {
-                                    //   e.target.src =
-                                    //     "/path/to/fallback-image.jpg";
-                                    // }}
                                   />
-                                  {/* Show +More on 4th image (index 3) if more than 5 images */}
                                   {index === 3 && imageCount > 5 ? (
-                                    <button className="StartSlideShowFirstImage">
-                                      <i
-                                        className="bi bi-plus-lg"
-                                        onClick={() =>
-                                          setOpenimg({
-                                            openingState: true,
-                                            openingIndex: index + 1,
-                                          })
-                                        }
-                                      />{" "}
-                                      View More Images
+                                    <button
+                                      onClick={() =>
+                                        setOpenimg({
+                                          openingState: true,
+                                          openingIndex: index + 1,
+                                        })
+                                      }
+                                      className="StartSlideShowFirstImage"
+                                    >
+                                      <i className="bi bi-plus-lg" /> View More
+                                      Images
                                     </button>
-                                  ) : /* Show Video button on 3rd small image (index 2) */
-                                  index === 2 && hasVideo ? (
+                                  ) : index === 2 && hasVideo ? (
                                     <a
                                       data-fancybox="gallery-01"
                                       style={{ cursor: "pointer" }}
@@ -569,21 +556,20 @@ const Page = () => {
                                       <i className="bi bi-play-circle" /> Watch
                                       Video
                                     </a>
-                                  ) : /* Show +More on last small image if 4 images and no video */
-                                  index === 2 &&
+                                  ) : index === 2 &&
                                     !hasVideo &&
                                     imageCount === 4 ? (
-                                    <button className="StartSlideShowFirstImage">
-                                      <i
-                                        className="bi bi-plus-lg"
-                                        onClick={() =>
-                                          setOpenimg({
-                                            openingState: true,
-                                            openingIndex: index + 1,
-                                          })
-                                        }
-                                      />{" "}
-                                      View More Images
+                                    <button
+                                      onClick={() =>
+                                        setOpenimg({
+                                          openingState: true,
+                                          openingIndex: index + 1,
+                                        })
+                                      }
+                                      className="StartSlideShowFirstImage"
+                                    >
+                                      <i className="bi bi-plus-lg" /> View More
+                                      Images
                                     </button>
                                   ) : index === 3 && hasVideo ? (
                                     <></>
@@ -605,7 +591,9 @@ const Page = () => {
               <div className="eg-tag2">
                 <span>{activityData.activity_type}</span>
               </div>
+
               <h2 className="!mb-0">{activityData.title}</h2>
+
               <div className="flex items-center gap-3">
                 <div className="tour-price">
                   <h3>
@@ -614,17 +602,22 @@ const Page = () => {
                   </h3>
                   <span>{"adult"}</span>
                 </div>
-                <div className="tour-price">
-                  <h3 className="!text-[rgb(226,155,75)]">&</h3>
-                </div>
 
-                <div className="tour-price">
-                  <h3>
-                    {activityData.price_currency}
-                    {activityData.per_child}/
-                  </h3>
-                  <span>{"child"}</span>
-                </div>
+                {/* Only show child price if activity is for children */}
+                {isForChildren && (
+                  <>
+                    <div className="tour-price">
+                      <h3 className="!text-[rgb(226,155,75)]">&</h3>
+                    </div>
+                    <div className="tour-price">
+                      <h3>
+                        {activityData.price_currency}
+                        {activityData.per_child}/
+                      </h3>
+                      <span>{"child"}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <ul className="tour-info-metalist">
@@ -643,11 +636,16 @@ const Page = () => {
                   {activityData.country_name}
                 </li>
               </ul>
-              <p>{activityData.description}</p>
+
+              <p
+                dangerouslySetInnerHTML={{
+                  __html: activityData?.description,
+                }}
+              />
 
               {activityData.features?.length > 0 && (
                 <div className="highlight-tour mb-[20px]">
-                  <h4>Highlights of the Tour</h4>
+                  <h4>Highlights of the Activity</h4>
                   <ul>
                     {activityData.features.map((feature, index) => (
                       <li key={feature.id || index}>
@@ -676,9 +674,9 @@ const Page = () => {
                 </div>
               </div>
 
-              <div className="faq-content-wrap mb-[25px]">
+              {/* <div className="faq-content-wrap mb-[25px]">
                 <FAQ faqData={faqData} text={true} />
-              </div>
+              </div> */}
 
               {/* Review Section */}
               <div className="review-wrapper">
@@ -704,7 +702,6 @@ const Page = () => {
                     </div>
                   </div>
 
-                  {/* Review Button */}
                   <button
                     className="primary-btn1"
                     onClick={() => setIsReviewModalOpen(true)}
@@ -715,6 +712,7 @@ const Page = () => {
               </div>
             </div>
 
+            {/* ─── Booking Sidebar ─────────────────────────────────────────── */}
             <div className="col-xl-4">
               <div className="booking-form-wrap">
                 <h4>Reserve Your Activity</h4>
@@ -728,6 +726,27 @@ const Page = () => {
                     <i className="bi bi-info-circle me-2"></i>
                     Maximum <strong>{maxPeople}</strong> people allowed for this
                     activity
+                  </div>
+                )}
+
+                {/* Adults-only notice in sidebar */}
+                {!isForChildren && (
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 text-amber-800 text-xs font-medium px-3 py-2 rounded-lg mb-3">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-4 h-4 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    Adults only — children not permitted for this activity
                   </div>
                 )}
 
@@ -758,6 +777,7 @@ const Page = () => {
                         </div>
 
                         <div className="booking-form-item-type mb-45">
+                          {/* Adults counter — always shown */}
                           <div className="number-input-item adults">
                             <label className="number-input-lable">
                               Adult:<span></span>
@@ -781,23 +801,56 @@ const Page = () => {
                               maxQuantity={maxAdultQuantity}
                             />
                           </div>
-                          <div className="number-input-item children">
-                            <label className="number-input-lable">
-                              Children:<span></span>
-                              <span>
-                                {activityData.price_currency}
-                                {activityData.per_child}
-                              </span>
-                            </label>
-                            <QuantityCounter
-                              quantity={childQuantity}
-                              onQuantityChange={handleChildQuantityChange}
-                              incIcon="bx bx-plus"
-                              dcrIcon="bx bx-minus"
-                              minQuantity={0}
-                              maxQuantity={maxChildQuantity}
-                            />
-                          </div>
+
+                          {/* Children counter — only shown if activity is for children */}
+                          {isForChildren ? (
+                            <div className="number-input-item children">
+                              <label className="number-input-lable">
+                                Children:<span></span>
+                                <span>
+                                  {activityData.price_currency}
+                                  {activityData.per_child}
+                                </span>
+                              </label>
+                              <QuantityCounter
+                                quantity={childQuantity}
+                                onQuantityChange={handleChildQuantityChange}
+                                incIcon="bx bx-plus"
+                                dcrIcon="bx bx-minus"
+                                minQuantity={0}
+                                maxQuantity={maxChildQuantity}
+                              />
+                            </div>
+                          ) : (
+                            /* Disabled children row with explanation */
+                            <div className="number-input-item children opacity-50 cursor-not-allowed select-none">
+                              <label className="number-input-lable">
+                                Children:<span></span>
+                                <span className="text-xs text-red-500 font-normal ml-1">
+                                  Not available
+                                </span>
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-300 cursor-not-allowed"
+                                >
+                                  <i className="bx bx-minus" />
+                                </button>
+                                <span className="w-6 text-center text-gray-400 font-medium">
+                                  0
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-300 cursor-not-allowed"
+                                >
+                                  <i className="bx bx-plus" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Price breakdown */}
@@ -842,7 +895,8 @@ const Page = () => {
                             </div>
                           )}
 
-                          {childQuantity > 0 && (
+                          {/* Children price row — only when for_children AND quantity > 0 */}
+                          {isForChildren && childQuantity > 0 && (
                             <div className="single-total mb-30">
                               <span>Children</span>
                               <ul>
@@ -900,7 +954,7 @@ const Page = () => {
           </div>
         </div>
 
-        {/* Confirmation Modal */}
+        {/* ─── Confirmation Modal ──────────────────────────────────────────── */}
         {isConfirmModalOpen && (
           <div
             className="modal fade show d-block"
@@ -967,7 +1021,8 @@ const Page = () => {
                                   {activityData.per_adult}
                                 </div>
                               </div>
-                              {childQuantity > 0 && (
+                              {/* Only show children row in confirmation if applicable */}
+                              {isForChildren && childQuantity > 0 && (
                                 <div className="row mb-2">
                                   <div className="col-6">
                                     <strong>Children:</strong>
@@ -984,10 +1039,34 @@ const Page = () => {
                                   <strong>Total Guests:</strong>
                                 </div>
                                 <div className="col-6">
-                                  {adultQuantity + childQuantity} people
+                                  {adultQuantity +
+                                    (isForChildren ? childQuantity : 0)}{" "}
+                                  {isForChildren ? "people" : "adults"}
                                   {maxPeople && ` (Max: ${maxPeople})`}
                                 </div>
                               </div>
+
+                              {/* Adults-only notice inside confirmation modal */}
+                              {!isForChildren && (
+                                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs px-3 py-2 rounded mb-2">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="w-3.5 h-3.5 shrink-0"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                    <line x1="12" y1="9" x2="12" y2="13" />
+                                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                                  </svg>
+                                  Adults only activity — no children included
+                                </div>
+                              )}
+
                               <hr />
                               <div className="row">
                                 <div className="col-6">
@@ -1029,7 +1108,7 @@ const Page = () => {
           </div>
         )}
 
-        {/* Booking Status Modal */}
+        {/* ─── Booking Status Modal ────────────────────────────────────────── */}
         {isBookingModalOpen && (
           <div
             className="modal fade show d-block"

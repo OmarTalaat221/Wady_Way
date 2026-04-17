@@ -1,36 +1,52 @@
+// ─── RouteProtection ─────────────────────────────────────────────────────────
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Preloader from "../../app/loading";
 
+const protectedRoutes = ["/account"];
+const authRoutes = ["/login", "/signup"];
+
 const RouteProtection = ({ children }) => {
-  const protectedRoutes = ["/account"];
   const router = useRouter();
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(true);
-
-  const authRoutes = ["/login", "/signup"];
+  const [isReady, setIsReady] = useState(false);
+  const prevPathRef = useRef(pathname);
 
   useEffect(() => {
     const user = localStorage.getItem("user");
     const isLoggedIn = !!user;
 
+    // ── Case 1: Logged in + trying to access login/signup ──
     if (isLoggedIn && authRoutes.includes(pathname)) {
-      router.push("/");
+      router.replace("/");
       return;
     }
 
+    // ── Case 2: NOT logged in + trying to access protected route ──
     if (!isLoggedIn && protectedRoutes.includes(pathname)) {
-      router.push("/login");
+      // Replace current history entry with login
+      // This prevents back button from going to /account
+      router.replace("/login");
       return;
     }
 
-    setIsLoading(false);
-  }, [pathname, router, protectedRoutes]);
+    setIsReady(true);
+    prevPathRef.current = pathname;
+  }, [pathname, router]);
 
-  if (isLoading) {
-    return <Preloader />;
-  }
+  // ── Listen for logout events ──
+  useEffect(() => {
+    const handleLogout = () => {
+      // When logout happens, replace history so back won't go to protected pages
+      router.replace("/login");
+    };
+
+    window.addEventListener("user-logout", handleLogout);
+    return () => window.removeEventListener("user-logout", handleLogout);
+  }, [router]);
+
+  if (!isReady) return <Preloader />;
 
   return children;
 };

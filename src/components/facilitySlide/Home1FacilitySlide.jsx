@@ -285,10 +285,11 @@ const Home1FacilitySlide = () => {
                   alt=""
                 />
                 <div className="logo">
-                  {/* <img
-                    src="/assets/img/home1/icon/tripadvisor-logo2.svg "
+                  <img
+                    className="w-[80%] h-full!"
+                    src="https://res.cloudinary.com/dbvh5i83q/image/upload/v1775980904/W_ppfn8j.png"
                     alt=""
-                  /> */}
+                  />
                 </div>
               </div>
             </div>

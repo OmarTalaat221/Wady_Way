@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getMessaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD_HjLoBWO0A4cqJjYcnhAq_kaXOu1OpaA",
@@ -14,17 +14,36 @@ const firebaseConfig = {
   measurementId: "G-NYZJF88E5K",
 };
 
-// Initialize Firebase
+// ✅ Initialize Firebase app
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
-let analytics;
-let messaging;
+// ✅ VAPID_KEY
+export const VAPID_KEY =
+  "BJAYCaJsWng8F02q8IyQSeqO7yrA3_inqTHPaJJtBNDlwSQjli47_xByDY8llZZyLaC8B9L1rnaN07-GgpBcH1g";
 
+let analytics = null;
+let messaging = null;
+
+// ✅ Safe initialization — only on client side
 if (typeof window !== "undefined") {
-  isSupported().then((yes) => yes && (analytics = getAnalytics(app)));
-  messaging = getMessaging(app);
+  try {
+    messaging = getMessaging(app);
+    console.log("✅ Firebase Messaging initialized successfully");
+  } catch (error) {
+    console.warn("⚠️ Firebase Messaging could not be initialized:", error);
+    messaging = null;
+  }
+
+  isSupported()
+    .then((yes) => {
+      if (yes) {
+        analytics = getAnalytics(app);
+        console.log("✅ Firebase Analytics initialized");
+      }
+    })
+    .catch(() => {
+      console.warn("⚠️ Firebase Analytics not supported");
+    });
 }
 
 export { app, analytics, messaging };
-export const VAPID_KEY =
-  "BJAYCaJsWng8F02q8IyQSeqO7yrA3_inqTHPaJJtBNDlwSQjli47_xByDY8llZZyLaC8B9L1rnaN07-GgpBcH1g";

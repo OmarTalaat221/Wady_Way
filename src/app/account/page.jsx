@@ -335,8 +335,10 @@ const Account = () => {
 
           return {
             id: reservation.reservation_id,
+            reservation_id: reservation.reservation_id, // ✅
             bookingType: "tour",
-            tour_id: reservation.tour_id,
+            tour_id: reservation.tour_id, // ✅
+            tourId: reservation.tour_id, // ✅
             title: tour.title || reservation.tour_title,
             duration: tour.duration,
             status: apiStatus,
@@ -365,6 +367,15 @@ const Account = () => {
             includes: tour.includes,
             excludes: tour.excludes,
             dayTourGuide: reservation.day_tour_guide,
+            max_persons: tour.max_persons, // ✅
+
+            // ════════════════════════════════════
+            // ✅ الـ reservation strings الكاملة
+            // ════════════════════════════════════
+            day_hotel: reservation.day_hotel, // "22**1**day**5**2"
+            day_car: reservation.day_car, // "4**1**day**1**2"
+            day_activities: reservation.day_activities, // "5**1**day**4**1..."
+            day_tour_guide: reservation.day_tour_guide, // "0**1"
           };
         });
         allBookings = [...allBookings, ...mappedTours];
@@ -938,7 +949,7 @@ const Account = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {paginatedBookings.map((booking) => (
             <div key={`${booking.bookingType}-${booking.id}`}>
-              <BookingCard data={booking} />
+              <BookingCard data={booking} refetchTours={fetchAllBookings} />
             </div>
           ))}
         </div>

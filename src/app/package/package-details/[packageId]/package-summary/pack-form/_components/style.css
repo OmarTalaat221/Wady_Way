@@ -817,19 +817,19 @@
   margin: 0 0 16px 0;
 }
 
-.wady-team {
+.wadi-team {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.wady-team span {
+.wadi-team span {
   font-size: 14px;
   color: var(--text-light);
   font-style: italic;
 }
 
-.wady-team strong {
+.wadi-team strong {
   font-size: 16px;
   color: var(--primary-color);
   font-weight: 600;

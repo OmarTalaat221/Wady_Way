@@ -27,9 +27,30 @@
   },
 
   {
-    "id": "5",
-    "label": "Gallery",
-    "link": "/gallery"
+    "id": "9-3",
+    "label": "Services",
+    "link": "#",
+    "icon": true,
+    "subMenu": [
+      {
+        "id": "9-3-1",
+        "label": "Transportation",
+        "link": "/transport",
+        "icon": false
+      },
+      {
+        "id": "9-3-2",
+        "label": "Accommodation",
+        "link": "/hotel-suits",
+        "icon": false
+      },
+      {
+        "id": "9-3-3",
+        "label": "Activities",
+        "link": "/activities",
+        "icon": false
+      }
+    ]
   },
 
   {
@@ -56,32 +77,11 @@
         "link": "/community",
         "icon": false
       },
-
       {
-        "id": "9-3",
-        "label": "Services",
-        "link": "/services",
-        "icon": true,
-        "subMenu": [
-          {
-            "id": "9-3-1",
-            "label": "Transportation",
-            "link": "/transport",
-            "icon": false
-          },
-          {
-            "id": "9-3-2",
-            "label": "Accommodation",
-            "link": "/hotel-suits",
-            "icon": false
-          },
-          {
-            "id": "9-3-3",
-            "label": "Activities",
-            "link": "/activities",
-            "icon": false
-          }
-        ]
+        "id": "9-5",
+        "label": "Gallery",
+        "link": "/gallery",
+        "icon": false
       }
     ]
   },

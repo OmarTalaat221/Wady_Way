@@ -135,7 +135,7 @@ const Page = () => {
     setSelectedAccommodation({ ...accommodation, dayIndex });
 
     // If less than 3 travelers, automatically select without flipping
-    const totalTravelers = people.adults + people.children + people.infants;
+    const totalTravelers = people.adults + people.children;
     if (totalTravelers < 3) {
       handleAccommodationSelection(accommodation, dayIndex);
     }
@@ -143,7 +143,7 @@ const Page = () => {
 
   const handleFlip = (dayIndex) => {
     // Only flip if total travelers is 3 or more and we have an active accommodation for this day
-    const totalTravelers = people.adults + people.children + people.infants;
+    const totalTravelers = people.adults + people.children;
     if (totalTravelers >= 3 && activeAccommodations[dayIndex]) {
       setSelectedAccommodation({ ...activeAccommodations[dayIndex], dayIndex });
       setIsFlipped(true);
@@ -175,12 +175,11 @@ const Page = () => {
 
           if (action === "increase") {
             // Check total travelers before increasing
-            const totalTravelers =
-              people.adults + people.children + people.infants;
-            const currentRoomTotal = room.adults + room.children + room.infants;
+            const totalTravelers = people.adults + people.children;
+            const currentRoomTotal = room.adults + room.children;
             const otherRoomsTotal = prevRooms.reduce((total, r) => {
               if (r.id !== roomId) {
-                return total + r.adults + r.children + r.infants;
+                return total + r.adults + r.children;
               }
               return total;
             }, 0);

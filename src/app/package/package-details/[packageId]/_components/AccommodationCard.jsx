@@ -41,11 +41,12 @@ const AccommodationCard = ({
     item?.price_per_night
   );
 
-  const totalTravelers = people.adults + people.children + people.infants;
+  const totalAdults = people.adults;
+  const totalChildren = people.children;
+  const totalTravelers = totalAdults + totalChildren;
   const isSelected = activeAccommodations[index]?.id === item.id;
-  const canFlip = totalTravelers >= 3 && isSelected;
+  const canFlip = isSelected;
 
-  // استخراج الـ amenities من البيانات الأصلية
   const amenities = item.amenities || item.originalData?.amenities || [];
 
   return (
@@ -98,7 +99,6 @@ const AccommodationCard = ({
               {item.name?.[locale] || item.name?.en || "Accommodation"}
             </h3>
 
-            {/* عرض الـ Amenities من الـ API */}
             <div className="gap-3 mb-3 transfer_feat_cont">
               {amenities.length > 0 ? (
                 amenities.slice(0, 4).map((amenity, idx) => (
@@ -119,7 +119,6 @@ const AccommodationCard = ({
                   </div>
                 ))
               ) : (
-                // Fallback للبيانات القديمة
                 <>
                   <div className="d-flex align-items-center gap-2 transfer_in">
                     <FaHotel />
@@ -135,7 +134,6 @@ const AccommodationCard = ({
                       </div>
                     </div>
                   </div>
-
                   <div className="d-flex align-items-center gap-2 transfer_in">
                     <FaClock />
                     <div className="d-flex flex-column transfer_cont">
@@ -145,7 +143,6 @@ const AccommodationCard = ({
                       </div>
                     </div>
                   </div>
-
                   <div className="d-flex align-items-center gap-2 transfer_in">
                     <FaLocationDot />
                     <div className="d-flex flex-column transfer_cont">
@@ -160,7 +157,6 @@ const AccommodationCard = ({
                       </div>
                     </div>
                   </div>
-
                   <div className="d-flex align-items-center gap-2 transfer_in">
                     <FaSquareParking />
                     <div className="d-flex flex-column transfer_cont">
@@ -196,20 +192,28 @@ const AccommodationCard = ({
           </div>
         </div>
 
-        {/* Back of card - Room selection */}
+        {/* Back of card - Room selection (OLD DESIGN) */}
         <div className="card-back">
           <div className="room-selection-container">
             <h4>{t("selectRooms")}</h4>
             <p className="mb-3">
               {t("totalTravelers")}: {totalTravelers}
+              {/* ✅ توضيح التوزيع */}
+              <span
+                style={{ fontSize: "11px", color: "#888", display: "block" }}
+              >
+                ({totalAdults} {t("adults")}
+                {totalChildren > 0 ? `, ${totalChildren} ${t("children")}` : ""}
+                )
+              </span>
             </p>
 
             <div className="rooms-container">
-              {rooms.map((room) => (
+              {rooms.map((room, roomIdx) => (
                 <div key={room.id} className="room-item">
                   <div className="room-header">
                     <h5>
-                      {t("room")} {room.id}
+                      {t("room")} {roomIdx + 1}
                     </h5>
                     {rooms.length > 1 && (
                       <button
@@ -224,7 +228,24 @@ const AccommodationCard = ({
                     )}
                   </div>
 
+                  {/* ✅ Warning: Children alone */}
+                  {room.adults === 0 && room.children > 0 && (
+                    <p
+                      style={{
+                        fontSize: "10px",
+                        color: "#dc3545",
+                        background: "#fff0f0",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        margin: "0 0 8px 0",
+                      }}
+                    >
+                      ⚠️ Children can&apos;t stay alone in a room
+                    </p>
+                  )}
+
                   <div className="room-occupants">
+                    {/* Adults */}
                     <div className="occupant-type">
                       <span>{t("adults")}</span>
                       <div className="counter">
@@ -243,13 +264,18 @@ const AccommodationCard = ({
                             e.stopPropagation();
                             handleRoomChange("increase", room.id, "adults");
                           }}
+                          disabled={
+                            rooms.reduce((s, r) => s + r.adults, 0) >=
+                            totalAdults
+                          }
                         >
                           <FaPlus />
                         </button>
                       </div>
                     </div>
 
-                    {people.children > 0 && (
+                    {/* ✅ Children - بس لو فيه أطفال */}
+                    {totalChildren > 0 && (
                       <div className="occupant-type">
                         <span>{t("children")}</span>
                         <div className="counter">
@@ -268,6 +294,10 @@ const AccommodationCard = ({
                               e.stopPropagation();
                               handleRoomChange("increase", room.id, "children");
                             }}
+                            disabled={
+                              rooms.reduce((s, r) => s + r.children, 0) >=
+                              totalChildren
+                            }
                           >
                             <FaPlus />
                           </button>
@@ -275,28 +305,14 @@ const AccommodationCard = ({
                       </div>
                     )}
 
+                    {/* ✅ Infants - للعرض فقط، مش بيتحسبوا */}
                     {people.infants > 0 && (
                       <div className="occupant-type">
                         <span>{t("infants")}</span>
                         <div className="counter">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRoomChange("decrease", room.id, "infants");
-                            }}
-                            disabled={room.infants <= 0}
-                          >
-                            <FaMinus />
-                          </button>
-                          <span>{room.infants}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRoomChange("increase", room.id, "infants");
-                            }}
-                          >
-                            <FaPlus />
-                          </button>
+                          <span style={{ fontSize: "11px", color: "#888" }}>
+                            Not counted for rooms
+                          </span>
                         </div>
                       </div>
                     )}

@@ -1,21 +1,20 @@
 "use client";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import ModalVideo from "react-modal-video";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import ReactDatePicker from "react-datepicker";
 import QuantityCounter from "@/uitils/QuantityCounter";
-import Lightbox from "yet-another-react-lightbox";
-import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
+
 import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { base_url } from "../../../uitils/base_url";
-import { message } from "antd";
+import { message, Drawer } from "antd";
+import { FaPlus, FaMinus, FaHotel } from "react-icons/fa6";
 import moment from "moment";
-import { FaTicket } from "react-icons/fa6";
 
 import ReviewModal from "../../../components/reviews/ReviewModal";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
-import InvitationCodeModal from "@/components/modals/InvitationCodeModal";
+import GallerySection from "../../package/package-details/[packageId]/_components/GallerySection";
+import toast from "react-hot-toast";
 
 const Page = () => {
   // Initialize with proper dates
@@ -27,33 +26,21 @@ const Page = () => {
 
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
+  const [isOpen, setOpen] = useState(false);
+
   const [isOpenModalVideo, setOpenModalVideo] = useState(false);
   const [isOpenimg, setOpenimg] = useState({
     openingState: false,
     openingIndex: 0,
   });
+  const [rooms, setRooms] = useState([{ id: 1, adults: 1, children: 0 }]);
+  const [isRoomDrawerOpen, setIsRoomDrawerOpen] = useState(false);
 
-  // Handle adult quantity change with max people validation
   const handleAdultQuantityChange = (newQuantity) => {
-    if (maxPeople) {
-      const totalAfterChange = newQuantity + children;
-      if (totalAfterChange > maxPeople) {
-        message.error(`Maximum ${maxPeople} people allowed for this hotel`);
-        return;
-      }
-    }
     setAdults(newQuantity);
   };
 
-  // Handle child quantity change with max people validation
   const handleChildQuantityChange = (newQuantity) => {
-    if (maxPeople) {
-      const totalAfterChange = adults + newQuantity;
-      if (totalAfterChange > maxPeople) {
-        message.error(`Maximum ${maxPeople} people allowed for this hotel`);
-        return;
-      }
-    }
     setChildren(newQuantity);
   };
 
@@ -158,6 +145,85 @@ const Page = () => {
     }
   }, [hotelID]);
 
+  // Room management functions
+  const addRoom = () => {
+    if (rooms.length >= 5) {
+      toast.error("Maximum 5 rooms allowed");
+      return;
+    }
+    setRooms((prev) => [...prev, { id: Date.now(), adults: 0, children: 0 }]);
+  };
+
+  const removeRoom = (roomId) => {
+    if (rooms.length <= 1) return;
+    setRooms((prev) => prev.filter((r) => r.id !== roomId));
+  };
+
+  const handleRoomChange = (action, roomId, type) => {
+    setRooms((prev) =>
+      prev.map((room) => {
+        if (room.id !== roomId) return room;
+
+        const currentTotal = prev.reduce(
+          (sum, r) => sum + (type === "adults" ? r.adults : r.children),
+          0
+        );
+        const max = type === "adults" ? adults : children;
+
+        if (action === "increase") {
+          if (currentTotal >= max) {
+            toast.error(`All ${type} have been distributed`);
+            return room;
+          }
+          return { ...room, [type]: room[type] + 1 };
+        } else {
+          const minVal = type === "adults" ? 0 : 0;
+          return { ...room, [type]: Math.max(minVal, room[type] - 1) };
+        }
+      })
+    );
+  };
+
+  const validateRoomDistribution = () => {
+    const totalDistributedAdults = rooms.reduce((s, r) => s + r.adults, 0);
+    const totalDistributedChildren = rooms.reduce((s, r) => s + r.children, 0);
+
+    if (totalDistributedAdults !== adults) {
+      toast.error(`Please distribute all ${adults} adults across rooms`);
+      return false;
+    }
+    if (totalDistributedChildren !== children) {
+      toast.error(`Please distribute all ${children} children across rooms`);
+      return false;
+    }
+
+    const childAlone = rooms.some((r) => r.adults === 0 && r.children > 0);
+    if (childAlone) {
+      toast.error("Children cannot stay alone in a room");
+      return false;
+    }
+
+    const emptyRoom = rooms.some((r) => r.adults === 0 && r.children === 0);
+    if (emptyRoom) {
+      toast.error("Please remove empty rooms or assign guests");
+      return false;
+    }
+
+    return true;
+  };
+
+  const confirmRoomSelection = () => {
+    if (validateRoomDistribution()) {
+      setIsRoomDrawerOpen(false);
+      toast.success(`${rooms.length} room(s) configured successfully`);
+    }
+  };
+
+  // Reset rooms when adults/children change
+  useEffect(() => {
+    setRooms([{ id: 1, adults: adults, children: children }]);
+  }, [adults, children]);
+
   const fetchHotelData = async () => {
     try {
       setLoading(true);
@@ -182,13 +248,13 @@ const Page = () => {
       } else {
         const errorMsg = response.data.message || "Failed to fetch hotel data";
         setError(errorMsg);
-        message.error(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (err) {
       const errorMessage =
         err.response?.data?.message || "Network error occurred";
       setError(errorMessage);
-      message.error(errorMessage);
+      toast.error(errorMessage);
       console.error("Error fetching hotel data:", err);
     } finally {
       setLoading(false);
@@ -225,23 +291,10 @@ const Page = () => {
   }, [startDate, endDate, hotelData?.adult_price, hotelData?.child_price]);
 
   // Max people calculation
-  const maxPeople = useMemo(() => {
-    const max = parseInt(hotelData?.adults_num) || 0;
-    return max > 0 ? max : null; // null means unlimited
-  }, [hotelData?.adults_num]);
+  const maxPeople = null;
 
-  // Calculate max for adult quantity
-  const maxAdultQuantity = useMemo(() => {
-    if (!maxPeople) return 10; // Your default max
-    return Math.max(1, maxPeople - children);
-  }, [maxPeople, children]);
-
-  // Calculate max for child quantity
-  const maxChildQuantity = useMemo(() => {
-    if (!maxPeople) return 10; // Your default max
-    return Math.max(0, maxPeople - adults);
-  }, [maxPeople, adults]);
-
+  const maxAdultQuantity = 99;
+  const maxChildQuantity = 99;
   // Calculate total price
   const calculateTotal = useMemo(() => {
     if (
@@ -272,7 +325,7 @@ const Page = () => {
       if (update[1] <= update[0]) {
         const nextDay = moment(update[0]).add(1, "day").toDate();
         setDateRange([update[0], nextDay]);
-        message.warning(
+        toast.error(
           "Check-out date has been adjusted to be after check-in date"
         );
         return;
@@ -288,11 +341,11 @@ const Page = () => {
     const validationErrors = [];
 
     if (maxPeople && adults + children > maxPeople) {
-      message.error(`Maximum ${maxPeople} people allowed for this hotel`);
+      toast.error(`Maximum ${maxPeople} people allowed for this hotel`);
       return;
     }
     if (!user || !user.isLoggedIn) {
-      message.error("Please login to make a booking");
+      toast.error("Please login to make a booking");
       setTimeout(() => {
         window.location.href = "/login";
       }, 1500);
@@ -325,10 +378,14 @@ const Page = () => {
     }
 
     if (validationErrors.length > 0) {
-      validationErrors.forEach((error) => message.error(error));
+      validationErrors.forEach((error) => toast.error(error));
       return;
     }
 
+    // Validate room distribution
+    if (!validateRoomDistribution()) {
+      return;
+    }
     // ✅ Check if invite code exists - skip modal if yes
     if (hasStoredCode && inviteCode) {
       openConfirmModal();
@@ -369,6 +426,15 @@ const Page = () => {
         children: children,
         days: totalDays,
         invite_code: inviteCode || "",
+
+        rooms_num: rooms.length, // ✅ NEW
+        rooms: JSON.stringify(
+          rooms.map((r) => ({
+            // ✅ NEW
+            adults: r.adults,
+            children: r.children,
+          }))
+        ),
       };
 
       console.log("Booking data being sent:", bookingData);
@@ -439,8 +505,8 @@ const Page = () => {
     return extractYouTubeVideoId(hotelData?.video_link);
   }, [hotelData?.video_link]);
 
-  const hasVideo = !!extractedVideoId;
-  const imageCount = images.length;
+  // const hasVideo = !!extractedVideoId;
+  // const imageCount = images.length;
 
   // Loading state
   if (loading || inviteCodeLoading) {
@@ -515,165 +581,20 @@ const Page = () => {
       <div className="room-details-area pt-120 mb-120">
         <div className="container">
           <div className="row">
-            <div className="col-lg-12">
-              <div className="room-img-group mb-50">
-                <div className="row g-3">
-                  {/* Single Image */}
-                  {imageCount === 1 && (
-                    <div className="col-lg-12">
-                      <div className="gallery-img-wrap position-relative">
-                        <img
-                          src={
-                            images[0]?.imageBig || "/path/to/default-image.jpg"
-                          }
-                          alt={hotelData?.name || "Hotel Image"}
-                          onError={(e) => {
-                            e.target.src = "/path/to/fallback-image.jpg";
-                          }}
-                        />
-                        {hasVideo && (
-                          <button
-                            className="position-absolute bottom-0 end-0 m-3 btn btn-primary"
-                            onClick={() => setOpenModalVideo(true)}
-                          >
-                            <i className="bi bi-play-circle me-2" />
-                            Watch Video
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Two Images */}
-                  {imageCount === 2 && (
-                    <>
-                      {images.slice(0, 2).map((image, index) => (
-                        <div key={image.id} className="col-lg-6">
-                          <div className="gallery-img-wrap position-relative">
-                            <img
-                              src={
-                                image.imageBig || "/path/to/default-image.jpg"
-                              }
-                              alt={`${hotelData?.name || "Hotel"} Image ${index + 1}`}
-                              onError={(e) => {
-                                e.target.src = "/path/to/fallback-image.jpg";
-                              }}
-                            />
-                            <a>
-                              <i
-                                className="bi bi-eye"
-                                onClick={() =>
-                                  setOpenimg({
-                                    openingState: true,
-                                    openingIndex: index,
-                                  })
-                                }
-                              />{" "}
-                              View Room
-                            </a>
-                            {index === 1 && hasVideo && (
-                              <button
-                                className="position-absolute bottom-0 end-0 m-3"
-                                style={{ cursor: "pointer" }}
-                                onClick={() => setOpenModalVideo(true)}
-                              >
-                                <i className="bi bi-play-circle" /> Watch Video
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
-
-                  {/* Three or More Images */}
-                  {imageCount >= 3 && (
-                    <>
-                      <div className="col-lg-6">
-                        <div className="gallery-img-wrap">
-                          <img
-                            src={
-                              images[0]?.imageBig ||
-                              "/path/to/default-image.jpg"
-                            }
-                            alt={hotelData?.name || "Hotel Image"}
-                            onError={(e) => {
-                              e.target.src = "/path/to/fallback-image.jpg";
-                            }}
-                          />
-                          <a>
-                            <i
-                              className="bi bi-eye"
-                              onClick={() =>
-                                setOpenimg({
-                                  openingState: true,
-                                  openingIndex: 0,
-                                })
-                              }
-                            />{" "}
-                            View Room
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="col-lg-6">
-                        <div className="row g-3">
-                          {images
-                            .slice(1, imageCount >= 5 ? 5 : imageCount)
-                            .map((image, index) => (
-                              <div key={image.id} className="col-6">
-                                <div
-                                  className={`gallery-img-wrap ${index >= 2 ? "active" : ""}`}
-                                >
-                                  <img
-                                    src={image.imageBig}
-                                    alt={`${hotelData?.name || "Hotel"} Image ${index + 2}`}
-                                    onError={(e) => {
-                                      e.target.src =
-                                        "/path/to/fallback-image.jpg";
-                                    }}
-                                  />
-                                  {/* Show +More on 3rd image if more than 5 images */}
-                                  {index === 3 && imageCount > 5 ? (
-                                    <button className="StartSlideShowFirstImage">
-                                      <i
-                                        className="bi bi-plus-lg"
-                                        onClick={() =>
-                                          setOpenimg({
-                                            openingState: true,
-                                            openingIndex: index + 1,
-                                          })
-                                        }
-                                      />
-                                      View More Images
-                                    </button>
-                                  ) : /* Show Video button on last image */
-                                  index === 2 && hasVideo ? (
-                                    <a
-                                      data-fancybox="gallery-01"
-                                      style={{ cursor: "pointer" }}
-                                      onClick={() => setOpenModalVideo(true)}
-                                    >
-                                      <i className="bi bi-play-circle" /> Watch
-                                      Video
-                                    </a>
-                                  ) : null}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+            <GallerySection
+              images={images}
+              videoId={extractedVideoId}
+              setOpenimg={setOpenimg}
+              isOpenimg={isOpenimg}
+              isOpen={isOpen}
+              setOpen={setOpen}
+            />
           </div>
 
           <div className="row g-xl-4 gy-5">
             <div className="col-xl-8">
-              <div className="location-and-review !justify-end">
-                {/* <div className="location">
+              {/* <div className="location-and-review !justify-end"> */}
+              {/* <div className="location">
                   <p>
                     <i className="bi bi-geo-alt" />{" "}
                     {hotelData?.location ||
@@ -682,7 +603,7 @@ const Page = () => {
                     - <a href="#map-section">See Map</a>
                   </p>
                 </div> */}
-                {/* <div className="review-area">
+              {/* <div className="review-area">
                   <ul>
                     {[...Array(5)].map((_, i) => (
                       <li key={i}>
@@ -695,7 +616,7 @@ const Page = () => {
                     {hotelData?.review_count || "94"} reviews
                   </span>
                 </div> */}
-              </div>
+              {/* </div> */}
 
               <h2>{hotelData?.name || "Golden Tulip The Grandmark Dhaka"}</h2>
 
@@ -721,10 +642,11 @@ const Page = () => {
                 </div> */}
               </div>
 
-              <p>
-                {hotelData?.description ||
-                  "Welcome to the best five-star luxury hotel. Enjoy exceptional service, comfortable accommodations, and world-class amenities for an unforgettable stay."}
-              </p>
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: hotelData?.description,
+                }}
+              />
 
               <h4>Highlights</h4>
               <ul className="room-features">
@@ -1040,6 +962,7 @@ const Page = () => {
                         {/* Booking calculation breakdown */}
                         <div className="booking-form-item-type">
                           {/* Adult calculation */}
+
                           <div className="single-total mb-30">
                             <span>Adult</span>
                             <ul>
@@ -1118,6 +1041,26 @@ const Page = () => {
                               </div>
                             </div>
                           )}
+
+                          {/* Room Distribution Button */}
+                          <div className="mt-3 pb-3">
+                            <button
+                              type="button"
+                              onClick={() => setIsRoomDrawerOpen(true)}
+                              className="w-full flex items-center justify-between border border-[#295557] text-[#295557] px-4 py-2.5 hover:bg-[#295557] hover:text-white transition-all duration-200"
+                            >
+                              <span className="flex items-center gap-2">
+                                <FaHotel className="text-sm" />
+                                <span className="text-sm font-medium">
+                                  Configure Rooms ({rooms.length})
+                                </span>
+                              </span>
+                              <span className="text-xs bg-[#295557]/10 px-2 py-1 rounded">
+                                {rooms.length}{" "}
+                                {rooms.length === 1 ? "Room" : "Rooms"}
+                              </span>
+                            </button>
+                          </div>
                         </div>
 
                         {/* Total price display */}
@@ -1201,36 +1144,6 @@ const Page = () => {
           </div>
         </div>
       </div>
-
-      {/* Video Modal */}
-      <React.Fragment>
-        <ModalVideo
-          channel="youtube"
-          onClick={() => setOpenModalVideo(true)}
-          isOpen={isOpenModalVideo}
-          animationSpeed="350"
-          videoId={hotelData.video_link || "r4KpWiK08vM"}
-          ratio="16:9"
-          onClose={() => setOpenModalVideo(false)}
-        />
-      </React.Fragment>
-
-      {/* Image Lightbox */}
-      <Lightbox
-        className="img-fluid"
-        open={isOpenimg.openingState}
-        plugins={[Fullscreen]}
-        index={isOpenimg.openingIndex}
-        close={() => setOpenimg({ openingState: false, openingIndex: 0 })}
-        styles={{ container: { backgroundColor: "rgba(0, 0, 0, .9)" } }}
-        slides={
-          images && images.length > 0
-            ? images.map(function (elem) {
-                return { src: elem.imageBig };
-              })
-            : []
-        }
-      />
 
       {/* Confirmation Modal */}
       {isConfirmModalOpen && (
@@ -1317,6 +1230,26 @@ const Page = () => {
                               </div>
                             )}
                             <hr />
+
+                            <div className="row mb-2">
+                              <div className="col-6">
+                                <strong>Rooms:</strong>
+                              </div>
+                              <div className="col-6">
+                                {rooms.length}{" "}
+                                {rooms.length === 1 ? "room" : "rooms"}
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {rooms.map((r, i) => (
+                                    <div key={r.id}>
+                                      Room {i + 1}: {r.adults}A
+                                      {r.children > 0
+                                        ? ` + ${r.children}C`
+                                        : ""}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
                             <div className="row">
                               <div className="col-6">
                                 <strong>Total Amount:</strong>
@@ -1489,6 +1422,168 @@ const Page = () => {
           // Refresh data if needed
         }}
       />
+
+      {/* Room Distribution Drawer */}
+      <Drawer
+        title={
+          <div>
+            <h5 className="mb-0 text-lg font-semibold">Room Distribution</h5>
+            <p className="text-xs text-gray-500 mb-0 mt-1">
+              {adults} Adults{children > 0 ? `, ${children} Children` : ""} →{" "}
+              {rooms.length} {rooms.length === 1 ? "Room" : "Rooms"}
+            </p>
+          </div>
+        }
+        placement="right"
+        onClose={() => setIsRoomDrawerOpen(false)}
+        open={isRoomDrawerOpen}
+        width={420}
+        footer={
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsRoomDrawerOpen(false)}
+              className="flex-1 py-2.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmRoomSelection}
+              className="flex-1 py-2.5 bg-[#295557] text-white rounded-lg hover:bg-[#1e3e40] transition-colors"
+            >
+              Confirm
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Summary bar */}
+          <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-blue-800 mb-0">
+                Total Guests: {adults + children}
+              </p>
+              <p className="text-xs text-blue-600 mb-0">
+                {adults} Adults{children > 0 ? `, ${children} Children` : ""}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium text-blue-800 mb-0">
+                Distributed:{" "}
+                {rooms.reduce((s, r) => s + r.adults + r.children, 0)}/
+                {adults + children}
+              </p>
+            </div>
+          </div>
+
+          {/* Rooms list */}
+          {rooms.map((room, roomIdx) => (
+            <div
+              key={room.id}
+              className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h6 className="font-semibold text-[#295557] mb-0">
+                  Room {roomIdx + 1}
+                </h6>
+                {rooms.length > 1 && (
+                  <button
+                    onClick={() => removeRoom(room.id)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition-colors text-sm"
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+
+              {/* Warning: Children alone */}
+              {room.adults === 0 && room.children > 0 && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg mb-3">
+                  <span>⚠️</span>
+                  <span>Children can't stay alone in a room</span>
+                </div>
+              )}
+
+              {/* Adults counter */}
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-gray-700">Adults</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() =>
+                      handleRoomChange("decrease", room.id, "adults")
+                    }
+                    disabled={room.adults <= 0}
+                    className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-[#295557] hover:text-[#295557] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <FaMinus className="text-xs" />
+                  </button>
+                  <span className="w-6 text-center font-semibold">
+                    {room.adults}
+                  </span>
+                  <button
+                    onClick={() =>
+                      handleRoomChange("increase", room.id, "adults")
+                    }
+                    disabled={rooms.reduce((s, r) => s + r.adults, 0) >= adults}
+                    className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-[#295557] hover:text-[#295557] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <FaPlus className="text-xs" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Children counter - only if there are children */}
+              {children > 0 && (
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-gray-700">Children</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() =>
+                        handleRoomChange("decrease", room.id, "children")
+                      }
+                      disabled={room.children <= 0}
+                      className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-[#295557] hover:text-[#295557] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <FaMinus className="text-xs" />
+                    </button>
+                    <span className="w-6 text-center font-semibold">
+                      {room.children}
+                    </span>
+                    <button
+                      onClick={() =>
+                        handleRoomChange("increase", room.id, "children")
+                      }
+                      disabled={
+                        rooms.reduce((s, r) => s + r.children, 0) >= children
+                      }
+                      className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-[#295557] hover:text-[#295557] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <FaPlus className="text-xs" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Room summary */}
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <p className="text-xs text-gray-400 mb-0">
+                  {room.adults + room.children} guest(s) in this room
+                </p>
+              </div>
+            </div>
+          ))}
+
+          {/* Add room button */}
+          {rooms.length < 5 && (
+            <button
+              onClick={addRoom}
+              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-3 text-gray-500 hover:border-[#295557] hover:text-[#295557] transition-colors"
+            >
+              <FaPlus className="text-xs" />
+              <span className="text-sm font-medium">Add Room</span>
+            </button>
+          )}
+        </div>
+      </Drawer>
     </>
   );
 };

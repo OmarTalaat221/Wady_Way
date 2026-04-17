@@ -7,13 +7,16 @@ import {
   formatReservationForAPI,
   resetReservation,
   selectPriceDetails,
+  refreshUserId,
 } from "@/lib/redux/slices/tourReservationSlice";
 import { base_url } from "../../../../../../uitils/base_url";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { FaCheckCircle, FaSpinner, FaHome } from "react-icons/fa";
+import { FaCheckCircle, FaSpinner, FaHome, FaUser } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
+import LoginRequiredModal from "./LoginRequiredModal";
+import SignupRequiredModal from "./SignupRequiredModal"; // ✅ جديد
 
 // ============================================
 // Success Modal Component
@@ -75,17 +78,6 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
                     </span>
                   </div>
                 )}
-
-                {/* {bookingDetails.invitationCode && (
-                  <div className="flex justify-between bg-green-50 p-2 rounded">
-                    <span className="text-green-600 font-medium">
-                      🎫 Invite Code:
-                    </span>
-                    <span className="font-bold text-green-800">
-                      {bookingDetails.invitationCode}
-                    </span>
-                  </div>
-                )} */}
 
                 {bookingDetails.total && (
                   <div className="flex justify-between border-t pt-2 mt-2">
@@ -181,7 +173,9 @@ const RightSummary = ({ lang }) => {
 
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
+  const [showSignupModal, setShowSignupModal] = useState(false);
 
   const reservation = useSelector((state) => state.tourReservation);
   const { tourData, numAdults, numChildren, numInfants, tourId } = reservation;
@@ -210,27 +204,50 @@ const RightSummary = ({ lang }) => {
   const proceedWithBooking = async () => {
     setLoading(true);
     try {
-      const apiData = formatReservationForAPI(reservation);
+      // ✅ Refresh userId before booking
+      dispatch(refreshUserId());
 
-      // ✅ Add invite_code to API request
+      const currentState = reservation;
+      const freshUserId =
+        currentState.userId ||
+        (() => {
+          if (typeof window !== "undefined") {
+            try {
+              const userData = localStorage.getItem("user");
+              if (userData) {
+                const parsed = JSON.parse(userData);
+                return parsed.id || parsed.user_id || null;
+              }
+              return localStorage.getItem("user_id") || null;
+            } catch {
+              return null;
+            }
+          }
+          return null;
+        })();
+
+      if (!freshUserId) {
+        toast.error("Please login first");
+        setShowLoginModal(true);
+        setLoading(false);
+        return;
+      }
+
+      const apiData = formatReservationForAPI({
+        ...currentState,
+        userId: freshUserId,
+      });
       apiData.invite_code = inviteCode || "";
 
-      console.log("📤 === BOOKING API REQUEST ===");
-      console.log("📤 Full API Data:", apiData);
-      console.log("📤 Invite Code being sent:", apiData.invite_code);
-      console.log("📤 ============================");
+      console.log("📤 Booking API Data:", apiData);
 
       const response = await axios.post(
         `${base_url}/user/tours/reserve_tour.php`,
         apiData
       );
 
-      console.log("📥 Booking response:", response.data);
-
       if (response.data.status === "success") {
-        // ✅ Clear invite code after successful booking
         clearCurrentInviteCode();
-        console.log("🗑️ Invite code cleared after successful booking");
 
         setBookingDetails({
           bookingId:
@@ -242,7 +259,7 @@ const RightSummary = ({ lang }) => {
           adults: numAdults,
           children: numChildren,
           infants: numInfants,
-          invitationCode: inviteCode, // ✅ Keep for display in modal
+          invitationCode: inviteCode,
         });
 
         setShowSuccessModal(true);
@@ -256,7 +273,6 @@ const RightSummary = ({ lang }) => {
       }
     } catch (error) {
       console.error("❌ Booking Error:", error);
-
       if (error.response) {
         toast.error(
           error.response.data?.message || "Server error. Please try again."
@@ -276,7 +292,7 @@ const RightSummary = ({ lang }) => {
   // ============================================
   const handleConfirmBooking = async () => {
     if (!reservation.userId) {
-      toast.error(t("please_login") || "Please login to continue");
+      setShowLoginModal(true);
       return;
     }
 
@@ -285,10 +301,37 @@ const RightSummary = ({ lang }) => {
       return;
     }
 
-    // ✅ Proceed with booking (invite code is already stored)
     proceedWithBooking();
   };
 
+  const handleLoginSuccess = (userId) => {
+    setShowLoginModal(false);
+    toast.success("You can now confirm your booking!");
+    // ✅ Auto-proceed with booking after login
+    setTimeout(() => {
+      proceedWithBooking();
+    }, 500);
+  };
+
+  // ✅ Signup Success Handler - جديد
+  const handleSignupSuccess = (userId) => {
+    setShowSignupModal(false);
+    toast.success("Account created! You can now confirm your booking!");
+    // ✅ Auto-proceed with booking after signup
+    setTimeout(() => {
+      proceedWithBooking();
+    }, 500);
+  };
+
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setTimeout(() => setShowSignupModal(true), 300);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowSignupModal(false);
+    setTimeout(() => setShowLoginModal(true), 300);
+  };
   const handleCloseModal = () => {
     setShowSuccessModal(false);
   };
@@ -303,24 +346,6 @@ const RightSummary = ({ lang }) => {
           {t("summary_description")}
         </h3>
         <p className="text-gray-600 mb-6">{t("order_description")}</p>
-
-        {/* ✅ Display Invite Code Badge */}
-        {/* {hasStoredCode && inviteCode && !inviteCodeLoading && (
-          <div className="bg-green-50 border-2 border-green-300 rounded-lg p-3 mb-4 animate-fadeIn">
-            <div className="flex items-center gap-2">
-              <span className="text-green-600 text-xl">🎫</span>
-              <span className="text-sm font-medium text-green-700">
-                Promo Code Applied:
-              </span>
-              <span className="font-bold text-green-800 bg-green-100 px-2 py-1 rounded">
-                {inviteCode}
-              </span>
-            </div>
-            <p className="text-xs text-green-600 mt-2 ml-7">
-              ✓ Special discount will be applied at checkout
-            </p>
-          </div>
-        )} */}
 
         {/* Tour Info */}
         {tourData && (
@@ -378,6 +403,16 @@ const RightSummary = ({ lang }) => {
             </span>
           </div>
 
+          {/* ✅ Login Warning Banner */}
+          {!reservation.userId && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-xs text-red-600 flex items-center gap-2">
+                <FaUser size={10} />
+                You need to login before confirming your booking
+              </p>
+            </div>
+          )}
+
           {/* Confirm Booking Button */}
           <button
             onClick={handleConfirmBooking}
@@ -413,11 +448,26 @@ const RightSummary = ({ lang }) => {
         </div>
       </div>
 
+      {/* ✅ Success Modal */}
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={handleCloseModal}
         bookingDetails={bookingDetails}
         lang={lang}
+      />
+
+      <LoginRequiredModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLoginSuccess={handleLoginSuccess}
+        onSwitchToSignup={handleSwitchToSignup} // ✅ جديد
+      />
+
+      <SignupRequiredModal
+        isOpen={showSignupModal}
+        onClose={() => setShowSignupModal(false)}
+        onSignupSuccess={handleSignupSuccess}
+        onSwitchToLogin={handleSwitchToLogin}
       />
 
       <style jsx>{`

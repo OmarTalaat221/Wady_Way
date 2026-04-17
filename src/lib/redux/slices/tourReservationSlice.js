@@ -1,6 +1,14 @@
+// lib/redux/slices/tourReservationSlice.js
 "use client";
-
 import { createSlice } from "@reduxjs/toolkit";
+
+const formatDateLocal = (date) => {
+  if (!date || !(date instanceof Date) || isNaN(date)) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const getUserIdFromStorage = () => {
   if (typeof window !== "undefined") {
@@ -16,6 +24,58 @@ const getUserIdFromStorage = () => {
     }
   }
   return null;
+};
+
+// ✅ حفظ الاختيارات في localStorage
+const saveSelectionsToStorage = (state) => {
+  if (typeof window === "undefined") return;
+  try {
+    const dataToSave = {
+      tourId: state.tourId,
+      // startDate: state.startDate,
+      // endDate: state.endDate,
+      numAdults: state.numAdults,
+      numChildren: state.numChildren,
+      numInfants: state.numInfants,
+      selectedByDay: state.selectedByDay,
+      tourGuideByDay: state.tourGuideByDay,
+      totalAmount: state.totalAmount,
+      subtotalAmount: state.subtotalAmount,
+      discountPercentage: state.discountPercentage,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem("tourReservation", JSON.stringify(dataToSave));
+  } catch (error) {
+    console.error("Error saving selections:", error);
+  }
+};
+
+// ✅ استرجاع الاختيارات من localStorage
+const loadSelectionsFromStorage = (tourId) => {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = localStorage.getItem("tourReservation");
+    if (!saved) return null;
+
+    const parsed = JSON.parse(saved);
+
+    // تحقق إن البيانات لنفس التور
+    if (parsed.tourId && tourId && String(parsed.tourId) !== String(tourId)) {
+      return null;
+    }
+
+    // تحقق إن البيانات مش أقدم من 24 ساعة
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    if (parsed.savedAt && Date.now() - parsed.savedAt > ONE_DAY) {
+      localStorage.removeItem("tourReservation");
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error("Error loading selections:", error);
+    return null;
+  }
 };
 
 const initialState = {
@@ -52,26 +112,56 @@ const tourReservationSlice = createSlice({
       );
     },
 
-    // ✅ تهيئة Tour Guide - مع التأكد من الـ object موجود
+    // ✅ استرجاع الاختيارات المحفوظة
+    restoreSavedSelections: (state, action) => {
+      const tourId = action.payload;
+      const saved = loadSelectionsFromStorage(tourId);
+
+      if (!saved) return;
+
+      console.log("✅ Restoring saved selections for tour:", tourId);
+
+      if (saved.selectedByDay && Object.keys(saved.selectedByDay).length > 0) {
+        state.selectedByDay = saved.selectedByDay;
+      }
+      if (
+        saved.tourGuideByDay &&
+        Object.keys(saved.tourGuideByDay).length > 0
+      ) {
+        state.tourGuideByDay = saved.tourGuideByDay;
+      }
+      // if (saved.startDate) state.startDate = saved.startDate;
+      // if (saved.endDate) state.endDate = saved.endDate;
+      if (saved.numAdults) state.numAdults = saved.numAdults;
+      if (saved.numChildren !== undefined)
+        state.numChildren = saved.numChildren;
+      if (saved.numInfants !== undefined) state.numInfants = saved.numInfants;
+      if (saved.totalAmount) state.totalAmount = saved.totalAmount;
+      if (saved.subtotalAmount) state.subtotalAmount = saved.subtotalAmount;
+      if (saved.discountPercentage)
+        state.discountPercentage = saved.discountPercentage;
+    },
+
+    // ✅ حفظ يدوي
+    saveSelections: (state) => {
+      saveSelectionsToStorage(state);
+    },
+
     initializeTourGuide: (state, action) => {
       const itinerary = action.payload;
 
-      console.log("========== TOUR GUIDE INIT ==========");
-      console.log("Received itinerary:", itinerary);
-      console.log("Current state.tourGuideByDay:", state.tourGuideByDay);
+      if (!itinerary || !Array.isArray(itinerary)) return;
 
-      if (!itinerary || !Array.isArray(itinerary)) {
-        console.log("❌ No valid itinerary");
-        return;
-      }
-
-      // ✅ تأكد إن الـ object موجود
       if (!state.tourGuideByDay) {
-        console.log("⚠️ tourGuideByDay was undefined, initializing...");
         state.tourGuideByDay = {};
       }
 
-      // ✅ نظف البيانات القديمة ونبدأ من جديد
+      // ✅ لو في بيانات محفوظة، متعيدش التهيئة
+      if (Object.keys(state.tourGuideByDay).length > 0) {
+        console.log("Tour guide already initialized, skipping...");
+        return;
+      }
+
       state.tourGuideByDay = {};
 
       itinerary.forEach((day) => {
@@ -79,54 +169,43 @@ const tourReservationSlice = createSlice({
         const rawValue = day.isTourguide;
         const isAvailable = rawValue === "1" || rawValue === 1;
 
-        console.log(
-          `Day ${dayNumber}: isTourguide = "${rawValue}" => available = ${isAvailable}`
-        );
-
         state.tourGuideByDay[dayNumber] = {
           isAvailable: isAvailable,
           isSelected: isAvailable,
         };
       });
 
-      console.log(
-        "Final tourGuideByDay:",
-        JSON.stringify(state.tourGuideByDay)
-      );
-      console.log("=====================================");
+      // ✅ احفظ بعد التهيئة
+      saveSelectionsToStorage(state);
     },
 
     toggleTourGuide: (state, action) => {
       const dayNumber = String(action.payload);
 
-      console.log(`Toggle day ${dayNumber}`);
-
-      // ✅ تأكد إن الـ object موجود
-      if (!state.tourGuideByDay) {
-        console.log("⚠️ tourGuideByDay is undefined!");
-        return;
-      }
-
-      if (!state.tourGuideByDay[dayNumber]) {
-        console.log("Day not found!");
-        return;
-      }
-
-      if (!state.tourGuideByDay[dayNumber].isAvailable) {
-        console.log("Tour guide not available for this day");
-        return;
-      }
+      if (!state.tourGuideByDay) return;
+      if (!state.tourGuideByDay[dayNumber]) return;
+      if (!state.tourGuideByDay[dayNumber].isAvailable) return;
 
       state.tourGuideByDay[dayNumber].isSelected =
         !state.tourGuideByDay[dayNumber].isSelected;
 
-      console.log("New state:", state.tourGuideByDay[dayNumber]);
+      // ✅ احفظ بعد التغيير
+      saveSelectionsToStorage(state);
     },
 
     initializeActivities: (state, action) => {
       const itinerary = action.payload;
-
       if (!itinerary || !Array.isArray(itinerary)) return;
+
+      // ✅ لو في activities محفوظة، متعيدش التهيئة
+      const hasExistingActivities = Object.values(state.selectedByDay).some(
+        (day) => day.activities && day.activities.length > 0
+      );
+
+      if (hasExistingActivities) {
+        console.log("Activities already initialized, skipping...");
+        return;
+      }
 
       itinerary.forEach((day) => {
         const dayKey = String(day.day);
@@ -135,16 +214,21 @@ const tourReservationSlice = createSlice({
           state.selectedByDay[dayKey] = { activities: [] };
         }
 
+        // ✅ Reset activities لكل يوم
         state.selectedByDay[dayKey].activities = [];
 
         const activities = day.activities_options || [];
+
+        // ✅ Deduplicate by activity_id قبل الإضافة
+        const seen = new Set();
         activities.forEach((activity) => {
-          const activityId = activity.activity_id || activity.id;
-          if (!activityId) return;
+          const activityId = String(activity.activity_id || activity.id);
+          if (!activityId || seen.has(activityId)) return;
+          seen.add(activityId);
 
           state.selectedByDay[dayKey].activities.push({
-            id: activityId,
-            activity_id: activityId,
+            id: parseInt(activityId),
+            activity_id: parseInt(activityId),
             tour_activity_id: activity.tour_activity_id,
             title: activity.title,
             name: activity.title,
@@ -156,9 +240,12 @@ const tourReservationSlice = createSlice({
             price_current: parseFloat(
               activity.price_current || activity.price || 0
             ),
+            features: activity.features || [],
           });
         });
       });
+
+      saveSelectionsToStorage(state);
     },
 
     setUserId: (state, action) => {
@@ -178,6 +265,8 @@ const tourReservationSlice = createSlice({
       if (numAdults !== undefined) state.numAdults = numAdults;
       if (numChildren !== undefined) state.numChildren = numChildren;
       if (numInfants !== undefined) state.numInfants = numInfants;
+
+      saveSelectionsToStorage(state);
     },
 
     setPeopleCount: (state, action) => {
@@ -185,6 +274,8 @@ const tourReservationSlice = createSlice({
       state.numAdults = adults || 1;
       state.numChildren = children || 0;
       state.numInfants = infants || 0;
+
+      saveSelectionsToStorage(state);
     },
 
     selectHotel: (state, action) => {
@@ -194,6 +285,8 @@ const tourReservationSlice = createSlice({
         state.selectedByDay[dayKey] = { activities: [] };
       }
       state.selectedByDay[dayKey].hotel = hotel;
+
+      saveSelectionsToStorage(state);
     },
 
     selectCar: (state, action) => {
@@ -203,6 +296,8 @@ const tourReservationSlice = createSlice({
         state.selectedByDay[dayKey] = { activities: [] };
       }
       state.selectedByDay[dayKey].car = car;
+
+      saveSelectionsToStorage(state);
     },
 
     selectActivity: (state, action) => {
@@ -224,6 +319,8 @@ const tourReservationSlice = createSlice({
       } else {
         state.selectedByDay[dayKey].activities[existingIndex] = activity;
       }
+
+      saveSelectionsToStorage(state);
     },
 
     removeHotel: (state, action) => {
@@ -231,6 +328,7 @@ const tourReservationSlice = createSlice({
       if (state.selectedByDay[dayKey]) {
         delete state.selectedByDay[dayKey].hotel;
       }
+      saveSelectionsToStorage(state);
     },
 
     removeCar: (state, action) => {
@@ -238,6 +336,7 @@ const tourReservationSlice = createSlice({
       if (state.selectedByDay[dayKey]) {
         delete state.selectedByDay[dayKey].car;
       }
+      saveSelectionsToStorage(state);
     },
 
     removeActivity: (state, action) => {
@@ -250,6 +349,7 @@ const tourReservationSlice = createSlice({
           (a) => a.id !== activityId && a.activity_id !== activityId
         );
       }
+      saveSelectionsToStorage(state);
     },
 
     calculateTotal: (state) => {
@@ -275,7 +375,12 @@ const tourReservationSlice = createSlice({
         }
 
         if (day.activities?.length > 0) {
+          // ✅ Deduplicate activities before calculating
+          const seen = new Set();
           day.activities.forEach((activity) => {
+            const actId = String(activity.id || activity.activity_id);
+            if (seen.has(actId)) return;
+            seen.add(actId);
             subtotal += parseFloat(
               activity.price_current || activity.price || 0
             );
@@ -287,6 +392,8 @@ const tourReservationSlice = createSlice({
 
       const discountAmount = (subtotal * (state.discountPercentage || 0)) / 100;
       state.totalAmount = Math.round((subtotal - discountAmount) * 100) / 100;
+
+      saveSelectionsToStorage(state);
     },
 
     setTotalAmount: (state, action) => {
@@ -323,6 +430,8 @@ export const {
   resetReservation,
   initializeTourGuide,
   initializeActivities,
+  restoreSavedSelections,
+  saveSelections,
 } = tourReservationSlice.actions;
 
 export const selectPriceDetails = (state) => {
@@ -373,7 +482,6 @@ export const formatReservationForAPI = (state, inviteCode = "") => {
   };
 
   const formatTourGuide = () => {
-    // ✅ تأكد إن الـ object موجود
     if (
       !state.tourGuideByDay ||
       Object.keys(state.tourGuideByDay).length === 0
@@ -382,7 +490,6 @@ export const formatReservationForAPI = (state, inviteCode = "") => {
     }
 
     const tourGuideData = [];
-
     Object.entries(state.tourGuideByDay)
       .sort(([a], [b]) => parseInt(a) - parseInt(b))
       .forEach(([dayKey, data]) => {

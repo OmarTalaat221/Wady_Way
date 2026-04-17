@@ -274,7 +274,7 @@ const TourRatingForm = ({
               <div className="success-icon">
                 <img
                   src="https://res.cloudinary.com/dkc5klynm/image/upload/v1769242456/W_eaaxsn.png"
-                  alt="Wady Way"
+                  alt="Wadi Way"
                 />
               </div>
               <div className="success-ripple"></div>
@@ -302,9 +302,9 @@ const TourRatingForm = ({
             {/* Footer Message */}
             <div className="success-footer">
               <p>We hope to see you on another adventure soon!</p>
-              <div className="wady-team">
+              <div className="wadi-team">
                 <span>With love,</span>
-                <strong>The Wady Way Team</strong>
+                <strong>The Wadi Way Team</strong>
               </div>
             </div>
 
@@ -331,7 +331,7 @@ const TourRatingForm = ({
           <div className="rating-logo">
             <img
               src="https://res.cloudinary.com/dkc5klynm/image/upload/v1769242456/W_eaaxsn.png"
-              alt="Wady Way"
+              alt="Wadi Way"
             />
           </div>
 

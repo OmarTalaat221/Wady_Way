@@ -8,8 +8,10 @@ import {
 } from "@/lib/redux/slices/tourReservationSlice";
 import { GiDuration } from "react-icons/gi";
 import { MdNetworkWifi2Bar } from "react-icons/md";
+import { FiCheck, FiPlus } from "react-icons/fi";
 
-const ActivityCard = ({ item, dayIndex }) => {
+// ✅ prop جديد: allowDeselect (default: false)
+const ActivityCard = ({ item, dayIndex, allowDeselect = false }) => {
   const locale = useLocale();
   const t = useTranslations("packageDetails");
   const dispatch = useDispatch();
@@ -21,42 +23,42 @@ const ActivityCard = ({ item, dayIndex }) => {
 
   const isSelected =
     selectedByDay?.[dayKey]?.activities?.some(
-      (a) => a.id === item.id || a.activity_id === item.id
+      (a) =>
+        String(a.id) === String(item.id) ||
+        String(a.activity_id) === String(item.id)
     ) || false;
 
-  // استخراج الـ features من البيانات الأصلية
   const features = item.features || item.originalData?.features || [];
 
-  const handleToggleActivity = () => {
+  const handleActivityClick = () => {
     if (isSelected) {
-      dispatch(
-        removeActivity({
-          day: dayIndex + 1,
-          activityId: item.id,
-        })
-      );
-    } else {
-      dispatch(
-        selectActivity({
-          day: dayIndex + 1,
-          activity: {
-            id: item.id,
-            activity_id: item.id,
-            title: item.title,
-            name: item.title,
-            image: item.image,
-            price: item.price_current || item.price || 0,
-            price_current: item.price_current || item.price || 0,
-            duration: item.duration,
-            difficulty: item.difficulty,
-            features: features,
-          },
-        })
-      );
+      // ✅ لو allowDeselect = true (في EditModal) يعمل remove
+      // لو allowDeselect = false (في Package Details) مايعملش حاجة
+      if (allowDeselect) {
+        dispatch(removeActivity({ day: dayIndex + 1, activityId: item.id }));
+      }
+      return;
     }
+
+    dispatch(
+      selectActivity({
+        day: dayIndex + 1,
+        activity: {
+          id: item.id,
+          activity_id: item.id,
+          title: item.title,
+          name: item.title,
+          image: item.image,
+          price: item.price_current || item.price || 0,
+          price_current: item.price_current || item.price || 0,
+          duration: item.duration,
+          difficulty: item.difficulty,
+          features: features,
+        },
+      })
+    );
   };
 
-  // استخراج معلومات محددة من الـ features
   const getDurationFromFeatures = () => {
     const durationFeature = features.find(
       (f) => f.label?.toLowerCase() === "duration"
@@ -84,8 +86,7 @@ const ActivityCard = ({ item, dayIndex }) => {
   return (
     <div
       className={`card activity-card ${isSelected ? "selected-activity selected" : ""}`}
-      onClick={handleToggleActivity}
-      style={{ cursor: "pointer", position: "relative" }}
+      style={{ position: "relative" }}
     >
       <img
         src={item.image || "https://via.placeholder.com/380x207"}
@@ -97,7 +98,6 @@ const ActivityCard = ({ item, dayIndex }) => {
       <div className="card-content">
         <h3>{item.title?.[locale] || item.title?.en}</h3>
 
-        {/* عرض الـ Features من الـ API */}
         <div className="gap-3 mb-3 transfer_feat_cont">
           {features.length > 0 ? (
             features.slice(0, 4).map((feature, idx) => (
@@ -118,7 +118,6 @@ const ActivityCard = ({ item, dayIndex }) => {
               </div>
             ))
           ) : (
-            // Fallback للبيانات القديمة
             <>
               <div className="d-flex align-items-center justify-content-start transfer_in gap-2">
                 <GiDuration />
@@ -144,16 +143,39 @@ const ActivityCard = ({ item, dayIndex }) => {
           )}
         </div>
 
-        {/* Footer مع السعر والاختيار */}
         <div className="card-footer">
           <span className="price">
             {item.price_current || item.price
               ? `$${item.price_current || item.price}`
               : t("included") || "Included"}
           </span>
-          <div className={`custom-radio ${isSelected ? "selected" : ""}`}>
-            <div className="radio-circle"></div>
-          </div>
+
+          <button
+            onClick={handleActivityClick}
+            // ✅ لو مش allowDeselect والـ card selected - disabled
+            disabled={isSelected && !allowDeselect}
+            className={`
+              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+              transition-all duration-200
+              ${
+                isSelected
+                  ? "bg-[#295557] text-white cursor-default"
+                  : "bg-[#295557]/10 text-[#295557] hover:bg-[#295557] hover:text-white cursor-pointer"
+              }
+            `}
+          >
+            {isSelected ? (
+              <>
+                <FiCheck size={12} />
+                {allowDeselect ? "Remove" : "Added"}
+              </>
+            ) : (
+              <>
+                <FiPlus size={12} />
+                Add
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

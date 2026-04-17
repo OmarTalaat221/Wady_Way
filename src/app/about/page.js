@@ -17,9 +17,9 @@ import { JsonLd, breadcrumbSchema } from "@/lib/seo/structuredData";
 export const metadata = createMetadata({
   title: "About Us",
   description:
-    "Learn about Wady Way - your trusted travel partner. Discover our mission to make travel planning easy and memorable. Meet our team and see why travelers choose us.",
+    "Learn about Wadi Way - your trusted travel partner. Discover our mission to make travel planning easy and memorable. Meet our team and see why travelers choose us.",
   keywords: [
-    "about wady way",
+    "about wadi way",
     "travel company",
     "our story",
     "travel team",

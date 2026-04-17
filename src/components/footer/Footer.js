@@ -20,7 +20,7 @@ const Footer = ({ style }) => {
                         // height: "100px",
                         objectFit: "contain",
                       }}
-                      src="https://res.cloudinary.com/dkc5klynm/image/upload/v1768723589/wadi_way_logo_only_smaller_o6ie4y.png"
+                      src="https://res.cloudinary.com/dbvh5i83q/image/upload/v1775980890/LOGO_WADI_WAY_myqf0p.png"
                       alt=""
                     />
                   </Link>
