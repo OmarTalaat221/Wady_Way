@@ -30727,9 +30727,9 @@ header.style-3.four .nav-right .icon-list li:first-child svg {
   font-weight: 400;
   letter-spacing: 0.66px;
 }
-.room-details-area .room-features li svg {
+/* .room-details-area .room-features li svg {
   fill: var(--primary-color1);
-}
+} */
 @media (max-width: 576px) {
   .room-details-area .room-features li {
     font-size: 15px;

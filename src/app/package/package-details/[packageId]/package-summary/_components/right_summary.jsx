@@ -9,19 +9,18 @@ import {
   selectPriceDetails,
   refreshUserId,
 } from "@/lib/redux/slices/tourReservationSlice";
-import { base_url } from "../../../../../../uitils/base_url";
-import axios from "axios";
 import toast from "react-hot-toast";
 import { FaCheckCircle, FaSpinner, FaHome, FaUser } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 import LoginRequiredModal from "./LoginRequiredModal";
-import SignupRequiredModal from "./SignupRequiredModal"; // ✅ جديد
+import SignupRequiredModal from "./SignupRequiredModal";
+import axios from "axios";
 
 // ============================================
-// Success Modal Component
+// Success Modal
 // ============================================
-const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
+const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
   const t = useTranslations("packageSummary");
   const router = useRouter();
   const dispatch = useDispatch();
@@ -78,14 +77,13 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
                     </span>
                   </div>
                 )}
-
-                {bookingDetails.total && (
+                {bookingDetails.total_amount && (
                   <div className="flex justify-between border-t pt-2 mt-2">
                     <span className="text-gray-500">
                       {t("total_paid") || "Total"}:
                     </span>
                     <span className="font-bold text-green-600">
-                      ${bookingDetails.total}
+                      ${bookingDetails.total_amount}
                     </span>
                   </div>
                 )}
@@ -149,7 +147,7 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails, lang }) => {
 };
 
 // ============================================
-// Loading Spinner Component
+// Loading Spinner
 // ============================================
 const LoadingSpinner = ({ size = "md" }) => {
   const sizeClasses = {
@@ -161,14 +159,12 @@ const LoadingSpinner = ({ size = "md" }) => {
 };
 
 // ============================================
-// Main RightSummary Component
+// Main Component
 // ============================================
 const RightSummary = ({ lang }) => {
   const t = useTranslations("packageSummary");
   const dispatch = useDispatch();
   const router = useRouter();
-
-  // ✅ Get packageId from URL
   const { packageId } = useParams();
 
   const [loading, setLoading] = useState(false);
@@ -181,35 +177,21 @@ const RightSummary = ({ lang }) => {
   const { tourData, numAdults, numChildren, numInfants, tourId } = reservation;
 
   const priceDetails = useSelector(selectPriceDetails);
-
-  // ✅ Use tourId from Redux or packageId from URL
   const currentTourId = tourId || packageId;
 
-  // ✅ Initialize invite code hook
-  const {
-    inviteCode,
-    hasStoredCode,
-    isLoading: inviteCodeLoading,
-    clearCurrentInviteCode,
-  } = useInviteCode(INVITE_CODE_TYPES.TOUR, currentTourId);
+  const { inviteCode, clearCurrentInviteCode } = useInviteCode(
+    INVITE_CODE_TYPES.TOUR,
+    currentTourId
+  );
 
-  // ✅ Debug logging
-  console.log("🎫 RightSummary - Tour ID:", currentTourId);
-  console.log("🎫 RightSummary - Invite Code:", inviteCode);
-  console.log("🎫 RightSummary - Has Stored Code:", hasStoredCode);
-
-  // ============================================
-  // Booking Handler
-  // ============================================
   const proceedWithBooking = async () => {
     setLoading(true);
+
     try {
-      // ✅ Refresh userId before booking
       dispatch(refreshUserId());
 
-      const currentState = reservation;
       const freshUserId =
-        currentState.userId ||
+        reservation.userId ||
         (() => {
           if (typeof window !== "undefined") {
             try {
@@ -233,52 +215,67 @@ const RightSummary = ({ lang }) => {
         return;
       }
 
-      const apiData = formatReservationForAPI({
-        ...currentState,
-        userId: freshUserId,
-      });
-      apiData.invite_code = inviteCode || "";
+      const apiData = formatReservationForAPI(
+        {
+          ...reservation,
+          userId: freshUserId,
+        },
+        inviteCode || ""
+      );
 
       console.log("📤 Booking API Data:", apiData);
 
+      // ─── Real Request ───────────────────────────────────────────
       const response = await axios.post(
-        `${base_url}/user/tours/reserve_tour.php`,
-        apiData
+        "https://camp-coding.tech/wady-way/user/tours/new_reserve_tour.php",
+        apiData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
 
-      if (response.data.status === "success") {
+      console.log("✅ Booking Response:", response.data);
+
+      const resData = response.data;
+
+      // Check success — adjust based on actual API response shape
+      const isSuccess =
+        resData?.status === "success" ||
+        resData?.success === true ||
+        resData?.code === 200 ||
+        response.status === 200;
+
+      if (isSuccess) {
         clearCurrentInviteCode();
-
         setBookingDetails({
-          bookingId:
-            response.data.booking_id || response.data.reservation_id || "N/A",
-          tourName: tourData?.title || tourData?.name || "Tour Package",
-          total: priceDetails.total?.toFixed(2),
-          startDate: reservation.startDate,
-          endDate: reservation.endDate,
-          adults: numAdults,
-          children: numChildren,
-          infants: numInfants,
-          invitationCode: inviteCode,
+          ...apiData,
+          tourName: tourData?.title || tourData?.name || "",
         });
-
         setShowSuccessModal(true);
-        toast.success(
-          response.data.message || "Booking confirmed successfully!"
-        );
       } else {
-        toast.error(
-          response.data.message || "Booking Failed. Please try again."
-        );
+        // API returned non-success payload
+        const errMsg =
+          resData?.message ||
+          resData?.error ||
+          "Booking failed. Please try again.";
+        toast.error(errMsg);
       }
+      // ────────────────────────────────────────────────────────────
     } catch (error) {
       console.error("❌ Booking Error:", error);
+
+      // Axios error with response from server
       if (error.response) {
-        toast.error(
-          error.response.data?.message || "Server error. Please try again."
-        );
+        const serverMsg =
+          error.response.data?.message ||
+          error.response.data?.error ||
+          `Server error (${error.response.status})`;
+        toast.error(serverMsg);
       } else if (error.request) {
-        toast.error("Network error. Please check your connection.");
+        // Request sent but no response
+        toast.error("No response from server. Check your connection.");
       } else {
         toast.error("An unexpected error occurred. Please try again.");
       }
@@ -287,9 +284,6 @@ const RightSummary = ({ lang }) => {
     }
   };
 
-  // ============================================
-  // Confirm Booking Handler
-  // ============================================
   const handleConfirmBooking = async () => {
     if (!reservation.userId) {
       setShowLoginModal(true);
@@ -304,20 +298,17 @@ const RightSummary = ({ lang }) => {
     proceedWithBooking();
   };
 
-  const handleLoginSuccess = (userId) => {
+  const handleLoginSuccess = () => {
     setShowLoginModal(false);
     toast.success("You can now confirm your booking!");
-    // ✅ Auto-proceed with booking after login
     setTimeout(() => {
       proceedWithBooking();
     }, 500);
   };
 
-  // ✅ Signup Success Handler - جديد
-  const handleSignupSuccess = (userId) => {
+  const handleSignupSuccess = () => {
     setShowSignupModal(false);
     toast.success("Account created! You can now confirm your booking!");
-    // ✅ Auto-proceed with booking after signup
     setTimeout(() => {
       proceedWithBooking();
     }, 500);
@@ -332,13 +323,11 @@ const RightSummary = ({ lang }) => {
     setShowSignupModal(false);
     setTimeout(() => setShowLoginModal(true), 300);
   };
+
   const handleCloseModal = () => {
     setShowSuccessModal(false);
   };
 
-  // ============================================
-  // Render
-  // ============================================
   return (
     <>
       <div className="bg-white rounded-lg shadow-md px-4 py-5 sticky top-24">
@@ -347,23 +336,25 @@ const RightSummary = ({ lang }) => {
         </h3>
         <p className="text-gray-600 mb-6">{t("order_description")}</p>
 
-        {/* Tour Info */}
         {tourData && (
           <div className="bg-gray-50 rounded-lg p-3 mb-4">
             <h4 className="font-medium text-gray-800 text-sm mb-2 truncate">
               {tourData.title || tourData.name}
             </h4>
+
             <div className="text-xs text-gray-500 space-y-1">
               <div className="flex justify-between">
                 <span>{t("adults") || "Adults"}:</span>
                 <span>{numAdults}</span>
               </div>
+
               {numChildren > 0 && (
                 <div className="flex justify-between">
                   <span>{t("children") || "Children"}:</span>
                   <span>{numChildren}</span>
                 </div>
               )}
+
               {numInfants > 0 && (
                 <div className="flex justify-between">
                   <span>{t("infants") || "Infants"}:</span>
@@ -375,7 +366,6 @@ const RightSummary = ({ lang }) => {
         )}
 
         <div className="border-t border-gray-200 pt-4">
-          {/* Subtotal */}
           <div className="flex justify-between py-2">
             <span className="text-gray-600">{t("subtotal")}</span>
             <span className="font-medium">
@@ -383,7 +373,6 @@ const RightSummary = ({ lang }) => {
             </span>
           </div>
 
-          {/* Discount */}
           {priceDetails.discountPercentage > 0 && (
             <div className="flex justify-between py-2">
               <span className="text-green-600">
@@ -395,7 +384,6 @@ const RightSummary = ({ lang }) => {
             </div>
           )}
 
-          {/* Total */}
           <div className="flex justify-between py-3 mt-2 border-t border-gray-200">
             <span className="font-semibold">{t("total")}</span>
             <span className="font-bold text-lg text-[#295557]">
@@ -403,7 +391,6 @@ const RightSummary = ({ lang }) => {
             </span>
           </div>
 
-          {/* ✅ Login Warning Banner */}
           {!reservation.userId && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-xs text-red-600 flex items-center gap-2">
@@ -413,10 +400,9 @@ const RightSummary = ({ lang }) => {
             </div>
           )}
 
-          {/* Confirm Booking Button */}
           <button
             onClick={handleConfirmBooking}
-            disabled={loading || inviteCodeLoading}
+            disabled={loading}
             className="w-full mt-4 bg-[#295557] hover:bg-[#1e3e3a] disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
           >
             {loading ? (
@@ -448,7 +434,6 @@ const RightSummary = ({ lang }) => {
         </div>
       </div>
 
-      {/* ✅ Success Modal */}
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={handleCloseModal}
@@ -460,7 +445,7 @@ const RightSummary = ({ lang }) => {
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onLoginSuccess={handleLoginSuccess}
-        onSwitchToSignup={handleSwitchToSignup} // ✅ جديد
+        onSwitchToSignup={handleSwitchToSignup}
       />
 
       <SignupRequiredModal

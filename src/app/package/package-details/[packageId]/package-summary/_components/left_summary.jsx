@@ -1,35 +1,128 @@
-import { Collapse, Tooltip, message } from "antd";
-import React, { useState } from "react";
+import { Collapse, Tooltip } from "antd";
+import React, { useMemo, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { customExpandIcon } from "./customExpandIcon";
 import { IoStarSharp } from "react-icons/io5";
 import { IoIosInformationCircleOutline } from "react-icons/io";
-import { FaUserTie } from "react-icons/fa";
+import { FaUserTie, FaBed, FaCarSide, FaUsers } from "react-icons/fa";
 import { Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import { useTranslations } from "next-intl";
-import { toggleTourGuide } from "@/lib/redux/slices/tourReservationSlice";
+import {
+  toggleTourGuide,
+  calculateTotal,
+} from "@/lib/redux/slices/tourReservationSlice";
+import toast from "react-hot-toast";
 
-const LeftSummary = ({ days, setDays, lang }) => {
+const BRAND = "#295557";
+
+const LeftSummary = ({ days, lang }) => {
   const t = useTranslations("packageSummary");
   const dispatch = useDispatch();
 
-  // ✅ جلب tourGuideByDay كاملة
   const tourGuideByDay = useSelector(
-    (state) => state.tourReservation.tourGuideByDay
+    (state) => state.tourReservation.tourGuideByDay || {}
+  );
+
+  const selectedByDay = useSelector(
+    (state) => state.tourReservation.selectedByDay || {}
   );
 
   const [modal, setModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
 
-  const toggleModal = () => setModal(!modal);
+  const [roomsModal, setRoomsModal] = useState(false);
+  const [roomsModalData, setRoomsModalData] = useState(null);
+
+  const toggleModal = () => setModal((prev) => !prev);
+  const toggleRoomsModal = () => setRoomsModal((prev) => !prev);
+
+  const getLocalizedValue = (value) => {
+    if (!value) return "-";
+    if (typeof value === "object") return value[lang] || value.en || "-";
+    return value;
+  };
+
+  const getSelectedHotelForDay = (day) => {
+    const dayKey = String(day.day);
+    const daySelection = selectedByDay?.[dayKey] || {};
+    const selectedHotelId = parseInt(
+      daySelection?.hotel?.id || daySelection?.hotel?.hotel_id || 0
+    );
+
+    if (!selectedHotelId) return null;
+
+    return (
+      day.accommodation?.find(
+        (hotelItem) => hotelItem.id === selectedHotelId
+      ) ||
+      daySelection?.hotel ||
+      null
+    );
+  };
+
+  const getSelectedCarsForDay = (day) => {
+    const dayKey = String(day.day);
+    const daySelection = selectedByDay?.[dayKey] || {};
+
+    const savedCars = Array.isArray(daySelection?.cars)
+      ? daySelection.cars
+      : daySelection?.car
+        ? [daySelection.car]
+        : [];
+
+    if (!savedCars.length) return [];
+
+    return savedCars.map((savedCar, index) => {
+      const savedCarId = parseInt(savedCar?.id || savedCar?.car_id || 0);
+
+      const matchedTransfer =
+        day.transfers?.find((transferItem) => transferItem.id === savedCarId) ||
+        null;
+
+      return {
+        ...(matchedTransfer || {}),
+        ...(savedCar || {}),
+        id: savedCar?.instanceId || `${day.day}-${savedCarId}-${index}`,
+        originalId: savedCarId,
+        withDriver: !!savedCar?.withDriver,
+        image:
+          matchedTransfer?.image ||
+          savedCar?.image ||
+          "https://via.placeholder.com/300x200",
+        name: matchedTransfer?.name || savedCar?.name || savedCar?.title,
+        category: matchedTransfer?.category ||
+          savedCar?.category || { en: "Car", ar: "سيارة" },
+        capacity:
+          parseInt(
+            matchedTransfer?.capacity ||
+              savedCar?.capacity ||
+              savedCar?.max_people ||
+              4
+          ) || 4,
+        price:
+          parseFloat(
+            matchedTransfer?.price ||
+              matchedTransfer?.price_current ||
+              savedCar?.price ||
+              savedCar?.price_current ||
+              0
+          ) || 0,
+      };
+    });
+  };
+
+  const getSelectedRoomsForDay = (dayNumber) => {
+    const dayKey = String(dayNumber);
+    return Array.isArray(selectedByDay?.[dayKey]?.rooms)
+      ? selectedByDay[dayKey].rooms
+      : [];
+  };
 
   const handleCheckboxChange = (dayNumber) => {
-    const tourGuide = tourGuideByDay[dayNumber];
+    const tourGuide = tourGuideByDay?.[String(dayNumber)];
 
-    if (!tourGuide?.isAvailable) {
-      return;
-    }
+    if (!tourGuide?.isAvailable) return;
 
     setSelectedDay(dayNumber);
     setPendingAction(tourGuide.isSelected ? "disable" : "enable");
@@ -40,8 +133,9 @@ const LeftSummary = ({ days, setDays, lang }) => {
     if (!selectedDay) return;
 
     dispatch(toggleTourGuide(selectedDay));
+    dispatch(calculateTotal());
 
-    message.success(
+    toast.success(
       pendingAction === "enable"
         ? "Tour guide enabled for this day"
         : "Tour guide removed for this day"
@@ -52,19 +146,63 @@ const LeftSummary = ({ days, setDays, lang }) => {
     setPendingAction(null);
   };
 
+  const openRoomsModal = (day, selectedHotel, rooms) => {
+    const totalAdults = rooms.reduce(
+      (sum, room) => sum + Number(room.adults || 0),
+      0
+    );
+    const totalKids = rooms.reduce(
+      (sum, room) => sum + Number(room.kids ?? room.children ?? 0),
+      0
+    );
+    const totalBabies = rooms.reduce(
+      (sum, room) => sum + Number(room.babies ?? room.infants ?? 0),
+      0
+    );
+
+    setRoomsModalData({
+      dayNumber: day.day,
+      date: day.date,
+      hotel: selectedHotel,
+      rooms,
+      totals: {
+        adults: totalAdults,
+        kids: totalKids,
+        babies: totalBabies,
+      },
+    });
+
+    setRoomsModal(true);
+  };
+
+  const preparedDays = useMemo(() => {
+    return (days || []).map((day) => {
+      const selectedHotel = getSelectedHotelForDay(day);
+      const selectedCars = getSelectedCarsForDay(day);
+      const selectedRooms = getSelectedRoomsForDay(day.day);
+
+      return {
+        ...day,
+        selectedHotel,
+        selectedCars,
+        selectedRooms,
+      };
+    });
+  }, [days, selectedByDay, lang]);
+
   const { Panel } = Collapse;
 
   return (
     <div className="flex flex-col gap-4">
-      {days?.map((day) => {
+      {preparedDays?.map((day) => {
         const dayNumber = day.day;
-        const tourGuide = tourGuideByDay[dayNumber] || {};
-        const isAvailable = tourGuide.isAvailable || false;
-        const isSelected = tourGuide.isSelected || false;
+        const tourGuide = tourGuideByDay?.[String(dayNumber)] || {};
+        const isAvailable = !!tourGuide.isAvailable;
+        const isSelected = !!tourGuide.isSelected;
 
-        console.log(
-          `LeftSummary Day ${dayNumber}: available=${isAvailable}, selected=${isSelected}`
-        );
+        const selectedHotel = day.selectedHotel;
+        const selectedCars = day.selectedCars || [];
+        const selectedRooms = day.selectedRooms || [];
 
         return (
           <div
@@ -72,32 +210,35 @@ const LeftSummary = ({ days, setDays, lang }) => {
             key={dayNumber}
           >
             <Collapse
-              defaultActiveKey={1}
+              defaultActiveKey={["1"]}
               expandIcon={customExpandIcon("12px")}
               ghost
               size="large"
             >
               <Panel
-                key={dayNumber}
+                key="1"
                 header={
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <h2 className="text-xl font-semibold">
                         {t("day")} {dayNumber}
                       </h2>
+
                       {isAvailable && (
                         <span
                           className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
                             isSelected
                               ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
+                              : "bg-gray-100"
                           }`}
+                          style={!isSelected ? { color: BRAND } : {}}
                         >
                           <FaUserTie size={10} />
                           {isSelected ? "Guide ✓" : "No Guide"}
                         </span>
                       )}
                     </div>
+
                     <div className="text-gray-500">{day.date}</div>
                   </div>
                 }
@@ -109,40 +250,76 @@ const LeftSummary = ({ days, setDays, lang }) => {
                     <h3 className="text-lg font-medium text-gray-800 mb-2">
                       {t("accommodation")}
                     </h3>
-                    <div className="flex flex-col gap-2">
-                      {day.accommodation?.map((accommodation) => (
-                        <div
-                          className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg"
-                          key={accommodation.id}
-                        >
+
+                    {selectedHotel ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg">
                           <div className="w-32 h-28 !rounded-md overflow-hidden">
                             <img
-                              src={accommodation.image}
-                              alt={accommodation.name}
+                              src={selectedHotel.image}
+                              alt={getLocalizedValue(selectedHotel.name)}
                               className="w-full h-full !rounded-md object-cover"
+                              onError={(e) => {
+                                e.target.src =
+                                  "https://via.placeholder.com/300x200";
+                              }}
                             />
                           </div>
+
                           <div className="flex-1">
                             <h3 className="font-medium text-gray-900">
-                              {typeof accommodation.name === "object"
-                                ? accommodation.name[lang] ||
-                                  accommodation.name.en
-                                : accommodation.name}
+                              {getLocalizedValue(selectedHotel.name)}
                             </h3>
-                            <span className="text-sm text-gray-600">
-                              {typeof accommodation.location === "object"
-                                ? accommodation.location[lang] ||
-                                  accommodation.location.en
-                                : accommodation.location}
+
+                            <span className="text-sm text-gray-600 block">
+                              {getLocalizedValue(selectedHotel.location)}
                             </span>
+
+                            {selectedRooms.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <span
+                                  className="text-[11px] px-2 py-1 rounded-full"
+                                  style={{
+                                    background: `${BRAND}14`,
+                                    color: BRAND,
+                                  }}
+                                >
+                                  {selectedRooms.length} room
+                                  {selectedRooms.length > 1 ? "s" : ""}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openRoomsModal(
+                                      day,
+                                      selectedHotel,
+                                      selectedRooms
+                                    )
+                                  }
+                                  className="text-[11px] px-3 py-1 rounded-full text-white transition"
+                                  style={{ background: BRAND }}
+                                >
+                                  View Rooms
+                                </button>
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center bg-[#295557] text-white px-2 py-1 rounded">
-                            {accommodation.rating || 4.5}
+
+                          <div
+                            className="flex items-center text-white px-2 py-1 rounded"
+                            style={{ background: BRAND }}
+                          >
+                            {selectedHotel.rating || 4.5}
                             <IoStarSharp className="mx-1" />
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-500">
+                        No hotel selected
+                      </div>
+                    )}
                   </div>
 
                   {/* Transportation */}
@@ -150,65 +327,90 @@ const LeftSummary = ({ days, setDays, lang }) => {
                     <h3 className="text-lg font-medium text-gray-800 mb-2">
                       {t("transportation")}
                     </h3>
-                    <div className="flex flex-col gap-2">
-                      {day.transfers?.map((transfer) => (
-                        <div
-                          className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg"
-                          key={transfer.id}
-                        >
-                          <div className="w-32 h-28 !rounded-md overflow-hidden">
-                            <img
-                              src={transfer.image}
-                              alt={
-                                typeof transfer.name === "object"
-                                  ? transfer.name[lang]
-                                  : transfer.name
-                              }
-                              className="w-full h-full !rounded-md object-cover"
-                            />
+
+                    {selectedCars.length > 0 ? (
+                      <div className="flex flex-col gap-2">
+                        {selectedCars.map((transfer, idx) => (
+                          <div
+                            className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg"
+                            key={transfer.id || `${transfer.originalId}-${idx}`}
+                          >
+                            <div className="w-32 h-28 !rounded-md overflow-hidden">
+                              <img
+                                src={transfer.image}
+                                alt={getLocalizedValue(transfer.name)}
+                                className="w-full h-full !rounded-md object-cover"
+                                onError={(e) => {
+                                  e.target.src =
+                                    "https://via.placeholder.com/300x200";
+                                }}
+                              />
+                            </div>
+
+                            <div className="flex-1">
+                              <h3 className="font-medium text-gray-900">
+                                {getLocalizedValue(transfer.name)}
+                              </h3>
+
+                              <span className="text-sm text-gray-600 flex items-center flex-wrap gap-1">
+                                <span>
+                                  {getLocalizedValue(transfer.category)} (
+                                  {transfer?.capacity})
+                                </span>
+
+                                <Tooltip title={t("car_capacity_tooltip")}>
+                                  <div className="text-blue-500 cursor-pointer mx-1">
+                                    <IoIosInformationCircleOutline size={17} />
+                                  </div>
+                                </Tooltip>
+                              </span>
+
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {transfer.withDriver && (
+                                  <span className="text-[11px] px-2 py-1 rounded-full bg-green-100 text-green-700">
+                                    With Driver
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div
+                              className="flex items-center text-white px-2 py-1 rounded"
+                              style={{ background: BRAND }}
+                            >
+                              {transfer.rating || 4.5}
+                              <IoStarSharp className="mx-1" />
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-medium text-gray-900">
-                              {typeof transfer.name === "object"
-                                ? transfer.name[lang] || transfer.name.en
-                                : transfer.name}
-                            </h3>
-                            <span className="text-sm text-gray-600 flex items-center">
-                              {typeof transfer.category === "object"
-                                ? transfer.category[lang] ||
-                                  transfer.category.en
-                                : transfer.category}{" "}
-                              ({transfer?.capacity})
-                              <Tooltip title={t("car_capacity_tooltip")}>
-                                <div className="text-blue-500 cursor-pointer mx-1">
-                                  <IoIosInformationCircleOutline size={17} />
-                                </div>
-                              </Tooltip>
-                            </span>
-                          </div>
-                          <div className="flex items-center bg-[#295557] text-white px-2 py-1 rounded">
-                            {transfer.rating || 4.5}
-                            <IoStarSharp className="mx-1" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-500">
+                        No transfer selected
+                      </div>
+                    )}
                   </div>
 
-                  {/* ✅ Tour Guide */}
+                  {/* Tour Guide */}
                   {isAvailable ? (
                     <div className="border-t border-gray-200 pt-3">
-                      <div className="flex justify-between items-center w-full bg-gradient-to-r from-[#295557]/10 to-transparent p-4 rounded-lg">
+                      <div
+                        className="flex justify-between items-center w-full p-4 rounded-lg"
+                        style={{
+                          background: `linear-gradient(to right, ${BRAND}15, transparent)`,
+                        }}
+                      >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`p-2 rounded-full transition-colors ${
-                              isSelected
-                                ? "bg-[#295557] text-white"
-                                : "bg-gray-200 text-gray-500"
-                            }`}
+                            className="p-2 rounded-full transition-colors"
+                            style={{
+                              background: isSelected ? BRAND : "#e5e7eb",
+                              color: isSelected ? "#fff" : "#6b7280",
+                            }}
                           >
                             <FaUserTie size={18} />
                           </div>
+
                           <div>
                             <span className="font-medium text-gray-700 block">
                               Tour Guide
@@ -229,10 +431,18 @@ const LeftSummary = ({ days, setDays, lang }) => {
                               onChange={() => handleCheckboxChange(dayNumber)}
                               checked={isSelected}
                             />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#295557]/30 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#295557]"></div>
+                            <div
+                              className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer rtl:peer-checked:after:-translate-x-full peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all"
+                              style={{
+                                background: isSelected ? BRAND : "#e5e7eb",
+                                boxShadow: `0 0 0 2px ${BRAND}20`,
+                              }}
+                            ></div>
                           </label>
+
                           <span
-                            className={`text-sm font-medium ${isSelected ? "text-green-600" : "text-gray-500"}`}
+                            className="text-sm font-medium"
+                            style={{ color: isSelected ? BRAND : "#6b7280" }}
                           >
                             {isSelected ? "Active" : "Inactive"}
                           </span>
@@ -240,9 +450,15 @@ const LeftSummary = ({ days, setDays, lang }) => {
                       </div>
 
                       {!isSelected && (
-                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                          <p className="text-xs text-yellow-700">
-                            ⚠️ Removing the guide is at your own responsibility
+                        <div
+                          className="mt-2 p-2 rounded-md"
+                          style={{
+                            background: `${BRAND}10`,
+                            border: `1px solid ${BRAND}30`,
+                          }}
+                        >
+                          <p className="text-xs mb-0" style={{ color: BRAND }}>
+                            Removing the guide is at your own responsibility
                           </p>
                         </div>
                       )}
@@ -271,7 +487,7 @@ const LeftSummary = ({ days, setDays, lang }) => {
         );
       })}
 
-      {/* Modal */}
+      {/* Tour Guide Modal */}
       <Modal
         centered
         className="rounded-lg overflow-hidden"
@@ -283,13 +499,7 @@ const LeftSummary = ({ days, setDays, lang }) => {
           className="bg-gray-50 border-b border-gray-200"
         >
           <div className="flex items-center gap-2">
-            <FaUserTie
-              className={
-                pendingAction === "enable"
-                  ? "text-green-600"
-                  : "text-orange-500"
-              }
-            />
+            <FaUserTie style={{ color: BRAND }} />
             Tour Guide - Day {selectedDay}
           </div>
         </ModalHeader>
@@ -297,18 +507,10 @@ const LeftSummary = ({ days, setDays, lang }) => {
         <ModalBody className="p-4">
           <div className="text-center py-4">
             <div
-              className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${
-                pendingAction === "enable" ? "bg-green-100" : "bg-orange-100"
-              }`}
+              className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
+              style={{ background: `${BRAND}15` }}
             >
-              <FaUserTie
-                size={32}
-                className={
-                  pendingAction === "enable"
-                    ? "text-green-600"
-                    : "text-orange-500"
-                }
-              />
+              <FaUserTie size={32} style={{ color: BRAND }} />
             </div>
 
             <p className="text-lg font-medium text-gray-800 mb-2">
@@ -323,17 +525,18 @@ const LeftSummary = ({ days, setDays, lang }) => {
                 : `Remove the tour guide for Day ${selectedDay}?`}
             </p>
 
-            {pendingAction === "disable" && (
-              <div className="mt-4 p-3 rounded-lg text-sm bg-orange-50 text-orange-700 border border-orange-200">
-                ⚠️ Removing the tour guide is at your own responsibility.
-              </div>
-            )}
-
-            {pendingAction === "enable" && (
-              <div className="mt-4 p-3 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200">
-                ✓ A professional guide will accompany you throughout the day.
-              </div>
-            )}
+            <div
+              className="mt-4 p-3 rounded-lg text-sm"
+              style={{
+                background: `${BRAND}10`,
+                color: BRAND,
+                border: `1px solid ${BRAND}30`,
+              }}
+            >
+              {pendingAction === "enable"
+                ? "A professional guide will accompany you throughout the day."
+                : "Removing the tour guide is at your own responsibility."}
+            </div>
           </div>
         </ModalBody>
 
@@ -346,15 +549,144 @@ const LeftSummary = ({ days, setDays, lang }) => {
           </button>
 
           <button
-            className={`px-5 py-2 text-white rounded-lg transition font-medium flex items-center gap-2 ${
-              pendingAction === "enable"
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-orange-500 hover:bg-orange-600"
-            }`}
+            className="px-5 py-2 text-white rounded-lg transition font-medium flex items-center gap-2"
+            style={{ background: BRAND }}
             onClick={confirmToggle}
           >
             <FaUserTie size={14} />
             Confirm
+          </button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Rooms Modal */}
+      <Modal
+        centered
+        className="rounded-lg overflow-hidden"
+        isOpen={roomsModal}
+        toggle={toggleRoomsModal}
+      >
+        <ModalHeader
+          toggle={toggleRoomsModal}
+          className="bg-gray-50 border-b border-gray-200"
+        >
+          <div className="flex items-center gap-2">
+            <FaBed style={{ color: BRAND }} />
+            Rooms Details - Day {roomsModalData?.dayNumber}
+          </div>
+        </ModalHeader>
+
+        <ModalBody className="p-4">
+          {roomsModalData && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                <img
+                  src={
+                    roomsModalData?.hotel?.image ||
+                    "https://via.placeholder.com/120x90"
+                  }
+                  alt={getLocalizedValue(roomsModalData?.hotel?.name)}
+                  className="w-24 h-20 rounded-lg object-cover"
+                  onError={(e) => {
+                    e.target.src = "https://via.placeholder.com/120x90";
+                  }}
+                />
+
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-1">
+                    {getLocalizedValue(roomsModalData?.hotel?.name)}
+                  </h4>
+                  <p className="text-sm text-gray-500 mb-0">
+                    {roomsModalData?.date}
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="rounded-xl p-3"
+                style={{
+                  background: `${BRAND}10`,
+                  border: `1px solid ${BRAND}25`,
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <FaUsers style={{ color: BRAND }} />
+                  <span className="font-semibold" style={{ color: BRAND }}>
+                    Total Distribution
+                  </span>
+                </div>
+
+                <div className="text-sm text-gray-700 flex flex-wrap gap-3">
+                  <span>Adults: {roomsModalData.totals.adults}</span>
+                  <span>Kids: {roomsModalData.totals.kids}</span>
+                  <span>Babies: {roomsModalData.totals.babies}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {roomsModalData.rooms.map((room, index) => (
+                  <div
+                    key={index}
+                    className="bg-white border rounded-xl p-3 shadow-sm"
+                    style={{ borderColor: `${BRAND}20` }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h5
+                        className="font-semibold mb-0"
+                        style={{ color: BRAND }}
+                      >
+                        Room {index + 1}
+                      </h5>
+
+                      <span
+                        className="text-[11px] px-2 py-1 rounded-full"
+                        style={{
+                          background: `${BRAND}12`,
+                          color: BRAND,
+                        }}
+                      >
+                        {Number(room.adults || 0) +
+                          Number(room.kids ?? room.children ?? 0) || 0}{" "}
+                        Guests
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <div className="text-gray-500 text-xs mb-1">Adults</div>
+                        <div className="font-semibold text-gray-800">
+                          {Number(room.adults || 0)}
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <div className="text-gray-500 text-xs mb-1">Kids</div>
+                        <div className="font-semibold text-gray-800">
+                          {Number(room.kids ?? room.children ?? 0)}
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <div className="text-gray-500 text-xs mb-1">Babies</div>
+                        <div className="font-semibold text-gray-800">
+                          {Number(room.babies ?? room.infants ?? 0)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </ModalBody>
+
+        <ModalFooter className="border-t border-gray-200 bg-gray-50">
+          <button
+            className="px-5 py-2 text-white rounded-lg transition font-medium"
+            style={{ background: BRAND }}
+            onClick={toggleRoomsModal}
+          >
+            Close
           </button>
         </ModalFooter>
       </Modal>

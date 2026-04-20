@@ -9,8 +9,6 @@ const TransferCard = ({
   item,
   index,
   activeTransfers,
-  selectedTours,
-  setSelectedTours,
   handleTransferClick,
   calculatePriceDifference,
 }) => {
@@ -19,31 +17,12 @@ const TransferCard = ({
 
   if (!item) return null;
 
-  // Extract features from original data
   const features = item.features || item.originalData?.features || [];
 
-  // Parse capacity from features or fallback
-  const capacity = (() => {
-    console.log(item, "item");
-    if (item.capacity) return parseInt(item.capacity);
-
-    // Try to extract from features (e.g., "Up to 4 People")
-    const groupFeature = features.find(
-      (f) =>
-        f.label?.toLowerCase().includes("capacity") ||
-        f.label?.toLowerCase().includes("group") ||
-        f.label?.toLowerCase().includes("passengers") ||
-        f.feature?.toLowerCase().includes("people") ||
-        f.feature?.toLowerCase().includes("passengers")
-    );
-
-    if (groupFeature) {
-      const match = groupFeature.feature?.match(/(\d+)/);
-      if (match) return parseInt(match[1]);
-    }
-
-    return 4; // Default fallback
-  })();
+  // ✅ Use max_people from API directly, fallback to capacity prop
+  const capacity = parseInt(
+    item.max_people || item.capacity || item.originalData?.max_people || 4
+  );
 
   const onAddCar = (e) => {
     e?.stopPropagation();
@@ -70,7 +49,6 @@ const TransferCard = ({
           {item.name?.[locale] || item.name?.en || item.title || "Transfer"}
         </h3>
 
-        {/* Features from API */}
         <div className="gap-3 mb-3 transfer_feat_cont">
           {features.length > 0 ? (
             features.slice(0, 4).map((feature, idx) => (
@@ -96,16 +74,17 @@ const TransferCard = ({
                 <FaHotel />
                 <div className="d-flex flex-column transfer_cont">
                   <div className="fw-bold">{t("brand")}</div>
-                  <div className="transfer_info" title={item.category?.en}>
+                  <div className="transfer_info">
                     {item.category?.[locale] || item.category?.en || "Standard"}
                   </div>
                 </div>
               </div>
+
               <div className="d-flex align-items-center gap-2 transfer_in">
                 <GiDuration />
                 <div className="d-flex flex-column transfer_cont">
                   <div className="fw-bold capitalize">{t("capacity")}</div>
-                  <div className="transfer_info" title={`${capacity}`}>
+                  <div className="transfer_info">
                     {capacity} {t("passengers")}
                   </div>
                 </div>
@@ -123,11 +102,11 @@ const TransferCard = ({
           <span className="text-xs text-gray-400">per vehicle</span>
         </div>
 
-        {/* Footer */}
         <div className="card-footer">
           <span className="price">
             +{item.price_current || item.price || 0} USD
           </span>
+
           <button
             onClick={onAddCar}
             className="flex items-center gap-1.5 bg-[#295557] text-white text-xs font-medium px-3 py-1.5 rounded-full hover:bg-[#1e3e40] transition-colors"

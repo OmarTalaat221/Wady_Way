@@ -264,7 +264,7 @@ export default function ProfilePage() {
       // If enabling notifications, request permission
       await requestPermission();
     } else {
-      toast.info("Notifications disabled");
+      toast.error("Notifications disabled");
     }
   };
 

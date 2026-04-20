@@ -17,8 +17,6 @@ const AccommodationCard = ({
   activeAccommodations,
   isFlipped,
   selectedAccommodation,
-  selectedTours,
-  setSelectedTours,
   handleAccommodationClick,
   handleFlip,
   setMapModal,
@@ -30,6 +28,8 @@ const AccommodationCard = ({
   removeRoom,
   confirmRoomSelection,
   cancelRoomSelection,
+  assignedCounts,
+  perRoomMax,
 }) => {
   const locale = useLocale();
   const t = useTranslations("packageDetails");
@@ -43,11 +43,17 @@ const AccommodationCard = ({
 
   const totalAdults = people.adults;
   const totalChildren = people.children;
+  const totalInfants = people.infants || 0;
   const totalTravelers = totalAdults + totalChildren;
+
   const isSelected = activeAccommodations[index]?.id === item.id;
-  const canFlip = isSelected;
+  const canFlip = isSelected && (totalTravelers >= 3 || totalInfants > 0);
 
   const amenities = item.amenities || item.originalData?.amenities || [];
+
+  // ✅ per_room from this specific hotel
+  const thisPerRoom =
+    parseInt(item.originalData?.per_room || item.per_room) || perRoomMax || 6;
 
   return (
     <div
@@ -61,7 +67,7 @@ const AccommodationCard = ({
       }}
     >
       <div className="card-inner">
-        {/* Front of card */}
+        {/* Front */}
         <div className="card-front">
           {canFlip && (
             <button
@@ -124,47 +130,41 @@ const AccommodationCard = ({
                     <FaHotel />
                     <div className="d-flex flex-column transfer_cont">
                       <div className="fw-bold">{t("category")}</div>
-                      <div
-                        className="transfer_info"
-                        title={item.category?.[locale] || item.category?.en}
-                      >
+                      <div className="transfer_info">
                         {item.category?.[locale] ||
                           item.category?.en ||
                           "Hotel"}
                       </div>
                     </div>
                   </div>
+
                   <div className="d-flex align-items-center gap-2 transfer_in">
                     <FaClock />
                     <div className="d-flex flex-column transfer_cont">
                       <div className="fw-bold">{t("checkIn")}</div>
-                      <div className="transfer_info" title={item.check_in_out}>
+                      <div className="transfer_info">
                         {item.check_in_out || "15:00 / 11:00"}
                       </div>
                     </div>
                   </div>
+
                   <div className="d-flex align-items-center gap-2 transfer_in">
                     <FaLocationDot />
                     <div className="d-flex flex-column transfer_cont">
                       <div className="fw-bold">{t("location")}</div>
-                      <div
-                        className="transfer_info"
-                        title={item.location?.[locale] || item.location?.en}
-                      >
+                      <div className="transfer_info">
                         {item.location?.[locale] ||
                           item.location?.en ||
                           "City center"}
                       </div>
                     </div>
                   </div>
+
                   <div className="d-flex align-items-center gap-2 transfer_in">
                     <FaSquareParking />
                     <div className="d-flex flex-column transfer_cont">
                       <div className="fw-bold">{t("parking")}</div>
-                      <div
-                        className="transfer_info"
-                        title={item.parking?.[locale] || item.parking?.en}
-                      >
+                      <div className="transfer_info">
                         {item.parking?.[locale] ||
                           item.parking?.en ||
                           t("notAvailable")}
@@ -181,10 +181,9 @@ const AccommodationCard = ({
                   ? t("selected")
                   : priceDifference !== 0
                     ? `${priceDifference > 0 ? "+" : ""}${priceDifference} USD`
-                    : priceDifference === 0
-                      ? t("samePrice")
-                      : `+${item.price_per_night || 0} USD`}
+                    : t("samePrice")}
               </span>
+
               <div className={`custom-radio ${isSelected ? "selected" : ""}`}>
                 <div className="radio-circle"></div>
               </div>
@@ -192,133 +191,230 @@ const AccommodationCard = ({
           </div>
         </div>
 
-        {/* Back of card - Room selection (OLD DESIGN) */}
+        {/* Back - Room Selection */}
         <div className="card-back">
           <div className="room-selection-container">
             <h4>{t("selectRooms")}</h4>
-            <p className="mb-3">
+
+            <p className="mb-2">
               {t("totalTravelers")}: {totalTravelers}
-              {/* ✅ توضيح التوزيع */}
               <span
                 style={{ fontSize: "11px", color: "#888", display: "block" }}
               >
                 ({totalAdults} {t("adults")}
                 {totalChildren > 0 ? `, ${totalChildren} ${t("children")}` : ""}
-                )
+                {totalInfants > 0 ? `, ${totalInfants} ${t("infants")}` : ""})
               </span>
             </p>
 
+            {/* ✅ per_room info */}
+            <div
+              style={{
+                fontSize: "11px",
+                color: "#295557",
+                marginBottom: "8px",
+                background: "#f0f7f7",
+                padding: "6px 10px",
+                borderRadius: "8px",
+                fontWeight: "600",
+              }}
+            >
+              Max {thisPerRoom} persons per room (adults + children)
+            </div>
+
+            {/* Status bar */}
+            {/* <div
+              style={{
+                fontSize: "11px",
+                color: "#666",
+                marginBottom: "10px",
+                background: "#f7f7f7",
+                padding: "8px 10px",
+                borderRadius: "8px",
+              }}
+            >
+              Assigned: {assignedCounts.adults}/{totalAdults} adults,{" "}
+              {assignedCounts.children}/{totalChildren} children
+              {totalInfants > 0 && (
+                <>, {assignedCounts.babies}/{totalInfants} infants</>
+              )}
+            </div> */}
+
             <div className="rooms-container">
-              {rooms.map((room, roomIdx) => (
-                <div key={room.id} className="room-item">
-                  <div className="room-header">
-                    <h5>
-                      {t("room")} {roomIdx + 1}
-                    </h5>
-                    {rooms.length > 1 && (
-                      <button
-                        className="remove-room-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeRoom(room.id);
-                        }}
-                      >
-                        &times;
-                      </button>
-                    )}
-                  </div>
+              {rooms.map((room, roomIdx) => {
+                // ✅ per_room occupancy (infants NOT counted)
+                const roomOccupancy = room.adults + room.children;
+                const isRoomFull = roomOccupancy >= thisPerRoom;
 
-                  {/* ✅ Warning: Children alone */}
-                  {room.adults === 0 && room.children > 0 && (
-                    <p
-                      style={{
-                        fontSize: "10px",
-                        color: "#dc3545",
-                        background: "#fff0f0",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        margin: "0 0 8px 0",
-                      }}
-                    >
-                      ⚠️ Children can&apos;t stay alone in a room
-                    </p>
-                  )}
+                return (
+                  <div key={room.id} className="room-item">
+                    <div className="room-header">
+                      <h5>
+                        {t("room")} {roomIdx + 1}
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            color: isRoomFull ? "#dc3545" : "#888",
+                            marginLeft: "8px",
+                          }}
+                        >
+                          ({roomOccupancy}/{thisPerRoom})
+                        </span>
+                      </h5>
 
-                  <div className="room-occupants">
-                    {/* Adults */}
-                    <div className="occupant-type">
-                      <span>{t("adults")}</span>
-                      <div className="counter">
+                      {rooms.length > 1 && (
                         <button
+                          className="remove-room-btn"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleRoomChange("decrease", room.id, "adults");
+                            removeRoom(room.id);
                           }}
-                          disabled={room.adults <= 1}
                         >
-                          <FaMinus />
+                          &times;
                         </button>
-                        <span>{room.adults}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRoomChange("increase", room.id, "adults");
-                          }}
-                          disabled={
-                            rooms.reduce((s, r) => s + r.adults, 0) >=
-                            totalAdults
-                          }
-                        >
-                          <FaPlus />
-                        </button>
-                      </div>
+                      )}
                     </div>
 
-                    {/* ✅ Children - بس لو فيه أطفال */}
-                    {totalChildren > 0 && (
+                    {room.adults === 0 && room.children > 0 && (
+                      <p
+                        style={{
+                          fontSize: "10px",
+                          color: "#dc3545",
+                          background: "#fff0f0",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          margin: "0 0 8px 0",
+                        }}
+                      >
+                        ⚠️ Children can&apos;t stay alone in a room
+                      </p>
+                    )}
+
+                    {isRoomFull && (
+                      <p
+                        style={{
+                          fontSize: "10px",
+                          color: "#856404",
+                          background: "#fff3cd",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          margin: "0 0 8px 0",
+                        }}
+                      >
+                        ⚠️ Room is full ({thisPerRoom} max)
+                      </p>
+                    )}
+
+                    <div className="room-occupants">
+                      {/* Adults */}
                       <div className="occupant-type">
-                        <span>{t("children")}</span>
+                        <span>{t("adults")}</span>
                         <div className="counter">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRoomChange("decrease", room.id, "children");
+                              handleRoomChange("decrease", room.id, "adults");
                             }}
-                            disabled={room.children <= 0}
+                            disabled={room.adults <= 1}
                           >
                             <FaMinus />
                           </button>
-                          <span>{room.children}</span>
+                          <span>{room.adults}</span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRoomChange("increase", room.id, "children");
+                              handleRoomChange("increase", room.id, "adults");
                             }}
                             disabled={
-                              rooms.reduce((s, r) => s + r.children, 0) >=
-                              totalChildren
+                              assignedCounts.adults >= totalAdults || isRoomFull
                             }
                           >
                             <FaPlus />
                           </button>
                         </div>
                       </div>
-                    )}
 
-                    {/* ✅ Infants - للعرض فقط، مش بيتحسبوا */}
-                    {people.infants > 0 && (
-                      <div className="occupant-type">
-                        <span>{t("infants")}</span>
-                        <div className="counter">
-                          <span style={{ fontSize: "11px", color: "#888" }}>
-                            Not counted for rooms
-                          </span>
+                      {/* Children */}
+                      {totalChildren > 0 && (
+                        <div className="occupant-type">
+                          <span>{t("children")}</span>
+                          <div className="counter">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRoomChange(
+                                  "decrease",
+                                  room.id,
+                                  "children"
+                                );
+                              }}
+                              disabled={room.children <= 0}
+                            >
+                              <FaMinus />
+                            </button>
+                            <span>{room.children}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRoomChange(
+                                  "increase",
+                                  room.id,
+                                  "children"
+                                );
+                              }}
+                              disabled={
+                                assignedCounts.children >= totalChildren ||
+                                isRoomFull
+                              }
+                            >
+                              <FaPlus />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+
+                      {/* ✅ Babies / Infants - NOT counted in per_room */}
+                      {totalInfants > 0 && (
+                        <div className="occupant-type">
+                          <span>
+                            {t("infants")}{" "}
+                            <span
+                              style={{
+                                fontSize: "9px",
+                                color: "#10b981",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              (no seat)
+                            </span>
+                          </span>
+                          <div className="counter">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRoomChange("decrease", room.id, "babies");
+                              }}
+                              disabled={room.babies <= 0}
+                            >
+                              <FaMinus />
+                            </button>
+                            <span>{room.babies}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRoomChange("increase", room.id, "babies");
+                              }}
+                              disabled={assignedCounts.babies >= totalInfants}
+                            >
+                              <FaPlus />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {rooms.length < 5 && (
@@ -343,6 +439,7 @@ const AccommodationCard = ({
               >
                 {t("cancel")}
               </button>
+
               <button
                 className="confirm-btn"
                 onClick={(e) => {

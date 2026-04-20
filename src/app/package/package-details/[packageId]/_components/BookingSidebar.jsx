@@ -1,11 +1,9 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Dropdown, Collapse } from "antd";
 import Calendar from "react-calendar";
 import { FaEdit, FaPlus, FaMinus } from "react-icons/fa";
-import { FaBaby } from "react-icons/fa";
-import { MdChildCare } from "react-icons/md";
 import { FiInfo } from "react-icons/fi";
 import { customExpandIcon } from "./CustomExpandIcon";
 import Link from "next/link";
@@ -13,9 +11,9 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   setTourData,
   setTourInfo,
-  setPeopleCount,
   calculateTotal,
   selectPriceDetails,
+  validateRoomsForAllDays,
 } from "@/lib/redux/slices/tourReservationSlice";
 import toast from "react-hot-toast";
 
@@ -29,6 +27,23 @@ const formatDateLocal = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const scrollAndHighlight = (selector) => {
+  const el = document.querySelector(selector);
+  if (!el) return;
+
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  el.style.transition = "box-shadow 0.3s, outline 0.3s";
+  el.style.outline = "3px solid #295557";
+  el.style.boxShadow = "0 0 20px rgba(41, 85, 87, 0.3)";
+  el.style.borderRadius = "12px";
+
+  setTimeout(() => {
+    el.style.outline = "none";
+    el.style.boxShadow = "none";
+  }, 3000);
+};
+
 const BookingSidebar = ({
   dateValue,
   handleDateChange,
@@ -39,7 +54,6 @@ const BookingSidebar = ({
   scrollToDiv,
   packageId,
   tourData,
-  selectedTours,
   inviteCode,
   hasInviteCode,
 }) => {
@@ -48,11 +62,14 @@ const BookingSidebar = ({
   const dispatch = useDispatch();
 
   const selectedByDay = useSelector(
-    (state) => state.tourReservation.selectedByDay
+    (state) => state.tourReservation.selectedByDay || {}
+  );
+  const tourGuideByDay = useSelector(
+    (state) => state.tourReservation.tourGuideByDay || {}
   );
   const priceDetails = useSelector(selectPriceDetails);
+  const fullState = useSelector((state) => state);
 
-  // ✅ Infants لا يحسبوا في الـ max_persons
   const totalCountable = people.adults + people.children;
   const maxPersons = tourData?.max_persons
     ? parseInt(tourData.max_persons)
@@ -68,7 +85,6 @@ const BookingSidebar = ({
 
   const menuStyle = { boxShadow: "none" };
 
-  // ── Handlers ──
   const handleAddPerson = (type) => {
     if (type !== "infants" && !canAddMore) {
       toast.error(
@@ -84,16 +100,16 @@ const BookingSidebar = ({
     setPeople((prev) => ({ ...prev, [type]: prev[type] - 1 }));
   };
 
-  // ── Price Calculations ──
+  // Price helpers
   const getSelectedHotels = () =>
     Object.values(selectedByDay)
       .map((d) => d.hotel)
       .filter(Boolean);
 
   const getSelectedCars = () =>
-    Object.values(selectedByDay)
-      .map((d) => d.car)
-      .filter(Boolean);
+    Object.values(selectedByDay).flatMap((d) =>
+      Array.isArray(d.cars) ? d.cars : d.car ? [d.car] : []
+    );
 
   const getSelectedActivities = () => {
     const seen = new Set();
@@ -121,20 +137,95 @@ const BookingSidebar = ({
     return total;
   };
 
-  // ── Effects ──
+  const getDriversCount = () =>
+    getSelectedCars().filter((car) => car.withDriver).length;
+
+  const getDriversTotal = () => {
+    const driverPrice = parseFloat(tourData?.driver_price || 0);
+    return getDriversCount() * driverPrice;
+  };
+
+  const getGuidesCount = () =>
+    Object.values(tourGuideByDay).filter(
+      (guide) => guide?.isAvailable && guide?.isSelected
+    ).length;
+
+  const getGuidesTotal = () =>
+    Object.values(tourGuideByDay).reduce((sum, guide) => {
+      if (guide?.isAvailable && guide?.isSelected) {
+        return sum + parseFloat(guide.guidePrice || 0);
+      }
+      return sum;
+    }, 0);
+
+  // Room status per day
+  const getRoomIssues = useCallback(() => {
+    const totalTravelers = people.adults + people.children;
+    if (totalTravelers < 3 && (people.infants || 0) === 0) return [];
+
+    const issues = [];
+    Object.entries(selectedByDay).forEach(([dayKey, dayData]) => {
+      if (!dayData?.hotel) return;
+      const rooms = Array.isArray(dayData.rooms) ? dayData.rooms : [];
+      const assigned = rooms.reduce(
+        (sum, room) =>
+          sum +
+          Number(room.adults || 0) +
+          Number(room.kids ?? room.children ?? 0),
+        0
+      );
+      if (rooms.length === 0 && totalTravelers >= 3) {
+        issues.push({
+          day: parseInt(dayKey),
+          assigned: 0,
+          required: totalTravelers,
+        });
+      } else if (rooms.length > 0 && assigned !== totalTravelers) {
+        issues.push({
+          day: parseInt(dayKey),
+          assigned,
+          required: totalTravelers,
+        });
+      }
+    });
+    return issues;
+  }, [people, selectedByDay]);
+
+  const roomIssues = getRoomIssues();
+
+  // Book Now validation
+  const handleBookNowClick = useCallback(
+    (e) => {
+      const totalTravelers = people.adults + people.children;
+
+      if (totalTravelers >= 3 || people.infants > 0) {
+        const validation = validateRoomsForAllDays(fullState);
+
+        if (!validation.isValid) {
+          e.preventDefault();
+
+          const firstError = validation.errors[0];
+
+          toast.error(
+            `Please assign all ${firstError.required} travelers to rooms for Day ${firstError.day} (currently ${firstError.assigned} assigned)`,
+            { duration: 5000, icon: "🏨" }
+          );
+
+          setTimeout(() => {
+            scrollAndHighlight(`[data-accommodation="day-${firstError.day}"]`);
+          }, 300);
+
+          return;
+        }
+      }
+    },
+    [people, fullState]
+  );
+
+  // Effects
   useEffect(() => {
     if (tourData) dispatch(setTourData(tourData));
   }, [tourData, dispatch]);
-
-  useEffect(() => {
-    dispatch(
-      setPeopleCount({
-        adults: people.adults,
-        children: people.children,
-        infants: people.infants,
-      })
-    );
-  }, [people, dispatch]);
 
   useEffect(() => {
     if (dateValue?.length === 2) {
@@ -149,7 +240,7 @@ const BookingSidebar = ({
 
   useEffect(() => {
     dispatch(calculateTotal());
-  }, [selectedByDay, people, dispatch]);
+  }, [selectedByDay, tourGuideByDay, people, dispatch]);
 
   return (
     <div className="booking-form-wrap mb-10" style={{ overflow: "hidden" }}>
@@ -165,7 +256,7 @@ const BookingSidebar = ({
             <div>
               <div className="collapse_cont">
                 <div className="travel-grid">
-                  {/* ── Travel Dates ── */}
+                  {/* Dates */}
                   <Dropdown
                     menu={{ items: [] }}
                     trigger={["click"]}
@@ -202,14 +293,13 @@ const BookingSidebar = ({
                     </div>
                   </Dropdown>
 
-                  {/* ── Travelers ── */}
+                  {/* Travelers */}
                   <Dropdown
                     menu={{ items: [] }}
                     trigger={["click"]}
                     dropdownRender={(menu) => (
                       <div style={contentStyle}>
                         {React.cloneElement(menu, { style: menuStyle })}
-
                         <div className="d-flex flex-column gap-2 p-2">
                           <div className="add_travel_drop px-2">
                             {t("addTravelers")}
@@ -220,12 +310,11 @@ const BookingSidebar = ({
                             )}
                           </div>
 
-                          {/* ✅ Capacity warning */}
                           {!canAddMore && maxPersons !== Infinity && (
                             <div className="mx-2 flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
                               <FiInfo
                                 size={13}
-                                className="text-amber-500  shrink-0"
+                                className="text-amber-500 shrink-0"
                               />
                               <p className="text-[11px] text-amber-700 mb-0">
                                 Maximum {maxPersons} adults + children allowed
@@ -303,12 +392,11 @@ const BookingSidebar = ({
                             </div>
                           </div>
 
-                          {/* ✅ Infants - always allowed, no limit */}
+                          {/* Infants */}
                           <div className="d-flex justify-content-between px-2 align-items-center w-100">
                             <div className="flex flex-col">
                               <div className="drop_text flex items-center gap-1.5">
                                 {t("infants")}
-                                {/* ✅ Free badge */}
                                 <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">
                                   FREE
                                 </span>
@@ -328,7 +416,6 @@ const BookingSidebar = ({
                               <div className="adults_text">
                                 {people.infants}
                               </div>
-                              {/* ✅ Infants always can be added */}
                               <button
                                 className="travel_button"
                                 onClick={() => handleAddPerson("infants")}
@@ -350,7 +437,6 @@ const BookingSidebar = ({
                           {totalCountable === 1
                             ? t("traveler")
                             : t("travelers_plural")}
-                          {/* ✅ Infants shown separately */}
                           {people.infants > 0 && (
                             <span className="text-gray-400 text-sm">
                               {" "}
@@ -376,7 +462,7 @@ const BookingSidebar = ({
                   </Dropdown>
                 </div>
 
-                {/* ── Selected Options Collapse ── */}
+                {/* Selected Options */}
                 <Collapse
                   expandIcon={customExpandIcon("12px")}
                   ghost
@@ -411,9 +497,9 @@ const BookingSidebar = ({
                         className="d-flex justify-content-start flex-column gap-1"
                         style={{ color: "#000" }}
                       >
-                        {item.children?.map((child, index) => (
+                        {item.children?.map((child, childIdx) => (
                           <div
-                            key={index}
+                            key={childIdx}
                             className={`content_panel d-flex justify-content-start flex-column align-items-start ${
                               child?.children ? "mb-2" : ""
                             }`}
@@ -433,9 +519,9 @@ const BookingSidebar = ({
                                 }}
                                 className="d-flex flex-column gap-3"
                               >
-                                {child.children.map((subChild, subIndex) => (
+                                {child.children.map((subChild, subIdx) => (
                                   <div
-                                    key={subIndex}
+                                    key={subIdx}
                                     className="d-flex align-items-center gap-2"
                                   >
                                     <div>{subChild.icon}</div>
@@ -454,10 +540,9 @@ const BookingSidebar = ({
                   ))}
                 </Collapse>
 
-                {/* ── Price Breakdown ── */}
+                {/* Price Breakdown */}
                 {tourData && (
                   <div className="price-breakdown mb-3">
-                    {/* Adults */}
                     {parseFloat(tourData.per_adult || 0) > 0 && (
                       <div className="price-item">
                         <span className="price-label">
@@ -473,7 +558,6 @@ const BookingSidebar = ({
                       </div>
                     )}
 
-                    {/* Children */}
                     {people.children > 0 &&
                       parseFloat(tourData.per_child || 0) > 0 && (
                         <div className="price-item">
@@ -491,7 +575,6 @@ const BookingSidebar = ({
                         </div>
                       )}
 
-                    {/* ✅ Infants - Free */}
                     {people.infants > 0 && (
                       <div className="price-item">
                         <span className="price-label">
@@ -503,7 +586,6 @@ const BookingSidebar = ({
                       </div>
                     )}
 
-                    {/* Hotels */}
                     {getSelectedHotels().length > 0 && (
                       <div className="price-item">
                         <span className="price-label">
@@ -525,10 +607,11 @@ const BookingSidebar = ({
                       </div>
                     )}
 
-                    {/* Cars */}
                     {getSelectedCars().length > 0 && (
                       <div className="price-item">
-                        <span className="price-label">{t("transfers")}</span>
+                        <span className="price-label">
+                          {t("transfers")} ({getSelectedCars().length})
+                        </span>
                         <span className="price-value">
                           $
                           {getSelectedCars()
@@ -543,7 +626,18 @@ const BookingSidebar = ({
                       </div>
                     )}
 
-                    {/* ✅ Activities with deduplication */}
+                    {getDriversCount() > 0 && (
+                      <div className="price-item">
+                        <span className="price-label">
+                          Drivers ({getDriversCount()} × $
+                          {parseFloat(tourData?.driver_price || 0).toFixed(0)})
+                        </span>
+                        <span className="price-value">
+                          ${getDriversTotal().toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+
                     {getSelectedActivities().length > 0 && (
                       <div className="price-item">
                         <span className="price-label">{t("activities")}</span>
@@ -553,7 +647,17 @@ const BookingSidebar = ({
                       </div>
                     )}
 
-                    {/* Subtotal */}
+                    {getGuidesCount() > 0 && (
+                      <div className="price-item">
+                        <span className="price-label">
+                          Tour Guide ({getGuidesCount()})
+                        </span>
+                        <span className="price-value">
+                          ${getGuidesTotal().toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="price-item">
                       <span className="price-label font-semibold">
                         {t("subtotal") || "Subtotal"}:
@@ -563,7 +667,6 @@ const BookingSidebar = ({
                       </span>
                     </div>
 
-                    {/* Discount */}
                     {priceDetails.discountPercentage > 0 && (
                       <div className="price-item">
                         <span className="price-label text-green-600">
@@ -578,23 +681,46 @@ const BookingSidebar = ({
                   </div>
                 )}
 
-                {/* ✅ Invite Code Badge */}
-                {hasInviteCode && inviteCode && (
-                  <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl mb-3">
-                    <span className="text-emerald-600 text-sm">🏷️</span>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-emerald-700 mb-0">
-                        Invite Code Applied
-                      </p>
-                      <p className="text-xs font-bold text-emerald-800 truncate mb-0">
-                        {inviteCode}
-                      </p>
+                {/* Room distribution warnings */}
+                {roomIssues.length > 0 && (
+                  <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-amber-500">🏨</span>
+                      <span className="text-xs font-semibold text-amber-700">
+                        Room Distribution Incomplete
+                      </span>
                     </div>
+
+                    {roomIssues.map((issue) => (
+                      <div
+                        key={issue.day}
+                        className="flex items-center justify-between text-xs mb-1"
+                      >
+                        <span className="text-amber-700">
+                          Day {issue.day}: {issue.assigned}/{issue.required}{" "}
+                          assigned
+                        </span>
+                        <button
+                          type="button"
+                          className="text-[10px] px-2 py-0.5 rounded-full text-white"
+                          style={{ background: "#295557" }}
+                          onClick={() => {
+                            setTimeout(() => {
+                              scrollAndHighlight(
+                                `[data-accommodation="day-${issue.day}"]`
+                              );
+                            }, 100);
+                          }}
+                        >
+                          Fix →
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* ── Footer: Total + Book Now ── */}
+              {/* Footer */}
               <div className="book_butt_cont">
                 <div className="total-price">
                   <span>{t("totalPrice")}</span>
@@ -607,6 +733,7 @@ const BookingSidebar = ({
                 <Link
                   href={`/package/package-details/${packageId}/package-summary`}
                   className="primary-btn1 two text-white"
+                  onClick={handleBookNowClick}
                 >
                   {t("bookNow")}
                 </Link>

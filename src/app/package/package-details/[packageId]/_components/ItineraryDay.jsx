@@ -1,5 +1,11 @@
 "use client";
-import React, { useRef, useState, useCallback, useMemo } from "react";
+import React, {
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+} from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, EffectFade, Autoplay } from "swiper/modules";
 import { Collapse } from "antd";
@@ -11,7 +17,12 @@ import ActivityCard from "./ActivityCard";
 import { customExpandIcon } from "./CustomExpandIcon";
 import { useLocale, useTranslations } from "next-intl";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleTourGuide } from "@/lib/redux/slices/tourReservationSlice";
+import {
+  toggleTourGuide,
+  setDayCars,
+  setDayRooms,
+  calculateTotal,
+} from "@/lib/redux/slices/tourReservationSlice";
 import toast from "react-hot-toast";
 import { FaPlus } from "react-icons/fa6";
 
@@ -20,10 +31,7 @@ const { Panel } = Collapse;
 const ItineraryDay = ({
   hotel,
   index,
-  days,
   locale: propLocale,
-  selectedTours,
-  setSelectedTours,
   activeAccommodations,
   activeTransfers,
   isFlipped,
@@ -45,42 +53,134 @@ const ItineraryDay = ({
 
   const dayNumber = index + 1;
 
-  // ✅ Tour Guide
-  const tourGuideData = useSelector(
-    (state) => state.tourReservation.tourGuideByDay?.[dayNumber]
+  const savedDayData = useSelector(
+    (state) => state.tourReservation.selectedByDay?.[String(dayNumber)] || {}
   );
-  const isAvailable = tourGuideData?.isAvailable || false;
-  const isSelected = tourGuideData?.isSelected || false;
 
-  // ✅ Per-day room state - كل يوم عنده rooms مستقلة
+  const tourGuideData = useSelector(
+    (state) => state.tourReservation.tourGuideByDay?.[String(dayNumber)]
+  );
+
+  const isGuideAvailable = tourGuideData?.isAvailable || false;
+  const isGuideSelected = tourGuideData?.isSelected || false;
+
   const [localRooms, setLocalRooms] = useState([
-    { id: 1, adults: 1, children: 0 },
+    { id: 1, adults: 1, children: 0, babies: 0 },
   ]);
 
   const [selectedCars, setSelectedCars] = useState([]);
 
-  // ✅ Check if THIS day's card is flipped
+  const carsHydratedRef = useRef(false);
+  const roomsHydratedRef = useRef(false);
+  const lastSyncedCarsRef = useRef("");
+
   const isDayFlipped = isFlipped && selectedAccommodation?.dayIndex === index;
 
-  // ✅ Computed: total travelers (without infants)
   const totalAdults = people.adults;
   const totalChildren = people.children;
+  const totalInfants = people.infants || 0;
   const totalTravelers = totalAdults + totalChildren;
 
-  // ✅ Computed: assigned counts across all rooms
+  const perRoomMax = useMemo(() => {
+    const activeHotel = activeAccommodations?.[index];
+    const perRoom =
+      activeHotel?.originalData?.per_room ||
+      activeHotel?.per_room ||
+      hotel?.accommodation?.[0]?.originalData?.per_room;
+    return perRoom ? parseInt(perRoom) : 6;
+  }, [activeAccommodations, index, hotel]);
+
   const assignedCounts = useMemo(() => {
     return localRooms.reduce(
       (acc, room) => ({
-        adults: acc.adults + room.adults,
-        children: acc.children + room.children,
+        adults: acc.adults + Number(room.adults || 0),
+        children: acc.children + Number(room.children || 0),
+        babies: acc.babies + Number(room.babies || 0),
       }),
-      { adults: 0, children: 0 }
+      { adults: 0, children: 0, babies: 0 }
     );
   }, [localRooms]);
 
-  // ════════════════════════════════════════
-  // ROOM MANAGEMENT - Per Day
-  // ════════════════════════════════════════
+  // Hydrate rooms from Redux (one-time)
+  useEffect(() => {
+    if (roomsHydratedRef.current) return;
+    const savedRooms = Array.isArray(savedDayData?.rooms)
+      ? savedDayData.rooms
+      : [];
+    if (savedRooms.length > 0) {
+      roomsHydratedRef.current = true;
+      setLocalRooms(
+        savedRooms.map((room, idx) => ({
+          id: idx + 1,
+          adults: Number(room.adults || 0),
+          children: Number(room.kids ?? room.children ?? 0),
+          babies: Number(room.babies ?? room.infants ?? 0),
+        }))
+      );
+    }
+  }, []); // eslint-disable-line
+
+  // Hydrate cars from Redux (one-time)
+  useEffect(() => {
+    if (carsHydratedRef.current) return;
+    const savedCars = Array.isArray(savedDayData?.cars)
+      ? savedDayData.cars
+      : savedDayData?.car
+        ? [savedDayData.car]
+        : [];
+    if (savedCars.length > 0) {
+      carsHydratedRef.current = true;
+      setSelectedCars(
+        savedCars.map((car, idx) => ({
+          id:
+            car.instanceId ||
+            `hydrated-${dayNumber}-${car.id || car.car_id || "car"}-${idx}`,
+          carData: {
+            ...car,
+            capacity: car.capacity || car.max_people || "4",
+          },
+          withDriver: !!car.withDriver,
+        }))
+      );
+    }
+  }, []); // eslint-disable-line
+
+  // Sync selected cars TO Redux
+  useEffect(() => {
+    const carsPayload = selectedCars.map((car) => ({
+      id: car.carData?.id || car.carData?.car_id,
+      car_id: car.carData?.car_id || car.carData?.id,
+      title: car.carData?.title || car.carData?.name?.en || car.carData?.name,
+      name: car.carData?.name,
+      image: car.carData?.image,
+      price_current: car.carData?.price_current || car.carData?.price,
+      price: car.carData?.price || car.carData?.price_current,
+      capacity: car.carData?.capacity || car.carData?.max_people || "4",
+      category: car.carData?.category,
+      instanceId: String(car.id),
+      withDriver: !!car.withDriver,
+    }));
+
+    const carsKey = JSON.stringify(
+      carsPayload.map((c) => `${c.id}-${c.withDriver}-${c.instanceId}`)
+    );
+
+    if (carsKey === lastSyncedCarsRef.current) return;
+    lastSyncedCarsRef.current = carsKey;
+
+    dispatch(setDayCars({ day: dayNumber, cars: carsPayload }));
+
+    const timer = setTimeout(() => {
+      dispatch(calculateTotal());
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [selectedCars, dayNumber, dispatch]);
+
+  // Room management
+  const getRoomOccupancy = useCallback((room) => {
+    return room.adults + room.children;
+  }, []);
 
   const handleRoomChange = useCallback(
     (action, roomId, type) => {
@@ -89,12 +189,23 @@ const ItineraryDay = ({
           if (room.id !== roomId) return room;
 
           if (action === "increase") {
-            // ✅ Check max per type
             const currentTotalOfType = prev.reduce(
-              (sum, r) => sum + r[type],
+              (sum, r) =>
+                sum +
+                (type === "adults"
+                  ? r.adults
+                  : type === "children"
+                    ? r.children
+                    : r.babies),
               0
             );
-            const maxAllowed = type === "adults" ? totalAdults : totalChildren;
+
+            const maxAllowed =
+              type === "adults"
+                ? totalAdults
+                : type === "children"
+                  ? totalChildren
+                  : totalInfants;
 
             if (currentTotalOfType >= maxAllowed) {
               toast.error(
@@ -103,25 +214,35 @@ const ItineraryDay = ({
               return room;
             }
 
-            // ✅ Check total doesn't exceed travelers
-            const totalAssigned = prev.reduce(
-              (sum, r) => sum + r.adults + r.children,
-              0
-            );
-            if (totalAssigned >= totalTravelers) {
-              toast.error("All travelers are already assigned to rooms");
-              return room;
+            if (type === "adults" || type === "children") {
+              const currentOccupancy = getRoomOccupancy(room);
+              if (currentOccupancy >= perRoomMax) {
+                toast.error(
+                  `Maximum ${perRoomMax} persons per room (adults + children)`
+                );
+                return room;
+              }
+
+              const totalAssigned = prev.reduce(
+                (sum, r) => sum + r.adults + r.children,
+                0
+              );
+              if (totalAssigned >= totalTravelers) {
+                toast.error("All travelers are already assigned to rooms");
+                return room;
+              }
             }
 
             return { ...room, [type]: room[type] + 1 };
-          } else if (action === "decrease") {
-            // ✅ Adults can't go below 1 (each room needs at least 1 adult)
+          }
+
+          if (action === "decrease") {
             if (type === "adults" && room.adults <= 1) {
               toast.error("Each room must have at least 1 adult");
               return room;
             }
             if (type === "children" && room.children <= 0) return room;
-
+            if (type === "babies" && room.babies <= 0) return room;
             return { ...room, [type]: room[type] - 1 };
           }
 
@@ -129,7 +250,14 @@ const ItineraryDay = ({
         })
       );
     },
-    [totalAdults, totalChildren, totalTravelers]
+    [
+      totalAdults,
+      totalChildren,
+      totalInfants,
+      totalTravelers,
+      perRoomMax,
+      getRoomOccupancy,
+    ]
   );
 
   const addRoom = useCallback(() => {
@@ -137,24 +265,20 @@ const ItineraryDay = ({
       toast.error("Maximum 5 rooms allowed");
       return;
     }
-
-    // ✅ Check if there are unassigned adults
     const assignedAdults = localRooms.reduce((sum, r) => sum + r.adults, 0);
-    const remainingAdults = totalAdults - assignedAdults;
-
-    if (remainingAdults <= 0) {
+    if (totalAdults - assignedAdults <= 0) {
       toast.error(
         "No remaining adults to assign. Each room needs at least 1 adult."
       );
       return;
     }
-
     setLocalRooms((prev) => [
       ...prev,
       {
         id: Math.max(...prev.map((r) => r.id)) + 1,
         adults: 1,
         children: 0,
+        babies: 0,
       },
     ]);
   }, [localRooms, totalAdults]);
@@ -171,20 +295,16 @@ const ItineraryDay = ({
   );
 
   const confirmRoomSelection = useCallback(() => {
-    // ✅ Validate: all travelers assigned
-    const assigned = localRooms.reduce(
+    const assignedTravelers = localRooms.reduce(
       (sum, r) => sum + r.adults + r.children,
       0
     );
-
-    if (assigned !== totalTravelers) {
+    if (assignedTravelers !== totalTravelers) {
       toast.error(
-        `Please assign all ${totalTravelers} travelers. Currently assigned: ${assigned}`
+        `Please assign all ${totalTravelers} travelers. Currently assigned: ${assignedTravelers}`
       );
       return;
     }
-
-    // ✅ Validate: no room with only children
     const roomWithOnlyChildren = localRooms.find(
       (room) => room.adults === 0 && room.children > 0
     );
@@ -194,22 +314,42 @@ const ItineraryDay = ({
       );
       return;
     }
-
-    // ✅ Validate: all adults assigned
     if (assignedCounts.adults !== totalAdults) {
       toast.error(
         `${totalAdults - assignedCounts.adults} adult(s) not assigned to any room`
       );
       return;
     }
-
-    // ✅ Validate: all children assigned (if any)
     if (totalChildren > 0 && assignedCounts.children !== totalChildren) {
       toast.error(
         `${totalChildren - assignedCounts.children} child(ren) not assigned to any room`
       );
       return;
     }
+    for (let i = 0; i < localRooms.length; i++) {
+      const room = localRooms[i];
+      const occupancy = getRoomOccupancy(room);
+      if (occupancy > perRoomMax) {
+        toast.error(
+          `Room ${i + 1} has ${occupancy} persons but max is ${perRoomMax} per room`
+        );
+        return;
+      }
+    }
+
+    dispatch(
+      setDayRooms({
+        day: dayNumber,
+        rooms: localRooms.map((room) => ({
+          adults: room.adults,
+          kids: room.children,
+          babies: room.babies,
+        })),
+      })
+    );
+    setTimeout(() => {
+      dispatch(calculateTotal());
+    }, 50);
 
     setIsFlipped(false);
     setSelectedAccommodation(null);
@@ -220,15 +360,18 @@ const ItineraryDay = ({
     totalAdults,
     totalChildren,
     assignedCounts,
+    dispatch,
+    dayNumber,
     setIsFlipped,
     setSelectedAccommodation,
+    perRoomMax,
+    getRoomOccupancy,
   ]);
 
   const cancelRoomSelection = useCallback(() => {
     setIsFlipped(false);
     setSelectedAccommodation(null);
-    // Reset to default
-    setLocalRooms([{ id: 1, adults: 1, children: 0 }]);
+    setLocalRooms([{ id: 1, adults: 1, children: 0, babies: 0 }]);
   }, [setIsFlipped, setSelectedAccommodation]);
 
   const handleFlip = useCallback(
@@ -244,10 +387,7 @@ const ItineraryDay = ({
     [activeAccommodations, setSelectedAccommodation, setIsFlipped]
   );
 
-  // ════════════════════════════════════════
-  // CAR MANAGEMENT - Per Day
-  // ════════════════════════════════════════
-
+  // Car management
   const totalPassengers = useMemo(() => {
     const drivers = selectedCars.filter((c) => c.withDriver).length;
     return totalAdults + totalChildren + drivers;
@@ -255,7 +395,8 @@ const ItineraryDay = ({
 
   const totalCarCapacity = useMemo(() => {
     return selectedCars.reduce(
-      (sum, c) => sum + (parseInt(c.carData?.capacity) || 4),
+      (sum, c) =>
+        sum + (parseInt(c.carData?.capacity || c.carData?.max_people) || 4),
       0
     );
   }, [selectedCars]);
@@ -264,31 +405,22 @@ const ItineraryDay = ({
 
   const addCar = useCallback(
     (carItem) => {
-      setSelectedCars((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          carData: carItem,
-          withDriver: false,
+      const newCar = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        carData: {
+          ...carItem,
+          capacity: carItem.capacity || carItem.max_people || "4",
         },
-      ]);
-      // Also update the parent selection for the first car
-      if (selectedCars.length === 0) {
-        handleTransferClick(carItem, index);
-      }
+        withDriver: false,
+      };
+      setSelectedCars((prev) => [...prev, newCar]);
+      handleTransferClick(carItem, index);
     },
-    [selectedCars.length, handleTransferClick, index]
+    [handleTransferClick, index]
   );
 
   const removeCar = useCallback((carId) => {
-    setSelectedCars((prev) => {
-      const updated = prev.filter((c) => c.id !== carId);
-      // If we removed all, reset parent selection
-      if (updated.length === 0) {
-        // Optionally reset activeTransfer
-      }
-      return updated;
-    });
+    setSelectedCars((prev) => prev.filter((c) => c.id !== carId));
   }, []);
 
   const toggleDriver = useCallback((carId) => {
@@ -299,36 +431,41 @@ const ItineraryDay = ({
     );
   }, []);
 
-  // ════════════════════════════════════════
-  // REST OF COMPONENT
-  // ════════════════════════════════════════
-
   if (!hotel) return null;
 
   const handleTourGuideToggle = () => {
     dispatch(toggleTourGuide(dayNumber));
+    setTimeout(() => {
+      dispatch(calculateTotal());
+    }, 50);
   };
 
   const selectedHotelData =
     activeAccommodations?.[index] ||
     hotel.accommodation?.find(
       (h) =>
-        h.id === selectedTours?.hotels?.find((sh) => sh.day === dayNumber)?.id
+        h.id ===
+        parseInt(savedDayData?.hotel?.id || savedDayData?.hotel?.hotel_id || 0)
     );
+
+  const savedCarsForDay = Array.isArray(savedDayData?.cars)
+    ? savedDayData.cars
+    : savedDayData?.car
+      ? [savedDayData.car]
+      : [];
 
   const selectedTransferData =
     activeTransfers?.[index] ||
     hotel.transfers?.find(
       (t) =>
         t.id ===
-        selectedTours?.transfers?.find((st) => st.day === dayNumber)?.id
+        parseInt(savedCarsForDay?.[0]?.id || savedCarsForDay?.[0]?.car_id || 0)
     );
 
   let swiperImages = [];
   if (selectedHotelData?.image) swiperImages.push(selectedHotelData.image);
   if (selectedTransferData?.image)
     swiperImages.push(selectedTransferData.image);
-
   if (swiperImages.length === 0) {
     swiperImages = [
       "https://res.cloudinary.com/dhgp9dzdt/image/upload/v1742729863/Accommodation_3_k7ycha.png",
@@ -336,63 +473,68 @@ const ItineraryDay = ({
     ];
   }
 
-  const selectedHotelForDisplay = selectedTours?.hotels?.find(
-    (h) => h.day === dayNumber
-  );
-  const selectedTransferForDisplay = selectedTours?.transfers?.find(
-    (t) => t.day === dayNumber
-  );
+  const selectedCarName = (() => {
+    if (!selectedCars.length && !savedCarsForDay.length) return null;
+    const carsSource = selectedCars.length
+      ? selectedCars.map((c) => ({ ...c.carData, withDriver: c.withDriver }))
+      : savedCarsForDay;
+    const firstCar = carsSource[0];
+    const firstName =
+      firstCar?.name?.[locale] ||
+      firstCar?.name?.en ||
+      firstCar?.title ||
+      t("noTransferSelected");
+    if (carsSource.length === 1) {
+      return `${firstName}${firstCar.withDriver ? " + Driver" : ""}`;
+    }
+    return `${firstName} + ${carsSource.length - 1} more`;
+  })();
 
   return (
     <div className="day-section" data-day={index}>
       <div className="itinerary-grid">
         <div className="itinerary-text">
           <div className="personalize">{t("personalizeItinerary")}</div>
+
           <div className="day-badge flex items-center gap-2 w-fit">
             <span>
               {t("day")} {dayNumber}
             </span>
-            {isAvailable && (
+            {isGuideAvailable && (
               <span
                 className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
-                  isSelected
+                  isGuideSelected
                     ? "bg-green-100 text-green-700"
                     : "bg-yellow-100 text-yellow-700"
                 }`}
               >
                 <FaUserTie size={10} />
-                {isSelected ? "Guide ✓" : "Guide Available"}
+                {isGuideSelected ? "Guide ✓" : "Guide Available"}
               </span>
             )}
           </div>
+
           <h3>{hotel.date}</h3>
+
           <div className="day-details-div">
             <p className="feat_tour">
               <span className="icon">🏨</span>
-              {selectedHotelForDisplay?.name?.[locale] ||
-                selectedHotelForDisplay?.name?.en ||
-                selectedHotelData?.name?.[locale] ||
+              {selectedHotelData?.name?.[locale] ||
                 selectedHotelData?.name?.en ||
                 t("noHotelSelected")}
             </p>
             <p className="feat_tour">
               <span className="icon">📍</span>
-              {selectedHotelForDisplay?.location?.[locale] ||
-                selectedHotelForDisplay?.location?.en ||
-                selectedHotelData?.location?.[locale] ||
+              {selectedHotelData?.location?.[locale] ||
                 selectedHotelData?.location?.en ||
                 hotel.location?.[locale] ||
                 hotel.location?.en}
             </p>
             <p className="feat_tour">
               <span className="icon">🚗</span>
-              {selectedTransferForDisplay?.name?.[locale] ||
-                selectedTransferForDisplay?.name?.en ||
-                selectedTransferData?.name?.[locale] ||
-                selectedTransferData?.name?.en ||
-                t("noTransferSelected")}
+              {selectedCarName || t("noTransferSelected")}
             </p>
-            <p className="description">
+            <div className="description">
               <div
                 dangerouslySetInnerHTML={{
                   __html:
@@ -401,7 +543,7 @@ const ItineraryDay = ({
                     t("noDescription"),
                 }}
               />
-            </p>
+            </div>
           </div>
         </div>
 
@@ -455,8 +597,11 @@ const ItineraryDay = ({
               </div>
             }
           >
-            {/* Accommodation */}
-            <div className="day-section-bg">
+            {/* ═══ Accommodation ═══ */}
+            <div
+              className="day-section-bg"
+              data-accommodation={`day-${dayNumber}`}
+            >
               <p className="section-title !text-[22px]">
                 <FaBed /> {t("accommodation")}
               </p>
@@ -471,8 +616,6 @@ const ItineraryDay = ({
                         activeAccommodations={activeAccommodations}
                         isFlipped={isDayFlipped}
                         selectedAccommodation={selectedAccommodation}
-                        selectedTours={selectedTours}
-                        setSelectedTours={setSelectedTours}
                         handleAccommodationClick={handleAccommodationClick}
                         handleFlip={handleFlip}
                         setMapModal={setMapModal}
@@ -485,7 +628,7 @@ const ItineraryDay = ({
                         confirmRoomSelection={confirmRoomSelection}
                         cancelRoomSelection={cancelRoomSelection}
                         assignedCounts={assignedCounts}
-                        totalTravelers={totalTravelers}
+                        perRoomMax={perRoomMax}
                       />
                     ))
                   ) : (
@@ -497,14 +640,22 @@ const ItineraryDay = ({
               </div>
             </div>
 
-            {/* Transfers */}
-            {/* Transfers / Cars */}
+            {/* ═══ Transfers / Cars ═══ */}
             <div className="day-section-bg">
               <p className="section-title !text-[22px]">
                 <MdEmojiTransportation /> {t("cars")}
               </p>
 
-              {/* Capacity Status Bar */}
+              {totalInfants > 0 && (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg mb-3 bg-blue-50 border border-blue-200">
+                  <span className="text-blue-500 text-sm">👶</span>
+                  <span className="text-xs text-blue-700">
+                    {totalInfants} infant{totalInfants > 1 ? "s" : ""} — not
+                    counted for car seats
+                  </span>
+                </div>
+              )}
+
               {selectedCars.length > 0 && (
                 <div
                   className={`flex items-center justify-between px-4 py-3 rounded-xl mb-4 border ${
@@ -531,13 +682,7 @@ const ItineraryDay = ({
                     >
                       {totalPassengers} people
                       {selectedCars.filter((c) => c.withDriver).length > 0 &&
-                        ` (incl. ${
-                          selectedCars.filter((c) => c.withDriver).length
-                        } driver${
-                          selectedCars.filter((c) => c.withDriver).length > 1
-                            ? "s"
-                            : ""
-                        })`}
+                        ` (incl. ${selectedCars.filter((c) => c.withDriver).length} driver${selectedCars.filter((c) => c.withDriver).length > 1 ? "s" : ""})`}
                     </span>
                     {!isCapacitySufficient && (
                       <span className="text-red-600 text-xs block">
@@ -548,7 +693,6 @@ const ItineraryDay = ({
                 </div>
               )}
 
-              {/* Selected Cars List */}
               {selectedCars.length > 0 && (
                 <div className="space-y-3 mb-4">
                   {selectedCars.map((car, carIdx) => (
@@ -580,14 +724,18 @@ const ItineraryDay = ({
                               `Car ${carIdx + 1}`}
                           </p>
                           <p className="text-xs text-gray-500 mb-0">
-                            Capacity: {parseInt(car.carData?.capacity)} seats
+                            Capacity:{" "}
+                            {parseInt(
+                              car.carData?.capacity ||
+                                car.carData?.max_people ||
+                                0
+                            )}{" "}
+                            seats
                             {car.withDriver && " (1 seat for driver)"}
                           </p>
                         </div>
                       </div>
-
                       <div className="flex items-center gap-3">
-                        {/* Driver Toggle */}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -603,8 +751,6 @@ const ItineraryDay = ({
                           <FaUserTie size={10} />
                           Driver
                         </button>
-
-                        {/* Remove */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -620,7 +766,6 @@ const ItineraryDay = ({
                 </div>
               )}
 
-              {/* Available Cars to Add */}
               <div className="cards-container-parent">
                 <div className="cards-container">
                   {hotel.transfers?.length > 0 ? (
@@ -630,12 +775,9 @@ const ItineraryDay = ({
                           item={item}
                           index={index}
                           activeTransfers={activeTransfers}
-                          selectedTours={selectedTours}
-                          setSelectedTours={setSelectedTours}
                           handleTransferClick={() => addCar(item)}
                           calculatePriceDifference={calculatePriceDifference}
                         />
-                        {/* Add Car Button Overlay */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -655,7 +797,7 @@ const ItineraryDay = ({
               </div>
             </div>
 
-            {/* Activities */}
+            {/* ═══ Activities ═══ */}
             {hotel.activities?.length > 0 && (
               <div className="day-section-bg">
                 <p className="section-title !text-[22px]">
@@ -674,6 +816,36 @@ const ItineraryDay = ({
                 </div>
               </div>
             )}
+
+            {/* ═══ Tour Guide ═══ */}
+            {/* {isGuideAvailable && (
+              <div className="day-section-bg">
+                <p className="section-title !text-[22px]">
+                  <FaUserTie /> Tour Guide
+                </p>
+                <div className="flex items-center justify-between bg-white border rounded-xl px-4 py-3">
+                  <div>
+                    <p className="mb-0 font-semibold">
+                      {isGuideSelected ? "Guide Selected" : "Guide Optional"}
+                    </p>
+                    <p className="mb-0 text-sm text-gray-500">
+                      Price: ${parseFloat(tourGuideData?.guidePrice || 0)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTourGuideToggle}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isGuideSelected
+                        ? "bg-green-100 text-green-700 hover:bg-green-200"
+                        : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                    }`}
+                  >
+                    {isGuideSelected ? "Remove Guide" : "Add Guide"}
+                  </button>
+                </div>
+              </div>
+            )} */}
           </Panel>
         </Collapse>
       </div>
