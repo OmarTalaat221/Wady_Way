@@ -674,9 +674,11 @@ const Page = () => {
                 </div>
               </div>
 
-              {/* <div className="faq-content-wrap mb-[25px]">
-                <FAQ faqData={faqData} text={true} />
-              </div> */}
+              {activityData?.faqs?.length > 0 && (
+                <div className="faq-content-wrap mb-[25px]">
+                  <FAQ faqData={activityData?.faqs} text={true} />
+                </div>
+              )}
 
               {/* Review Section */}
               <div className="review-wrapper">
@@ -803,7 +805,7 @@ const Page = () => {
                           </div>
 
                           {/* Children counter — only shown if activity is for children */}
-                          {isForChildren ? (
+                          {isForChildren && (
                             <div className="number-input-item children">
                               <label className="number-input-lable">
                                 Children:<span></span>
@@ -820,35 +822,6 @@ const Page = () => {
                                 minQuantity={0}
                                 maxQuantity={maxChildQuantity}
                               />
-                            </div>
-                          ) : (
-                            /* Disabled children row with explanation */
-                            <div className="number-input-item children opacity-50 cursor-not-allowed select-none">
-                              <label className="number-input-lable">
-                                Children:<span></span>
-                                <span className="text-xs text-red-500 font-normal ml-1">
-                                  Not available
-                                </span>
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-300 cursor-not-allowed"
-                                >
-                                  <i className="bx bx-minus" />
-                                </button>
-                                <span className="w-6 text-center text-gray-400 font-medium">
-                                  0
-                                </span>
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-300 cursor-not-allowed"
-                                >
-                                  <i className="bx bx-plus" />
-                                </button>
-                              </div>
                             </div>
                           )}
                         </div>
