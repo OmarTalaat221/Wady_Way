@@ -29,12 +29,10 @@ import "leaflet/dist/leaflet.css";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
-import Header from "../components/header/Header";
 import { Toaster } from "react-hot-toast";
 import RouteProtection from "../components/auth/RouteProtection";
 import StoreProvider from "./StoreProvider";
 import QueryProvider from "../uitils/QueryProvider";
-import MobileHeader from "../components/mobileHeader/MobileHeader";
 import NotificationHandler from "../components/notifications/NotificationHandler";
 import ToastContainer from "../components/notifications/ToastContainer";
 
@@ -45,6 +43,7 @@ import {
   organizationSchema,
   websiteSchema,
 } from "@/lib/seo/structuredData";
+import HeadersContainer from "../components/header/HeadersContainer";
 
 // 🎯 Global Metadata
 export const metadata = {
@@ -183,8 +182,7 @@ export default async function RootLayout({ children }) {
             <NextIntlClientProvider messages={messages}>
               <NotificationHandler>
                 <RouteProtection>
-                  <Header currentLocale={locale} />
-                  <MobileHeader currentLocale={locale} />
+                  <HeadersContainer currentLocale={locale} />
                   {children}
                 </RouteProtection>
               </NotificationHandler>

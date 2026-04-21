@@ -15,7 +15,6 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import logo from "../../img/long_logo.png";
 import { usePathname } from "next/navigation";
 import { Autoplay, EffectFade, Pagination, Navigation } from "swiper/modules";
-
 import { useTranslations } from "next-intl";
 import setLanguageValue from "../../../actions/set-language-action";
 import { Select } from "antd";
@@ -177,6 +176,7 @@ const HeaderContent = ({
   toggleSidebar,
   toggleMenu,
   toggleSubMenu,
+  seenData,
   isFixed = false,
 }) => {
   const pathname = usePathname();
@@ -198,6 +198,18 @@ const HeaderContent = ({
     }, 200);
   };
 
+  const isUnseen = (value) => String(value || "0") === "1";
+
+  const hasNewForLink = (link = "") => {
+    if (link.startsWith("/package")) return isUnseen(seenData?.tour);
+    if (link.startsWith("/hotel-suits")) return isUnseen(seenData?.hotel);
+    if (link.startsWith("/transport")) return isUnseen(seenData?.car);
+    if (link.startsWith("/activities")) return isUnseen(seenData?.activity);
+    return false;
+  };
+  const hasAnyNew = ["tour", "hotel", "car", "activity"].some((key) =>
+    isUnseen(seenData?.[key])
+  );
   // Handle submenu hover
   const handleSubMenuEnter = (label) => {
     if (subMenuTimeoutRef.current) clearTimeout(subMenuTimeoutRef.current);
@@ -254,7 +266,14 @@ const HeaderContent = ({
                   className="drop-down text-white hover:text-[#e8a355] transition-colors duration-300"
                   style={{ fontSize: "13.5px" }}
                 >
-                  {label}
+                  <span className="header-main-link-label">
+                    <span>{label}</span>
+                    {hasNewForLink(link) && (
+                      <span className="header-new-badge header-new-badge--absolute">
+                        NEW
+                      </span>
+                    )}
+                  </span>
                 </Link>
 
                 {icon && (
@@ -341,9 +360,17 @@ const HeaderContent = ({
                             // Regular link
                             <Link href={subItem.link} className="p-0">
                               <div className="flex items-center justify-between p-[10px_15px] text-gray-700 hover:text-[#e8a355] hover:bg-gray-50 transition-all duration-200 cursor-pointer">
-                                <span className="text-[13.5px]">
-                                  {subItem.label}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[13.5px]">
+                                    {subItem.label}
+                                  </span>
+                                  {hasNewForLink(subItem.link) && (
+                                    <span className="header-new-badge header-new-badge--inline">
+                                      NEW
+                                    </span>
+                                  )}
+                                </div>
+
                                 {subItem.icon && (
                                   <i className="bi bi-chevron-right text-black hidden lg:block" />
                                 )}
@@ -438,7 +465,11 @@ const HeaderContent = ({
             </a>
           </div>
         </div>
-        <div className="sidebar-button mobile-menu-btn" onClick={toggleSidebar}>
+        <div
+          className="sidebar-button mobile-menu-btn relative"
+          onClick={toggleSidebar}
+        >
+          {" "}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width={25}
@@ -447,6 +478,7 @@ const HeaderContent = ({
           >
             <path d="M0 4.46439C0 4.70119 0.0940685 4.92829 0.261511 5.09574C0.428955 5.26318 0.656057 5.35725 0.892857 5.35725H24.1071C24.3439 5.35725 24.571 5.26318 24.7385 5.09574C24.9059 4.92829 25 4.70119 25 4.46439C25 4.22759 24.9059 4.00049 24.7385 3.83305C24.571 3.6656 24.3439 3.57153 24.1071 3.57153H0.892857C0.656057 3.57153 0.428955 3.6656 0.261511 3.83305C0.0940685 4.00049 0 4.22759 0 4.46439ZM4.46429 11.6072H24.1071C24.3439 11.6072 24.571 11.7013 24.7385 11.8688C24.9059 12.0362 25 12.2633 25 12.5001C25 12.7369 24.9059 12.964 24.7385 13.1315C24.571 13.2989 24.3439 13.393 24.1071 13.393H4.46429C4.22749 13.393 4.00038 13.2989 3.83294 13.1315C3.6655 12.964 3.57143 12.7369 3.57143 12.5001C3.57143 12.2633 3.6655 12.0362 3.83294 11.8688C4.00038 11.7013 4.22749 11.6072 4.46429 11.6072ZM12.5 19.643H24.1071C24.3439 19.643 24.571 19.737 24.7385 19.9045C24.9059 20.0719 25 20.299 25 20.5358C25 20.7726 24.9059 20.9997 24.7385 21.1672C24.571 21.3346 24.3439 21.4287 24.1071 21.4287H12.5C12.2632 21.4287 12.0361 21.3346 11.8687 21.1672C11.7012 20.9997 11.6071 20.7726 11.6071 20.5358C11.6071 20.299 11.7012 20.0719 11.8687 19.9045C12.0361 19.737 12.2632 19.643 12.5 19.643Z" />
           </svg>
+          {hasAnyNew && <span className="header-new-dot" />}
         </div>
       </div>
 
@@ -488,12 +520,21 @@ const HeaderContent = ({
   );
 };
 
-const Header = ({ currentLocale }) => {
+const Header = ({
+  currentLocale,
+  seenData = {
+    tour: "0",
+    hotel: "0",
+    car: "0",
+    activity: "0",
+  },
+}) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const t = useTranslations("packageDetails");
   const headerRef = useRef(null);
   const [favorites, setFavorites] = useState({});
   const [favoritesCount, setFavoritesCount] = useState(0);
+
   const [lang, setLang] = useState(currentLocale);
   const [, startTransition] = useTransition();
   const pathname = usePathname();
@@ -682,6 +723,7 @@ const Header = ({ currentLocale }) => {
           toggleSidebar={toggleSidebar}
           toggleMenu={toggleMenu}
           toggleSubMenu={toggleSubMenu}
+          seenData={seenData}
           isFixed={false}
         />
       </header>
@@ -700,7 +742,8 @@ const Header = ({ currentLocale }) => {
           toggleSidebar={toggleSidebar}
           toggleMenu={toggleMenu}
           toggleSubMenu={toggleSubMenu}
-          isFixed={true}
+          seenData={seenData}
+          isFixed={false}
         />
       </header>
 

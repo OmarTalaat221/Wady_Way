@@ -96,12 +96,62 @@ const arFlag = (
   </svg>
 );
 
-const MobileHeader = ({ currentLocale }) => {
+const MobileHeader = ({
+  currentLocale,
+  seenData = {
+    tour: "0",
+    hotel: "0",
+    car: "0",
+    activity: "0",
+  },
+}) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
   const [scrolled, setScrolled] = useState(false);
   const [, startTransition] = useTransition();
   const pathname = usePathname();
+
+  const isUnseen = (value) => String(value || "0") === "1";
+
+  const hasNewForLink = (link = "") => {
+    if (!seenData) return false;
+
+    console.log(link, "link");
+
+    if (link.startsWith("/package")) return isUnseen(seenData?.tour);
+    if (link.startsWith("/hotel-suits")) return isUnseen(seenData?.hotel);
+    if (link.startsWith("/transport")) return isUnseen(seenData?.car);
+    if (link.startsWith("/activities")) return isUnseen(seenData?.activity);
+
+    return false;
+  };
+
+  const hasNewInMenu = (items = []) => {
+    if (!items?.length) return false;
+
+    return items.some(
+      (item) => hasNewForLink(item.link) || hasNewInMenu(item.subMenu || [])
+    );
+  };
+
+  const hasAnyNew =
+    !!seenData &&
+    ["tour", "hotel", "car", "activity"].some((key) =>
+      isUnseen(seenData?.[key])
+    );
+
+  const NewBadge = () => (
+    <span className="inline-flex mx-2 items-center justify-center min-w-[38px] h-5 px-2 rounded-full bg-[#295557] text-white text-[10px] font-bold tracking-[0.4px] shadow-[0_8px_18px_rgba(41,85,87,0.28)]">
+      NEW
+    </span>
+  );
+
+  const MobileNewDot = () => (
+    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#295557] opacity-70"></span>
+      <span className="relative inline-flex h-3 w-3 rounded-full bg-[#295557] ring-2 ring-white"></span>
+    </span>
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -155,10 +205,8 @@ const MobileHeader = ({ currentLocale }) => {
     return null;
   }
 
-  // Header Content Component to avoid duplication
   const HeaderContent = () => (
     <div className="mobile-header-container">
-      {/* Logo */}
       <Link href="/" className="mobile-logo">
         <img
           src="https://res.cloudinary.com/dbvh5i83q/image/upload/v1775980904/W_ppfn8j.png"
@@ -166,29 +214,25 @@ const MobileHeader = ({ currentLocale }) => {
         />
       </Link>
 
-      {/* Right Section */}
       <div className="mobile-header-right">
-        {/* Language Switcher */}
-        {/* <button
+        <button
           className="lang-toggle"
-          onClick={() =>
-            changeLanguage(currentLocale === "ar" ? "en" : "ar")
-          }
+          onClick={() => changeLanguage(currentLocale === "ar" ? "en" : "ar")}
         >
           <span className="lang-flag">
             {currentLocale === "ar" ? arFlag : enFlag}
           </span>
-        </button> */}
+        </button>
 
-        {/* Hamburger Menu Button */}
         <button
-          className={`hamburger-btn ${isMenuOpen ? "active" : ""}`}
+          className={`hamburger-btn relative ${isMenuOpen ? "active" : ""}`}
           onClick={toggleMenu}
           aria-label="Toggle menu"
         >
           <span></span>
           <span></span>
           <span></span>
+          {hasAnyNew && <MobileNewDot />}
         </button>
       </div>
     </div>
@@ -196,25 +240,20 @@ const MobileHeader = ({ currentLocale }) => {
 
   return (
     <>
-      {/* Static Mobile Header (Always visible at top) */}
       <header className="mobile-header-static">
         <HeaderContent />
       </header>
 
-      {/* Fixed Mobile Header (Appears on scroll) */}
       <header className={`mobile-header-fixed ${scrolled ? "scrolled" : ""}`}>
         <HeaderContent />
       </header>
 
-      {/* Overlay */}
       <div
         className={`mobile-overlay ${isMenuOpen ? "active" : ""}`}
         onClick={() => setIsMenuOpen(false)}
       />
 
-      {/* Slide-out Menu */}
       <nav className={`mobile-nav ${isMenuOpen ? "active" : ""}`}>
-        {/* Menu Header */}
         <div className="mobile-nav-header">
           <Link href="/" onClick={() => setIsMenuOpen(false)}>
             <img
@@ -239,15 +278,10 @@ const MobileHeader = ({ currentLocale }) => {
           </button>
         </div>
 
-        {/* Menu Content */}
         <div className="mobile-nav-content">
           <ul className="nav-list">
             {navData.map((item, index) => (
-              <li
-                key={item.id}
-                className="nav-item"
-                // style={{ animationDelay: `${index * 0.05}s` }}
-              >
+              <li key={item.id} className="nav-item">
                 {item.subMenu ? (
                   <>
                     <div
@@ -256,7 +290,11 @@ const MobileHeader = ({ currentLocale }) => {
                       }`}
                       onClick={() => toggleSubMenu(item.id)}
                     >
-                      <span>{item.label}</span>
+                      <div className="flex items-center gap-2 justify-between w-full">
+                        <span>{item.label}</span>
+                        {hasNewInMenu(item.subMenu) && <NewBadge />}
+                      </div>
+
                       <svg
                         className={`arrow ${
                           expandedMenus[item.id] ? "rotate" : ""
@@ -289,7 +327,13 @@ const MobileHeader = ({ currentLocale }) => {
                                 }`}
                                 onClick={() => toggleSubMenu(subItem.id)}
                               >
-                                <span>{subItem.label}</span>
+                                <div className="flex items-center gap-2">
+                                  <span>{subItem.label}</span>
+                                  {hasNewInMenu(subItem.subMenu) && (
+                                    <NewBadge />
+                                  )}
+                                </div>
+
                                 <svg
                                   className={`arrow ${
                                     expandedMenus[subItem.id] ? "rotate" : ""
@@ -319,9 +363,13 @@ const MobileHeader = ({ currentLocale }) => {
                                   >
                                     <Link
                                       href={nestedItem.link}
+                                      className="flex items-center justify-between gap-2"
                                       onClick={() => setIsMenuOpen(false)}
                                     >
-                                      {nestedItem.label}
+                                      <span>{nestedItem.label}</span>
+                                      {hasNewForLink(nestedItem.link) && (
+                                        <NewBadge />
+                                      )}
                                     </Link>
                                   </li>
                                 ))}
@@ -330,9 +378,11 @@ const MobileHeader = ({ currentLocale }) => {
                           ) : (
                             <Link
                               href={subItem.link}
+                              className="flex items-center justify-between gap-2"
                               onClick={() => setIsMenuOpen(false)}
                             >
-                              {subItem.label}
+                              <span>{subItem.label}</span>
+                              {hasNewForLink(subItem.link) && <NewBadge />}
                             </Link>
                           )}
                         </li>
@@ -342,10 +392,11 @@ const MobileHeader = ({ currentLocale }) => {
                 ) : (
                   <Link
                     href={item.link}
-                    className="nav-link"
+                    className="nav-link flex items-center justify-between gap-2"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    {item.label}
+                    <span>{item.label}</span>
+                    {hasNewForLink(item.link) && <NewBadge />}
                   </Link>
                 )}
               </li>
@@ -353,7 +404,6 @@ const MobileHeader = ({ currentLocale }) => {
           </ul>
         </div>
 
-        {/* Menu Footer */}
         <div className="mobile-nav-footer">
           <a href="tel:+990737621432" className="footer-contact">
             <div className="icon-box">

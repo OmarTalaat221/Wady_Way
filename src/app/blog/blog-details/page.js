@@ -366,7 +366,7 @@ const page = () => {
         <div className="container">
           <div className="row g-lg-4 gy-5 justify-content-center">
             <div className="col-lg-8">
-              <div className="post-thumb mb-30">
+              <div className="post-thumb mb-[30px]">
                 <img
                   src={blogData.cover_image}
                   alt={blogData.title}
