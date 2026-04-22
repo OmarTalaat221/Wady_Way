@@ -16,6 +16,8 @@ import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 import LoginRequiredModal from "./LoginRequiredModal";
 import SignupRequiredModal from "./SignupRequiredModal";
 import axios from "axios";
+import { base_url } from "../../../../../../uitils/base_url";
+import { baseUrl } from "../../../../../../Constants/Const";
 
 // ============================================
 // Success Modal
@@ -29,7 +31,7 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
 
   const handleClose = () => {
     onClose();
-    dispatch(resetReservation());
+    dispatch(resetReservation()); // ← هيمسح كل localStorage + يعمل reset للـ Redux
     router.push(`/`);
   };
 
@@ -227,7 +229,7 @@ const RightSummary = ({ lang }) => {
 
       // ─── Real Request ───────────────────────────────────────────
       const response = await axios.post(
-        "https://camp-coding.tech/wady-way/user/tours/new_reserve_tour.php",
+        `${baseUrl}/tours/new_reserve_tour.php`,
         apiData,
         {
           headers: {
@@ -248,6 +250,8 @@ const RightSummary = ({ lang }) => {
         response.status === 200;
 
       if (isSuccess) {
+        resetReservation();
+
         clearCurrentInviteCode();
         setBookingDetails({
           ...apiData,

@@ -152,6 +152,12 @@ const PackageDetailsClient = () => {
       dispatch(restoreSavedSelections(packageId));
       setHasRestored(true);
     }
+
+    return () => {
+      import("@/lib/redux/slices/tourReservationSlice").then((module) => {
+        dispatch(module.clearCurrentTourData());
+      });
+    };
   }, [dispatch, packageId]);
 
   useEffect(() => {
@@ -429,10 +435,15 @@ const PackageDetailsClient = () => {
       return;
     if (initRef.current) return;
 
-    console.log("🚀 Starting initialization...");
+    console.log("🚀 Starting initialization for tour:", packageId);
     initRef.current = true;
 
+    // setTourData will:
+    // 1. Reset selectedByDay/tourGuideByDay if switching tours
+    // 2. Sanitize stale day entries immediately
     dispatch(setTourData(transformedData));
+
+    // These will also call sanitizeDaysToItinerary internally
     dispatch(initializeTourGuide(tourData.itinerary));
     dispatch(initializeActivities(tourData.itinerary));
 
@@ -446,13 +457,12 @@ const PackageDetailsClient = () => {
       const dayKey = String(dayNumber);
       const savedDay = selectedByDay?.[dayKey] || {};
 
-      // HOTEL
+      // ── HOTEL ─────────────────────────────────────────────────────────
       const savedHotel = savedDay?.hotel;
       const savedHotelId = parseInt(savedHotel?.id || savedHotel?.hotel_id);
       const matchedHotel = savedHotelId
         ? day.accommodation?.find((a) => a.id === savedHotelId)
         : null;
-
       const finalHotel = matchedHotel || day.accommodation?.[0] || null;
 
       if (finalHotel) {
@@ -467,30 +477,23 @@ const PackageDetailsClient = () => {
 
         if (!savedHotel || !matchedHotel) {
           dispatch(
-            selectHotel({
-              day: dayNumber,
-              hotel: mapHotelForRedux(finalHotel),
-            })
+            selectHotel({ day: dayNumber, hotel: mapHotelForRedux(finalHotel) })
           );
         }
       }
 
-      // CARS
+      // ── CARS ──────────────────────────────────────────────────────────
       const savedCars = Array.isArray(savedDay?.cars)
         ? savedDay.cars
         : savedDay?.car
           ? [savedDay.car]
           : [];
-
-      const firstSavedCar = savedCars[0];
       const firstSavedCarId = parseInt(
-        firstSavedCar?.id || firstSavedCar?.car_id
+        savedCars[0]?.id || savedCars[0]?.car_id
       );
-
       const matchedTransfer = firstSavedCarId
         ? day.transfers?.find((t) => t.id === firstSavedCarId)
         : null;
-
       const finalTransfer = matchedTransfer || day.transfers?.[0] || null;
 
       if (finalTransfer) {
@@ -522,9 +525,7 @@ const PackageDetailsClient = () => {
       transfers: restoredTransfers,
     }));
 
-    setTimeout(() => {
-      dispatch(calculateTotal());
-    }, 100);
+    setTimeout(() => dispatch(calculateTotal()), 100);
   }, [
     hasRestored,
     transformedData,
