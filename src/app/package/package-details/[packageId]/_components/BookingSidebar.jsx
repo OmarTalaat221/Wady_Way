@@ -1,5 +1,6 @@
+// BookingSidebar.jsx
 "use client";
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Dropdown, Collapse } from "antd";
 import Calendar from "react-calendar";
@@ -14,8 +15,10 @@ import {
   calculateTotal,
   selectPriceDetails,
   validateRoomsForAllDays,
+  validateCarsForAllDays,
 } from "@/lib/redux/slices/tourReservationSlice";
 import toast from "react-hot-toast";
+import { FaCalendar, FaUser } from "react-icons/fa6";
 
 const { Panel } = Collapse;
 
@@ -30,14 +33,11 @@ const formatDateLocal = (date) => {
 const scrollAndHighlight = (selector) => {
   const el = document.querySelector(selector);
   if (!el) return;
-
   el.scrollIntoView({ behavior: "smooth", block: "center" });
-
   el.style.transition = "box-shadow 0.3s, outline 0.3s";
   el.style.outline = "3px solid #295557";
   el.style.boxShadow = "0 0 20px rgba(41, 85, 87, 0.3)";
   el.style.borderRadius = "12px";
-
   setTimeout(() => {
     el.style.outline = "none";
     el.style.boxShadow = "none";
@@ -85,6 +85,7 @@ const BookingSidebar = ({
 
   const menuStyle = { boxShadow: "none" };
 
+  // ─── People handlers ────────────────────────────────────────────────────
   const handleAddPerson = (type) => {
     if (type !== "infants" && !canAddMore) {
       toast.error(
@@ -100,18 +101,24 @@ const BookingSidebar = ({
     setPeople((prev) => ({ ...prev, [type]: prev[type] - 1 }));
   };
 
-  // Price helpers
-  const getSelectedHotels = () =>
-    Object.values(selectedByDay)
-      .map((d) => d.hotel)
-      .filter(Boolean);
+  // ─── Derived selections ──────────────────────────────────────────────────
+  const getSelectedHotels = useCallback(
+    () =>
+      Object.values(selectedByDay)
+        .map((d) => d.hotel)
+        .filter(Boolean),
+    [selectedByDay]
+  );
 
-  const getSelectedCars = () =>
-    Object.values(selectedByDay).flatMap((d) =>
-      Array.isArray(d.cars) ? d.cars : d.car ? [d.car] : []
-    );
+  const getSelectedCars = useCallback(
+    () =>
+      Object.values(selectedByDay).flatMap((d) =>
+        Array.isArray(d.cars) ? d.cars : d.car ? [d.car] : []
+      ),
+    [selectedByDay]
+  );
 
-  const getSelectedActivities = () => {
+  const getSelectedActivities = useCallback(() => {
     const seen = new Set();
     return Object.values(selectedByDay)
       .flatMap((d) => d.activities || [])
@@ -121,9 +128,9 @@ const BookingSidebar = ({
         seen.add(key);
         return true;
       });
-  };
+  }, [selectedByDay]);
 
-  const getActivitiesTotal = () => {
+  const getActivitiesTotal = useCallback(() => {
     let total = 0;
     Object.values(selectedByDay).forEach((day) => {
       const seen = new Set();
@@ -135,30 +142,83 @@ const BookingSidebar = ({
       });
     });
     return total;
-  };
+  }, [selectedByDay]);
 
-  const getDriversCount = () =>
-    getSelectedCars().filter((car) => car.withDriver).length;
+  const getDriversCount = useCallback(
+    () => getSelectedCars().filter((car) => car.withDriver).length,
+    [getSelectedCars]
+  );
 
-  const getDriversTotal = () => {
+  const getDriversTotal = useCallback(() => {
     const driverPrice = parseFloat(tourData?.driver_price || 0);
     return getDriversCount() * driverPrice;
-  };
+  }, [getDriversCount, tourData]);
 
-  const getGuidesCount = () =>
-    Object.values(tourGuideByDay).filter(
-      (guide) => guide?.isAvailable && guide?.isSelected
-    ).length;
+  const getGuidesCount = useCallback(
+    () =>
+      Object.values(tourGuideByDay).filter(
+        (guide) => guide?.isAvailable && guide?.isSelected
+      ).length,
+    [tourGuideByDay]
+  );
 
-  const getGuidesTotal = () =>
-    Object.values(tourGuideByDay).reduce((sum, guide) => {
-      if (guide?.isAvailable && guide?.isSelected) {
-        return sum + parseFloat(guide.guidePrice || 0);
+  const getGuidesTotal = useCallback(
+    () =>
+      Object.values(tourGuideByDay).reduce((sum, guide) => {
+        if (guide?.isAvailable && guide?.isSelected) {
+          return sum + parseFloat(guide.guidePrice || 0);
+        }
+        return sum;
+      }, 0),
+    [tourGuideByDay]
+  );
+
+  // ─── Validation helpers ──────────────────────────────────────────────────
+
+  /**
+   * Check if the user has made ANY manual selection across all days.
+   * If no manual selection exists → first-visit → skip car validation warning.
+   */
+  const hasAnyUserSelection = useCallback(() => {
+    return Object.values(selectedByDay).some((day) => {
+      const hasCars = Array.isArray(day?.cars)
+        ? day.cars.length > 0
+        : !!day?.car;
+      const hasHotel = !!day?.hotel;
+      const hasActivities = Array.isArray(day?.activities)
+        ? day.activities.length > 0
+        : false;
+      return hasCars || hasHotel || hasActivities;
+    });
+  }, [selectedByDay]);
+
+  /**
+   * Check if all days with data have cars selected.
+   * Returns { allGood, missingDays[] }
+   */
+  const checkCarsStatus = useCallback(() => {
+    const itinerary = tourData?.itinerary || tourData?.days || [];
+    const validDayNumbers = itinerary.map((d) => Number(d.day)).filter(Boolean);
+
+    const missingDays = [];
+
+    validDayNumbers.forEach((dayNum) => {
+      const dayKey = String(dayNum);
+      const dayData = selectedByDay?.[dayKey];
+      const cars = Array.isArray(dayData?.cars)
+        ? dayData.cars
+        : dayData?.car
+          ? [dayData.car]
+          : [];
+
+      if (cars.length === 0) {
+        missingDays.push(dayNum);
       }
-      return sum;
-    }, 0);
+    });
 
-  // Room status per day
+    return { allGood: missingDays.length === 0, missingDays };
+  }, [selectedByDay, tourData]);
+
   const getRoomIssues = useCallback(() => {
     const totalTravelers = people.adults + people.children;
     if (totalTravelers < 3 && (people.infants || 0) === 0) return [];
@@ -191,44 +251,89 @@ const BookingSidebar = ({
     return issues;
   }, [people, selectedByDay]);
 
-  const roomIssues = getRoomIssues();
+  const getCarIssues = useCallback(() => {
+    const carValidation = validateCarsForAllDays(fullState);
+    return carValidation.errors;
+  }, [fullState]);
 
-  // Book Now validation
+  // ─── Memoized issues ─────────────────────────────────────────────────────
+  const roomIssues = useMemo(() => getRoomIssues(), [getRoomIssues]);
+
+  // Only show car issues if user has made selections (not on first visit)
+  const carIssues = useMemo(() => {
+    if (!hasAnyUserSelection()) return [];
+    return getCarIssues();
+  }, [getCarIssues, hasAnyUserSelection]);
+
+  // ─── Book Now click ──────────────────────────────────────────────────────
   const handleBookNowClick = useCallback(
     (e) => {
       const totalTravelers = people.adults + people.children;
 
+      // ✅ Only validate cars if user has made at least one selection
+      // On first visit with no localStorage data, default cars are auto-selected
+      // but we still want to validate capacity issues
+      const carValidation = validateCarsForAllDays(fullState);
+
+      if (!carValidation.isValid) {
+        // Check if this is a "no cars" error or capacity error
+        const firstError = carValidation.errors[0];
+
+        // If it's a capacity issue → always block
+        if (firstError?.type === "insufficient_capacity") {
+          e.preventDefault();
+          toast.error(
+            `Day ${firstError.day}: Car capacity (${firstError.totalCapacity} seats) is not enough for ${firstError.requiredSeats} passengers. Please add more cars.`,
+            { duration: 5000, icon: "🚗" }
+          );
+          setTimeout(() => {
+            scrollAndHighlight(`[data-cars="day-${firstError.day}"]`);
+          }, 300);
+          return;
+        }
+
+        // If it's "no_cars" → only block if user has made some selection
+        // (meaning they removed a car manually, not first visit with no data)
+        if (firstError?.type === "no_cars" && hasAnyUserSelection()) {
+          e.preventDefault();
+          toast.error(
+            `Please select cars for Day ${firstError.day}. Cars are required for all travelers.`,
+            { duration: 5000, icon: "🚗" }
+          );
+          setTimeout(() => {
+            scrollAndHighlight(`[data-cars="day-${firstError.day}"]`);
+          }, 300);
+          return;
+        }
+      }
+
+      // ─── Room validation ───────────────────────────────────────────────
       if (totalTravelers >= 3 || people.infants > 0) {
         const validation = validateRoomsForAllDays(fullState);
-
         if (!validation.isValid) {
           e.preventDefault();
-
           const firstError = validation.errors[0];
-
           toast.error(
             `Please assign all ${firstError.required} travelers to rooms for Day ${firstError.day} (currently ${firstError.assigned} assigned)`,
             { duration: 5000, icon: "🏨" }
           );
-
           setTimeout(() => {
             scrollAndHighlight(`[data-accommodation="day-${firstError.day}"]`);
           }, 300);
-
           return;
         }
       }
     },
-    [people, fullState]
+    [people, fullState, hasAnyUserSelection]
   );
 
-  // Effects
+  // ─── Sync effects ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (tourData) dispatch(setTourData(tourData));
   }, [tourData, dispatch]);
 
   useEffect(() => {
-    if (dateValue?.length === 2) {
+    if (dateValue?.length === 2 && dateValue[0] && dateValue[1]) {
       dispatch(
         setTourInfo({
           startDate: formatDateLocal(dateValue[0]),
@@ -242,6 +347,7 @@ const BookingSidebar = ({
     dispatch(calculateTotal());
   }, [selectedByDay, tourGuideByDay, people, dispatch]);
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="booking-form-wrap mb-10" style={{ overflow: "hidden" }}>
       <h4>{t("travelDetails")}</h4>
@@ -256,7 +362,7 @@ const BookingSidebar = ({
             <div>
               <div className="collapse_cont">
                 <div className="travel-grid">
-                  {/* Dates */}
+                  {/* ─── Date Picker ─── */}
                   <Dropdown
                     menu={{ items: [] }}
                     trigger={["click"]}
@@ -267,11 +373,7 @@ const BookingSidebar = ({
                           <Calendar
                             onChange={handleDateChange}
                             value={dateValue}
-                            minDate={
-                              new Date(
-                                new Date().setDate(new Date().getDate() + 1)
-                              )
-                            }
+                            minDate={new Date()}
                             selectRange={true}
                           />
                         </div>
@@ -281,7 +383,9 @@ const BookingSidebar = ({
                     <div className="travel-item">
                       <label className="travel-label">{t("travelDates")}</label>
                       <div className="travel-input gap-2">
-                        <span className="travel-icon mx-0">📅</span>
+                        <span className="travel-icon mx-0">
+                          <FaCalendar />
+                        </span>
                         <span className="travel-text">{formattedRange}</span>
                         <span
                           className="travel-dropdown"
@@ -293,7 +397,7 @@ const BookingSidebar = ({
                     </div>
                   </Dropdown>
 
-                  {/* Travelers */}
+                  {/* ─── Travelers Picker ─── */}
                   <Dropdown
                     menu={{ items: [] }}
                     trigger={["click"]}
@@ -431,7 +535,9 @@ const BookingSidebar = ({
                     <div className="travel-item">
                       <label className="travel-label">{t("travelers")}</label>
                       <div className="travel-input gap-2">
-                        <span className="travel-icon mx-0">👤</span>
+                        <span className="travel-icon mx-0">
+                          <FaUser />
+                        </span>
                         <span className="travel-text">
                           {totalCountable}{" "}
                           {totalCountable === 1
@@ -462,7 +568,7 @@ const BookingSidebar = ({
                   </Dropdown>
                 </div>
 
-                {/* Selected Options */}
+                {/* ─── Collapse Panels ─── */}
                 <Collapse
                   expandIcon={customExpandIcon("12px")}
                   ghost
@@ -540,7 +646,7 @@ const BookingSidebar = ({
                   ))}
                 </Collapse>
 
-                {/* Price Breakdown */}
+                {/* ─── Price Breakdown ─── */}
                 {tourData && (
                   <div className="price-breakdown mb-3">
                     {parseFloat(tourData.per_adult || 0) > 0 && (
@@ -681,16 +787,14 @@ const BookingSidebar = ({
                   </div>
                 )}
 
-                {/* Room distribution warnings */}
+                {/* ─── Room Issues Warning ─── */}
                 {roomIssues.length > 0 && (
                   <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-amber-500">🏨</span>
                       <span className="text-xs font-semibold text-amber-700">
                         Room Distribution Incomplete
                       </span>
                     </div>
-
                     {roomIssues.map((issue) => (
                       <div
                         key={issue.day}
@@ -718,14 +822,51 @@ const BookingSidebar = ({
                     ))}
                   </div>
                 )}
+
+                {/* ─── Car Issues Warning ─── 
+                    Only shown if user has made manual selections (not first visit) */}
+                {carIssues.length > 0 && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-semibold text-red-700">
+                        Cars Required
+                      </span>
+                    </div>
+                    {carIssues.map((issue) => (
+                      <div
+                        key={issue.day}
+                        className="flex items-center justify-between text-xs mb-1"
+                      >
+                        <span className="text-red-700">
+                          {issue.type === "no_cars"
+                            ? `Day ${issue.day}: No cars selected`
+                            : `Day ${issue.day}: ${issue.totalCapacity}/${issue.requiredSeats} seats`}
+                        </span>
+                        <button
+                          type="button"
+                          className="text-[10px] px-2 py-0.5 rounded-full text-white bg-red-500"
+                          onClick={() => {
+                            setTimeout(() => {
+                              scrollAndHighlight(
+                                `[data-cars="day-${issue.day}"]`
+                              );
+                            }, 100);
+                          }}
+                        >
+                          Fix →
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Footer */}
+              {/* ─── Total + Book Now ─── */}
               <div className="book_butt_cont">
                 <div className="total-price">
                   <span>{t("totalPrice")}</span>
                   <span className="price-amount">
-                    {tourData?.price_currency || "$"}
+                    {"$"}
                     {priceDetails.total.toFixed(2)}
                   </span>
                 </div>

@@ -1,4 +1,5 @@
 "use client";
+
 import { useTranslations } from "next-intl";
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
@@ -10,18 +11,26 @@ import {
   refreshUserId,
 } from "@/lib/redux/slices/tourReservationSlice";
 import toast from "react-hot-toast";
-import { FaCheckCircle, FaSpinner, FaHome, FaUser } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaSpinner,
+  FaHome,
+  FaUser,
+  FaExclamationTriangle,
+  FaTimesCircle,
+} from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 import LoginRequiredModal from "./LoginRequiredModal";
 import SignupRequiredModal from "./SignupRequiredModal";
 import axios from "axios";
-import { base_url } from "../../../../../../uitils/base_url";
 import { baseUrl } from "../../../../../../Constants/Const";
 
-// ============================================
-// Success Modal
-// ============================================
+const BRAND = "#295557";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SuccessModal
+// ─────────────────────────────────────────────────────────────────────────────
 const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
   const t = useTranslations("packageSummary");
   const router = useRouter();
@@ -31,8 +40,8 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
 
   const handleClose = () => {
     onClose();
-    dispatch(resetReservation()); // ← هيمسح كل localStorage + يعمل reset للـ Redux
-    router.push(`/`);
+    dispatch(resetReservation());
+    router.push("/");
   };
 
   return (
@@ -41,16 +50,17 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={handleClose}
       />
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-modal-in">
+
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
         >
           <IoClose size={24} />
         </button>
 
         <div className="bg-gradient-to-br from-green-400 to-green-600 pt-8 pb-12 px-6 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4 animate-bounce-in">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4">
             <FaCheckCircle className="text-green-500 text-5xl" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">
@@ -93,76 +103,152 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
             </div>
           )}
 
-          <p className="text-gray-600 text-center text-sm mb-6">
-            {t("confirmation_email") ||
-              "A confirmation email has been sent to your registered email address."}
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={handleClose}
-              className="flex-1 flex items-center justify-center gap-2 bg-[#295557] hover:bg-[#1e3e3a] text-white py-3 px-4 rounded-lg font-medium transition-colors"
-            >
-              <FaHome />
-              {t("back_home") || "Back to Home"}
-            </button>
-          </div>
+          <button
+            onClick={handleClose}
+            className="w-full flex items-center justify-center gap-2 text-white py-3 rounded-lg font-medium"
+            style={{ background: BRAND }}
+          >
+            <FaHome />
+            {t("back_home") || "Back to Home"}
+          </button>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes modal-in {
-          from {
-            opacity: 0;
-            transform: scale(0.9) translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-        @keyframes bounce-in {
-          0% {
-            opacity: 0;
-            transform: scale(0.3);
-          }
-          50% {
-            transform: scale(1.1);
-          }
-          70% {
-            transform: scale(0.9);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        .animate-modal-in {
-          animation: modal-in 0.3s ease-out;
-        }
-        .animate-bounce-in {
-          animation: bounce-in 0.6s ease-out 0.2s both;
-        }
-      `}</style>
     </div>
   );
 };
 
-// ============================================
-// Loading Spinner
-// ============================================
-const LoadingSpinner = ({ size = "md" }) => {
-  const sizeClasses = {
-    sm: "w-4 h-4",
-    md: "w-5 h-5",
-    lg: "w-6 h-6",
-  };
-  return <FaSpinner className={`${sizeClasses[size]} animate-spin`} />;
+// ─────────────────────────────────────────────────────────────────────────────
+// ErrorModal
+// ─────────────────────────────────────────────────────────────────────────────
+const ErrorModal = ({ isOpen, onClose, errorInfo, onRetry }) => {
+  if (!isOpen || !errorInfo) return null;
+
+  const isNetworkError = errorInfo.type === "network";
+  const isServerError = errorInfo.type === "server";
+  const isValidationError = errorInfo.type === "validation";
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
+        >
+          <IoClose size={24} />
+        </button>
+
+        {/* Header */}
+        <div
+          className={`pt-8 pb-10 px-6 text-center ${
+            isNetworkError
+              ? "bg-gradient-to-br from-amber-400 to-amber-600"
+              : "bg-gradient-to-br from-red-400 to-red-600"
+          }`}
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4">
+            {isNetworkError ? (
+              <FaExclamationTriangle className="text-amber-500 text-4xl" />
+            ) : (
+              <FaTimesCircle className="text-red-500 text-5xl" />
+            )}
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            {isNetworkError
+              ? "Connection Error"
+              : isValidationError
+                ? "Booking Issue"
+                : "Booking Failed"}
+          </h2>
+          <p className="text-white/90 text-sm">
+            {isNetworkError
+              ? "Could not connect to the server"
+              : "Your booking could not be completed"}
+          </p>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          {/* Error message from API */}
+          <div
+            className={`rounded-xl p-4 mb-5 border ${
+              isNetworkError
+                ? "bg-amber-50 border-amber-200"
+                : "bg-red-50 border-red-200"
+            }`}
+          >
+            <p
+              className={`text-sm font-medium mb-1 ${
+                isNetworkError ? "text-amber-800" : "text-red-800"
+              }`}
+            >
+              {isNetworkError ? "What happened?" : "Error Details"}
+            </p>
+            <p
+              className={`text-sm ${
+                isNetworkError ? "text-amber-700" : "text-red-700"
+              }`}
+            >
+              {errorInfo.message}
+            </p>
+
+            {/* Show error code if available */}
+            {errorInfo.statusCode && (
+              <p className="text-xs text-gray-400 mt-2">
+                Error Code: {errorInfo.statusCode}
+              </p>
+            )}
+
+            {/* Show field-specific errors if available */}
+            {errorInfo.fieldErrors && errorInfo.fieldErrors.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-red-200">
+                <p className="text-xs font-semibold text-red-700 mb-2">
+                  Please fix the following:
+                </p>
+                <ul className="space-y-1">
+                  {errorInfo.fieldErrors.map((fieldErr, idx) => (
+                    <li
+                      key={idx}
+                      className="text-xs text-red-600 flex items-start gap-1.5"
+                    >
+                      <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                      {fieldErr}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 px-4 rounded-xl border border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              onClick={onRetry}
+              className="flex-1 py-3 px-4 rounded-xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
+              style={{ background: BRAND }}
+            >
+              {isValidationError ? "Go Back & Fix" : "Try Again"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-// ============================================
-// Main Component
-// ============================================
+// ─────────────────────────────────────────────────────────────────────────────
+// Main
+// ─────────────────────────────────────────────────────────────────────────────
 const RightSummary = ({ lang }) => {
   const t = useTranslations("packageSummary");
   const dispatch = useDispatch();
@@ -171,11 +257,13 @@ const RightSummary = ({ lang }) => {
 
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorInfo, setErrorInfo] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [bookingDetails, setBookingDetails] = useState(null);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState(null);
 
-  const reservation = useSelector((state) => state.tourReservation);
+  const reservation = useSelector((s) => s.tourReservation);
   const { tourData, numAdults, numChildren, numInfants, tourId } = reservation;
 
   const priceDetails = useSelector(selectPriceDetails);
@@ -186,8 +274,185 @@ const RightSummary = ({ lang }) => {
     currentTourId
   );
 
+  // ─── Parse API error response ──────────────────────────────────────────────
+  const parseApiError = (error) => {
+    // Network / timeout errors
+    if (!error.response) {
+      if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+        return {
+          type: "network",
+          message:
+            "The request timed out. The server took too long to respond. Please try again.",
+          statusCode: null,
+          fieldErrors: [],
+        };
+      }
+      return {
+        type: "network",
+        message:
+          error.message ||
+          "Unable to connect to the server. Please check your internet connection and try again.",
+        statusCode: null,
+        fieldErrors: [],
+      };
+    }
+
+    const status = error.response.status;
+    const data = error.response.data;
+
+    // Extract the main message
+    let mainMessage = "";
+    if (typeof data === "string") {
+      mainMessage = data;
+    } else if (data?.message) {
+      mainMessage =
+        typeof data.message === "string"
+          ? data.message
+          : JSON.stringify(data.message);
+    } else if (data?.error) {
+      mainMessage =
+        typeof data.error === "string"
+          ? data.error
+          : JSON.stringify(data.error);
+    } else if (data?.msg) {
+      mainMessage = data.msg;
+    }
+
+    // Extract field-level errors if the API returns them
+    let fieldErrors = [];
+    if (data?.errors && typeof data.errors === "object") {
+      if (Array.isArray(data.errors)) {
+        fieldErrors = data.errors.map((e) =>
+          typeof e === "string" ? e : e.message || JSON.stringify(e)
+        );
+      } else {
+        Object.entries(data.errors).forEach(([field, msgs]) => {
+          const messages = Array.isArray(msgs) ? msgs : [msgs];
+          messages.forEach((msg) => {
+            const label = field
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase());
+            fieldErrors.push(`${label}: ${msg}`);
+          });
+        });
+      }
+    }
+
+    // Determine error type based on status code
+    if (status === 422 || status === 400) {
+      return {
+        type: "validation",
+        message:
+          mainMessage ||
+          "Some of the information you provided is invalid. Please review and try again.",
+        statusCode: status,
+        fieldErrors,
+      };
+    }
+
+    if (status === 401 || status === 403) {
+      return {
+        type: "auth",
+        message:
+          mainMessage ||
+          "You are not authorized to make this booking. Please log in and try again.",
+        statusCode: status,
+        fieldErrors: [],
+      };
+    }
+
+    if (status === 404) {
+      return {
+        type: "server",
+        message:
+          mainMessage ||
+          "The tour you are trying to book was not found. It may have been removed.",
+        statusCode: status,
+        fieldErrors: [],
+      };
+    }
+
+    if (status === 409) {
+      return {
+        type: "server",
+        message:
+          mainMessage ||
+          "There is a conflict with your booking. The dates or selections may no longer be available.",
+        statusCode: status,
+        fieldErrors: [],
+      };
+    }
+
+    if (status >= 500) {
+      return {
+        type: "server",
+        message:
+          mainMessage ||
+          "An internal server error occurred. Our team has been notified. Please try again later.",
+        statusCode: status,
+        fieldErrors: [],
+      };
+    }
+
+    return {
+      type: "server",
+      message:
+        mainMessage ||
+        `Something went wrong (Error ${status}). Please try again.`,
+      statusCode: status,
+      fieldErrors,
+    };
+  };
+
+  // ─── Parse non-success API response body ───────────────────────────────────
+  const parseFailedResponse = (data) => {
+    let mainMessage = "";
+    let fieldErrors = [];
+
+    if (data?.message) {
+      mainMessage =
+        typeof data.message === "string"
+          ? data.message
+          : JSON.stringify(data.message);
+    } else if (data?.error) {
+      mainMessage =
+        typeof data.error === "string"
+          ? data.error
+          : JSON.stringify(data.error);
+    } else if (data?.msg) {
+      mainMessage = data.msg;
+    }
+
+    if (data?.errors && typeof data.errors === "object") {
+      if (Array.isArray(data.errors)) {
+        fieldErrors = data.errors.map((e) =>
+          typeof e === "string" ? e : e.message || JSON.stringify(e)
+        );
+      } else {
+        Object.entries(data.errors).forEach(([field, msgs]) => {
+          const messages = Array.isArray(msgs) ? msgs : [msgs];
+          messages.forEach((msg) => {
+            const label = field
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase());
+            fieldErrors.push(`${label}: ${msg}`);
+          });
+        });
+      }
+    }
+
+    return {
+      type: "server",
+      message: mainMessage || "Booking failed. Please try again.",
+      statusCode: null,
+      fieldErrors,
+    };
+  };
+
+  // ─── Booking ───────────────────────────────────────────────────────────────
   const proceedWithBooking = async () => {
     setLoading(true);
+    setErrorInfo(null);
 
     try {
       dispatch(refreshUserId());
@@ -195,170 +460,140 @@ const RightSummary = ({ lang }) => {
       const freshUserId =
         reservation.userId ||
         (() => {
-          if (typeof window !== "undefined") {
-            try {
-              const userData = localStorage.getItem("user");
-              if (userData) {
-                const parsed = JSON.parse(userData);
-                return parsed.id || parsed.user_id || null;
-              }
-              return localStorage.getItem("user_id") || null;
-            } catch {
-              return null;
+          if (typeof window === "undefined") return null;
+          try {
+            const userData = localStorage.getItem("user");
+            if (userData) {
+              const parsed = JSON.parse(userData);
+              return parsed.id || parsed.user_id || null;
             }
+            return null;
+          } catch {
+            return null;
           }
-          return null;
         })();
 
       if (!freshUserId) {
         toast.error("Please login first");
         setShowLoginModal(true);
-        setLoading(false);
         return;
       }
 
       const apiData = formatReservationForAPI(
-        {
-          ...reservation,
-          userId: freshUserId,
-        },
+        { ...reservation, userId: freshUserId },
         inviteCode || ""
       );
 
-      console.log("📤 Booking API Data:", apiData);
+      console.log("📤 Booking Payload:", apiData);
 
-      // ─── Real Request ───────────────────────────────────────────
       const response = await axios.post(
         `${baseUrl}/tours/new_reserve_tour.php`,
         apiData,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        { headers: { "Content-Type": "application/json" } }
       );
 
       console.log("✅ Booking Response:", response.data);
 
       const resData = response.data;
-
-      // Check success — adjust based on actual API response shape
       const isSuccess =
-        resData?.status === "success" ||
-        resData?.success === true ||
-        resData?.code === 200 ||
-        response.status === 200;
+        resData?.status === "success" || resData?.success === true;
 
       if (isSuccess) {
-        resetReservation();
-
         clearCurrentInviteCode();
         setBookingDetails({
           ...apiData,
-          tourName: tourData?.title || tourData?.name || "",
+          tourName: tourData?.title || "",
         });
         setShowSuccessModal(true);
       } else {
-        // API returned non-success payload
-        const errMsg =
-          resData?.message ||
-          resData?.error ||
-          "Booking failed. Please try again.";
-        toast.error(errMsg);
+        // API returned 200 but status is not "success"
+        const parsed = parseFailedResponse(resData);
+        setErrorInfo(parsed);
+        setShowErrorModal(true);
       }
-      // ────────────────────────────────────────────────────────────
     } catch (error) {
       console.error("❌ Booking Error:", error);
 
-      // Axios error with response from server
-      if (error.response) {
-        const serverMsg =
-          error.response.data?.message ||
-          error.response.data?.error ||
-          `Server error (${error.response.status})`;
-        toast.error(serverMsg);
-      } else if (error.request) {
-        // Request sent but no response
-        toast.error("No response from server. Check your connection.");
-      } else {
-        toast.error("An unexpected error occurred. Please try again.");
+      const parsed = parseApiError(error);
+
+      // If auth error → show login modal
+      if (parsed.type === "auth") {
+        toast.error(parsed.message);
+        setShowLoginModal(true);
+        return;
       }
+
+      setErrorInfo(parsed);
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleConfirmBooking = async () => {
+  const handleConfirmBooking = () => {
     if (!reservation.userId) {
       setShowLoginModal(true);
       return;
     }
-
-    if (!reservation.tourId && !currentTourId) {
-      toast.error(t("no_tour_selected") || "No tour selected");
+    if (!currentTourId) {
+      toast.error("No tour selected");
       return;
     }
-
     proceedWithBooking();
+  };
+
+  const handleErrorRetry = () => {
+    setShowErrorModal(false);
+    setErrorInfo(null);
+
+    if (errorInfo?.type === "validation") {
+      // Go back to package details to fix selections
+      router.push(`/package/package-details/${currentTourId}`);
+    } else {
+      // Retry the booking
+      proceedWithBooking();
+    }
+  };
+
+  const handleErrorClose = () => {
+    setShowErrorModal(false);
+    setErrorInfo(null);
   };
 
   const handleLoginSuccess = () => {
     setShowLoginModal(false);
-    toast.success("You can now confirm your booking!");
-    setTimeout(() => {
-      proceedWithBooking();
-    }, 500);
+    setTimeout(() => proceedWithBooking(), 500);
   };
 
   const handleSignupSuccess = () => {
     setShowSignupModal(false);
-    toast.success("Account created! You can now confirm your booking!");
-    setTimeout(() => {
-      proceedWithBooking();
-    }, 500);
+    setTimeout(() => proceedWithBooking(), 500);
   };
 
-  const handleSwitchToSignup = () => {
-    setShowLoginModal(false);
-    setTimeout(() => setShowSignupModal(true), 300);
-  };
-
-  const handleSwitchToLogin = () => {
-    setShowSignupModal(false);
-    setTimeout(() => setShowLoginModal(true), 300);
-  };
-
-  const handleCloseModal = () => {
-    setShowSuccessModal(false);
-  };
-
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <>
       <div className="bg-white rounded-lg shadow-md px-4 py-5 sticky top-24">
         <h3 className="text-lg font-semibold mb-4">
           {t("summary_description")}
         </h3>
-        <p className="text-gray-600 mb-6">{t("order_description")}</p>
 
         {tourData && (
           <div className="bg-gray-50 rounded-lg p-3 mb-4">
             <h4 className="font-medium text-gray-800 text-sm mb-2 truncate">
-              {tourData.title || tourData.name}
+              {tourData.title}
             </h4>
-
             <div className="text-xs text-gray-500 space-y-1">
               <div className="flex justify-between">
                 <span>{t("adults") || "Adults"}:</span>
                 <span>{numAdults}</span>
               </div>
-
               {numChildren > 0 && (
                 <div className="flex justify-between">
                   <span>{t("children") || "Children"}:</span>
                   <span>{numChildren}</span>
                 </div>
               )}
-
               {numInfants > 0 && (
                 <div className="flex justify-between">
                   <span>{t("infants") || "Infants"}:</span>
@@ -370,6 +605,7 @@ const RightSummary = ({ lang }) => {
         )}
 
         <div className="border-t border-gray-200 pt-4">
+          {/* Subtotal */}
           <div className="flex justify-between py-2">
             <span className="text-gray-600">{t("subtotal")}</span>
             <span className="font-medium">
@@ -377,24 +613,25 @@ const RightSummary = ({ lang }) => {
             </span>
           </div>
 
+          {/* Discount */}
           {priceDetails.discountPercentage > 0 && (
-            <div className="flex justify-between py-2">
-              <span className="text-green-600">
+            <div className="flex justify-between py-2 text-green-600">
+              <span>
                 {t("discount")} ({priceDetails.discountPercentage}%)
               </span>
-              <span className="text-green-600 font-semibold">
-                - ${priceDetails.discountAmount?.toFixed(2)}
-              </span>
+              <span>- ${priceDetails.discountAmount?.toFixed(2)}</span>
             </div>
           )}
 
-          <div className="flex justify-between py-3 mt-2 border-t border-gray-200">
-            <span className="font-semibold">{t("total")}</span>
-            <span className="font-bold text-lg text-[#295557]">
+          {/* Total */}
+          <div className="flex justify-between py-3 mt-2 border-t border-gray-200 font-bold">
+            <span>{t("total")}</span>
+            <span style={{ color: BRAND }}>
               ${priceDetails.total?.toFixed(2)}
             </span>
           </div>
 
+          {/* Login warning */}
           {!reservation.userId && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-xs text-red-600 flex items-center gap-2">
@@ -404,32 +641,37 @@ const RightSummary = ({ lang }) => {
             </div>
           )}
 
+          {/* Confirm button */}
           <button
             onClick={handleConfirmBooking}
             disabled={loading}
-            className="w-full mt-4 bg-[#295557] hover:bg-[#1e3e3a] disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+            className="w-full mt-4 text-white py-3 px-4 rounded-lg font-medium
+                       flex items-center justify-center gap-2 transition-opacity
+                       disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: BRAND }}
           >
             {loading ? (
               <>
-                <LoadingSpinner size="md" />
-                <span>{t("processing") || "Processing..."}</span>
+                <FaSpinner className="animate-spin" />{" "}
+                {t("processing") || "Processing..."}
               </>
             ) : (
-              <span>{t("Confirm") || "Confirm Booking"}</span>
+              t("Confirm") || "Confirm Booking"
             )}
           </button>
 
+          {/* Payment note */}
           <div className="mt-3 text-center">
-            <span className="text-sm text-gray-500 font-medium">
-              {t("payment_status")}
-            </span>
+            <span className="text-sm text-gray-500">{t("payment_status")}</span>
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+          {/* Secure badge */}
+          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-400">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path
                 fillRule="evenodd"
-                d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 
+                   01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
                 clipRule="evenodd"
               />
             </svg>
@@ -438,42 +680,42 @@ const RightSummary = ({ lang }) => {
         </div>
       </div>
 
+      {/* Success Modal */}
       <SuccessModal
         isOpen={showSuccessModal}
-        onClose={handleCloseModal}
+        onClose={() => setShowSuccessModal(false)}
         bookingDetails={bookingDetails}
-        lang={lang}
       />
 
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        onClose={handleErrorClose}
+        errorInfo={errorInfo}
+        onRetry={handleErrorRetry}
+      />
+
+      {/* Login Modal */}
       <LoginRequiredModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onLoginSuccess={handleLoginSuccess}
-        onSwitchToSignup={handleSwitchToSignup}
+        onSwitchToSignup={() => {
+          setShowLoginModal(false);
+          setTimeout(() => setShowSignupModal(true), 300);
+        }}
       />
 
+      {/* Signup Modal */}
       <SignupRequiredModal
         isOpen={showSignupModal}
         onClose={() => setShowSignupModal(false)}
         onSignupSuccess={handleSignupSuccess}
-        onSwitchToLogin={handleSwitchToLogin}
+        onSwitchToLogin={() => {
+          setShowSignupModal(false);
+          setTimeout(() => setShowLoginModal(true), 300);
+        }}
       />
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.5s ease-out;
-        }
-      `}</style>
     </>
   );
 };

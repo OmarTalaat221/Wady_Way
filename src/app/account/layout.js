@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { IoAirplane } from "react-icons/io5";
+import { IoAirplane, IoCalendar } from "react-icons/io5";
 import { IoMdSettings } from "react-icons/io";
 import { FaHeadset, FaHeart, FaBell, FaBookOpen } from "react-icons/fa6";
 import {
@@ -61,6 +61,11 @@ const Layout = ({ children }) => {
       href: "/account",
       label: "Bookings",
       icon: <IoAirplane className="w-5 h-5" />,
+    },
+    {
+      href: "/account/schedule",
+      label: "Schedule",
+      icon: <IoCalendar className="w-5 h-5" />,
     },
     {
       href: "/account/settings",

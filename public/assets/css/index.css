@@ -419,6 +419,7 @@ h2 {
   border-radius: 5px;
   background-color: #295557;
   transition: 0.3s ease;
+  z-index: 5000;
 }
 
 .cards-container .card .cards-container-location-icon {

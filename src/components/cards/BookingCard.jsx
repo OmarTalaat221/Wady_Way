@@ -11,9 +11,9 @@ import {
   FiCalendar,
   FiCheck,
   FiPlay,
+  FiX,
 } from "react-icons/fi";
 
-// Import modals
 import TourDetailsModal from "../modals/TourDetailsModal";
 import ActivityDetailsModal from "../modals/ActivityDetailsModal";
 import HotelDetailsModal from "../modals/HotelDetailsModal";
@@ -24,20 +24,21 @@ const BookingCard = ({ data, refetchTours }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // Get main image - prioritize backgroundImage
   const mainImage =
     data?.backgroundImage ||
     data?.image ||
     data?.images?.[0]?.split("//CAMP//")[0] ||
     "https://via.placeholder.com/400x300?text=Booking";
 
-  // Format price with currency
+  const isCancelledByUser =
+    data?.apiStatus === "cancelled_by_user" ||
+    data?.status === "cancelled_by_user";
+
   const formatPrice = (price, currency = "$") => {
     if (!price) return "N/A";
     return `${currency}${parseFloat(price).toLocaleString()}`;
   };
 
-  // Format date
   const formatDate = (dateString, includeYear = false) => {
     if (!dateString) return "";
     const options = includeYear
@@ -46,7 +47,6 @@ const BookingCard = ({ data, refetchTours }) => {
     return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
-  // Get days info
   const getDaysInfo = () => {
     if (!data?.startDate || !data?.endDate) return null;
 
@@ -72,11 +72,9 @@ const BookingCard = ({ data, refetchTours }) => {
 
   const daysInfo = getDaysInfo();
 
-  // Status configurations based on booking type
   const getStatusConfig = () => {
     const { status, bookingType, apiStatus } = data;
 
-    // API status overrides
     const apiConfigs = {
       pending: {
         label: "Pending",
@@ -85,12 +83,17 @@ const BookingCard = ({ data, refetchTours }) => {
       },
       rejected: {
         label: "Rejected",
-        icon: <FiCheck className="w-3 h-3" />,
+        icon: <FiX className="w-3 h-3" />,
         classes: "bg-red-50 text-red-600 border-red-200",
       },
       cancelled: {
         label: "Cancelled",
-        icon: <FiCheck className="w-3 h-3" />,
+        icon: <FiX className="w-3 h-3" />,
+        classes: "bg-gray-50 text-gray-500 border-gray-200",
+      },
+      cancelled_by_user: {
+        label: "Cancelled",
+        icon: <FiX className="w-3 h-3" />,
         classes: "bg-gray-50 text-gray-500 border-gray-200",
       },
     };
@@ -200,7 +203,37 @@ const BookingCard = ({ data, refetchTours }) => {
 
   const typeConfig = typeConfigs[data?.bookingType] || typeConfigs.tour;
 
-  // Render appropriate modal
+  const buildEditModalData = () => {
+    if (data?._rawApiItem) return data._rawApiItem;
+
+    return {
+      reservation: {
+        reservation_id: data?.reservation_id || data?.id,
+        tour_id: data?.tour_id || data?.tourId,
+        user_id: null,
+        num_adults: data?.numAdults || 1,
+        num_children: data?.numChildren || 0,
+        total_amount: data?.price,
+        day_hotel: data?.day_hotel || "",
+        day_car: data?.day_car || "",
+        day_activities: data?.day_activities || "",
+        day_tour_guide: data?.day_tour_guide || "",
+        start_date: data?.startDate,
+        end_date: data?.endDate,
+        status: data?.status,
+      },
+      tour_details: {
+        id: data?.tour_id || data?.tourId,
+        title: data?.title,
+        background_image: data?.backgroundImage || data?.image,
+        duration: data?.duration,
+        route: data?.additionalLocations?.join(" - "),
+        max_persons: data?.max_persons,
+        itinerary: data?.itinerary || [],
+      },
+    };
+  };
+
   const renderModal = () => {
     switch (data?.bookingType) {
       case "tour":
@@ -209,6 +242,7 @@ const BookingCard = ({ data, refetchTours }) => {
             open={modalOpen}
             onClose={() => setModalOpen(false)}
             data={data}
+            refetchBookings={refetchTours}
           />
         );
       case "activity":
@@ -217,6 +251,7 @@ const BookingCard = ({ data, refetchTours }) => {
             open={modalOpen}
             onClose={() => setModalOpen(false)}
             data={data}
+            refetchBookings={refetchTours}
           />
         );
       case "hotel":
@@ -225,6 +260,7 @@ const BookingCard = ({ data, refetchTours }) => {
             open={modalOpen}
             onClose={() => setModalOpen(false)}
             data={data}
+            refetchBookings={refetchTours}
           />
         );
       case "transportation":
@@ -233,6 +269,7 @@ const BookingCard = ({ data, refetchTours }) => {
             open={modalOpen}
             onClose={() => setModalOpen(false)}
             data={data}
+            refetchBookings={refetchTours}
           />
         );
       default:
@@ -242,10 +279,12 @@ const BookingCard = ({ data, refetchTours }) => {
 
   return (
     <>
-      <div className="h-full group bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-lg border border-gray-100 transition-all duration-300 overflow-hidden">
-        {/* Mobile: Stacked Layout, Desktop: Horizontal Layout */}
+      <div
+        className={`h-full group bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-lg border border-gray-100 transition-all duration-300 overflow-hidden ${
+          isCancelledByUser ? "opacity-60" : ""
+        }`}
+      >
         <div className="flex flex-col sm:flex-row h-full">
-          {/* Image Section */}
           <div className="relative w-full sm:w-2/5 h-40 sm:h-auto sm:min-h-[180px] lg:min-h-[200px]">
             <div
               onClick={() => setModalOpen(true)}
@@ -254,7 +293,9 @@ const BookingCard = ({ data, refetchTours }) => {
               <img
                 src={mainImage}
                 alt={data?.title || "Booking"}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                  isCancelledByUser ? "grayscale" : ""
+                }`}
                 onError={(e) => {
                   e.target.src =
                     "https://via.placeholder.com/400x300?text=No+Image";
@@ -262,7 +303,6 @@ const BookingCard = ({ data, refetchTours }) => {
               />
             </div>
 
-            {/* Type Badge */}
             <span
               className={`absolute top-2 left-2 sm:top-3 sm:left-3 ${typeConfig.color} text-white px-2 py-1 sm:px-2.5 rounded-lg text-[10px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 shadow-md`}
             >
@@ -270,7 +310,6 @@ const BookingCard = ({ data, refetchTours }) => {
               <span className="hidden xs:inline">{typeConfig.label}</span>
             </span>
 
-            {/* ✅ Edit Button - فوق على اليمين فوق الصورة */}
             {data?.status === "pending" && data?.bookingType === "tour" && (
               <button
                 onClick={(e) => {
@@ -298,7 +337,6 @@ const BookingCard = ({ data, refetchTours }) => {
               </button>
             )}
 
-            {/* Progress Overlay */}
             {data?.status === "started" && (
               <div className="absolute bottom-0 inset-x-0">
                 <div className="bg-black/50 backdrop-blur-sm px-2 py-1.5 sm:px-3 sm:py-2">
@@ -317,18 +355,19 @@ const BookingCard = ({ data, refetchTours }) => {
             )}
           </div>
 
-          {/* Content Section */}
           <div className="flex-1 p-3 sm:p-4 flex flex-col min-w-0">
-            {/* Header */}
             <div className="flex items-start justify-between gap-2 sm:gap-3 mb-2 sm:mb-3">
               <h5
                 onClick={() => setModalOpen(true)}
-                className="text-[#295557] font-semibold text-sm sm:text-base leading-snug line-clamp-2 flex-1 min-w-0 cursor-pointer hover:text-[#1e3d3f] transition-colors"
+                className={`font-semibold text-sm sm:text-base leading-snug line-clamp-2 flex-1 min-w-0 cursor-pointer transition-colors ${
+                  isCancelledByUser
+                    ? "text-gray-400"
+                    : "text-[#295557] hover:text-[#1e3d3f]"
+                }`}
               >
                 {data?.title}
               </h5>
 
-              {/* Status Badge */}
               <span
                 className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-semibold border ${statusConfig.classes}`}
               >
@@ -337,15 +376,12 @@ const BookingCard = ({ data, refetchTours }) => {
               </span>
             </div>
 
-            {/* Meta Info */}
             <div className="flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 mb-2 sm:mb-3">
-              {/* Duration */}
               <span className="inline-flex items-center gap-1">
                 <FiClock className="w-3.5 h-3.5 text-teal-600" />
                 {data?.duration}
               </span>
 
-              {/* Location */}
               {data?.mainLocations?.[0] && (
                 <span className="inline-flex items-center gap-1 truncate max-w-[120px] sm:max-w-none">
                   <FiMapPin className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
@@ -354,7 +390,6 @@ const BookingCard = ({ data, refetchTours }) => {
               )}
             </div>
 
-            {/* Dates */}
             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 bg-gray-50 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2">
               <FiCalendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600 flex-shrink-0" />
               <span className="truncate">
@@ -363,11 +398,8 @@ const BookingCard = ({ data, refetchTours }) => {
               </span>
             </div>
 
-            {/* Footer */}
             <div className="mt-auto flex items-center justify-between pt-2 sm:pt-3 border-t border-gray-100 gap-2 flex-wrap">
-              {/* Guests & Price */}
               <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                {/* Guests */}
                 <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-gray-500">
                   {data?.numAdults > 0 && (
                     <span className="flex items-center gap-0.5 sm:gap-1">
@@ -383,13 +415,17 @@ const BookingCard = ({ data, refetchTours }) => {
                   )}
                 </div>
 
-                {/* Price */}
-                <span className="text-sm sm:text-lg font-bold text-teal-600">
+                <span
+                  className={`text-sm sm:text-lg font-bold ${
+                    isCancelledByUser
+                      ? "text-gray-400 line-through"
+                      : "text-teal-600"
+                  }`}
+                >
                   {formatPrice(data?.price, data?.priceCurrency)}
                 </span>
               </div>
 
-              {/* Buttons */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={(e) => {
@@ -406,10 +442,8 @@ const BookingCard = ({ data, refetchTours }) => {
         </div>
       </div>
 
-      {/* Render Modal */}
       {renderModal()}
 
-      {/* Edit Modal */}
       {editModalOpen && (
         <EditTourBookingModal
           open={editModalOpen}
@@ -417,8 +451,8 @@ const BookingCard = ({ data, refetchTours }) => {
             setEditModalOpen(false);
             refetchTours();
           }}
-          data={data}
-          tourId={data?.tourId || data?.tour_id || data?.id}
+          data={buildEditModalData()}
+          tourId={data?.tourId || data?.tour_id}
         />
       )}
     </>

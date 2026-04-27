@@ -36,6 +36,20 @@ const normalizeCar = (car, dayKey = "0", index = 0) => ({
     `${dayKey}-${car?.id || car?.car_id || "car"}-${index}-${Date.now()}`,
 });
 
+const normalizeActivity = (activity) => ({
+  ...activity,
+  id: activity.id || activity.activity_id,
+  activity_id: activity.activity_id || activity.id,
+  for_children:
+    activity.for_children === true ||
+    activity.for_children === "1" ||
+    activity.for_children === 1,
+  num_adults: Number(activity.num_adults ?? 1),
+  num_children: Number(activity.num_children ?? 0),
+  price_current: parseFloat(activity.price_current || activity.price || 0),
+  price: parseFloat(activity.price || activity.price_current || 0),
+});
+
 const normalizeSelectedByDay = (selectedByDay = {}) => {
   const normalized = {};
   Object.entries(selectedByDay).forEach(([dayKey, dayData]) => {
@@ -48,7 +62,9 @@ const normalizeSelectedByDay = (selectedByDay = {}) => {
 
     normalized[String(dayKey)] = {
       ...current,
-      activities: Array.isArray(current.activities) ? current.activities : [],
+      activities: Array.isArray(current.activities)
+        ? current.activities.map(normalizeActivity)
+        : [],
       cars,
       car: cars[0] || current.car || null,
       rooms: Array.isArray(current.rooms)
@@ -81,54 +97,100 @@ const ensureDayState = (state, dayKey) => {
     state.selectedByDay[dayKey].rooms = [];
 };
 
-// ─── KEY FIX: Only use itinerary days, never stale selectedByDay keys ─────────
 const getValidDayNumbers = (state) => {
   const itinerary = state.tourData?.itinerary || [];
-  if (itinerary.length === 0) return [];
+  if (!itinerary.length) return [];
   return itinerary
     .map((d) => Number(d.day))
     .filter(Boolean)
     .sort((a, b) => a - b);
 };
 
-// ─── Sanitize: remove days that don't exist in current itinerary ──────────────
 const sanitizeDaysToItinerary = (state) => {
-  // لو لسه معندناش داتا الرحلة من الـ API، منقدرش نفلتر، فهنستنى لحد ما تيجي
-  if (
-    !state.tourData ||
-    !Array.isArray(state.tourData.itinerary) ||
-    state.tourData.itinerary.length === 0
-  ) {
-    return;
-  }
-
+  if (!state.tourData?.itinerary?.length) return;
   const validDays = new Set(getValidDayNumbers(state).map(String));
-
-  // مسح أي أيام في selectedByDay مش موجودة في الرحلة الحالية
   Object.keys(state.selectedByDay).forEach((key) => {
-    if (!validDays.has(key)) {
-      delete state.selectedByDay[key];
-    }
+    if (!validDays.has(key)) delete state.selectedByDay[key];
   });
-
-  // مسح أي أيام في tourGuideByDay مش موجودة في الرحلة الحالية
   Object.keys(state.tourGuideByDay).forEach((key) => {
-    if (!validDays.has(key)) {
-      delete state.tourGuideByDay[key];
-    }
+    if (!validDays.has(key)) delete state.tourGuideByDay[key];
   });
 };
 
-// ─── localStorage: per-tour keying ───────────────────────────────────────────
-const STORAGE_KEY = "tourReservations"; // NOTE: plural now
+const parseLocalDateString = (dateStr) => {
+  if (!dateStr || typeof dateStr !== "string") return null;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+const formatLocalDateString = (date) => {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const buildEndDateFromDuration = (startDate, durationDays) => {
+  const normalizedDuration = Math.max(Number(durationDays || 1), 1);
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + normalizedDuration - 1);
+  return endDate;
+};
+
+// ✅ source of truth for dates = itinerary length
+const syncDatesWithItinerary = (state) => {
+  const itineraryLength = Array.isArray(state.tourData?.itinerary)
+    ? state.tourData.itinerary.length
+    : 0;
+
+  if (!itineraryLength) return;
+
+  const parsedStart = parseLocalDateString(state.startDate);
+  if (!parsedStart) return;
+
+  const expectedEnd = buildEndDateFromDuration(parsedStart, itineraryLength);
+  const expectedEndStr = formatLocalDateString(expectedEnd);
+
+  if (expectedEndStr && state.endDate !== expectedEndStr) {
+    state.endDate = expectedEndStr;
+  }
+};
+
+// ─── localStorage ─────────────────────────────────────────────────────────────
+const STORAGE_KEY = "tourReservations";
+const LEGACY_KEY = "tourReservation";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+const cleanLegacyKey = () => {
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(LEGACY_KEY);
+    }
+  } catch {}
+};
 
 const loadAllReservations = () => {
   if (typeof window === "undefined") return {};
+  cleanLegacyKey();
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    return JSON.parse(raw) || {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    const now = Date.now();
+    const cleaned = {};
+
+    Object.entries(parsed).forEach(([tourId, data]) => {
+      if (!tourId || !data?.tourId) return;
+      if (data.savedAt && now - data.savedAt > ONE_DAY_MS) return;
+      cleaned[String(tourId)] = data;
+    });
+
+    return cleaned;
   } catch {
     return {};
   }
@@ -138,69 +200,59 @@ const saveAllReservations = (all) => {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    cleanLegacyKey();
   } catch (err) {
     console.error("Error saving reservations:", err);
   }
 };
 
 const saveSelectionsToStorage = (state) => {
-  if (!state.tourId) return;
-
-  const all = loadAllReservations();
-
-  // Prune expired entries while we're at it
-  const now = Date.now();
-  Object.keys(all).forEach((tid) => {
-    if (all[tid]?.savedAt && now - all[tid].savedAt > ONE_DAY_MS) {
-      delete all[tid];
-    }
-  });
-
-  all[String(state.tourId)] = {
-    tourId: state.tourId,
-    startDate: state.startDate,
-    endDate: state.endDate,
-    numAdults: state.numAdults,
-    numChildren: state.numChildren,
-    numInfants: state.numInfants,
-    selectedByDay: state.selectedByDay,
-    tourGuideByDay: state.tourGuideByDay,
-    totalAmount: state.totalAmount,
-    subtotalAmount: state.subtotalAmount,
-    discountPercentage: state.discountPercentage,
-    savedAt: now,
-  };
-
-  saveAllReservations(all);
+  if (typeof window === "undefined") return;
+  if (!state.tourId || !state.tourData) return;
+  try {
+    const all = loadAllReservations();
+    all[String(state.tourId)] = {
+      tourId: state.tourId,
+      tourData: state.tourData,
+      startDate: state.startDate,
+      endDate: state.endDate,
+      numAdults: state.numAdults,
+      numChildren: state.numChildren,
+      numInfants: state.numInfants,
+      selectedByDay: state.selectedByDay,
+      tourGuideByDay: state.tourGuideByDay,
+      totalAmount: state.totalAmount,
+      subtotalAmount: state.subtotalAmount,
+      discountPercentage: state.discountPercentage,
+      savedAt: Date.now(),
+    };
+    saveAllReservations(all);
+  } catch (err) {
+    console.error("Error saving selections:", err);
+  }
 };
 
 const loadSelectionsFromStorage = (tourId) => {
   if (!tourId) return null;
-  const all = loadAllReservations();
-  const saved = all[String(tourId)];
-  if (!saved) return null;
-
-  if (saved.savedAt && Date.now() - saved.savedAt > ONE_DAY_MS) {
-    delete all[String(tourId)];
-    saveAllReservations(all);
+  try {
+    const all = loadAllReservations();
+    return all[String(tourId)] || null;
+  } catch {
     return null;
   }
-
-  return saved;
 };
 
-const clearAllReservationsFromStorage = () => {
-  if (typeof window === "undefined") return;
+const removeSingleTourFromStorage = (tourId) => {
+  if (typeof window === "undefined" || !tourId) return;
   try {
-    localStorage.removeItem(STORAGE_KEY);
-    // Also clear old single-key format if it exists
-    localStorage.removeItem("tourReservation");
-  } catch {
-    /* ignore */
-  }
+    const all = loadAllReservations();
+    delete all[String(tourId)];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    cleanLegacyKey();
+  } catch {}
 };
 
-// ─── Initial state ────────────────────────────────────────────────────────────
+// ─── Initial State ────────────────────────────────────────────────────────────
 const initialState = {
   tourId: null,
   userId: getUserIdFromStorage(),
@@ -225,7 +277,6 @@ const tourReservationSlice = createSlice({
     setTourData: (state, action) => {
       const newTourId = action.payload?.id;
 
-      // If switching to a different tour, reset day selections first
       if (
         state.tourId &&
         newTourId &&
@@ -235,6 +286,11 @@ const tourReservationSlice = createSlice({
         state.tourGuideByDay = {};
         state.totalAmount = 0;
         state.subtotalAmount = 0;
+        state.startDate = null;
+        state.endDate = null;
+        state.numAdults = 1;
+        state.numChildren = 0;
+        state.numInfants = 0;
       }
 
       state.tourData = action.payload;
@@ -243,14 +299,16 @@ const tourReservationSlice = createSlice({
         action.payload?.offer_percentage
       );
 
-      // Sanitize immediately after setting tourData
       sanitizeDaysToItinerary(state);
+      // ✅ لو فيه startDate محفوظ، endDate لازم يتظبط على عدد أيام الرحلة الحقيقي
+      syncDatesWithItinerary(state);
+      saveSelectionsToStorage(state);
     },
 
     restoreSavedSelections: (state, action) => {
       const targetTourId = action.payload;
+      if (!targetTourId) return;
 
-      // 🔥 الحل الجذري: لو الـ Redux شايل داتا رحلة تانية، امسحه بالكامل قبل أي حاجة
       if (state.tourId && String(state.tourId) !== String(targetTourId)) {
         state.selectedByDay = {};
         state.tourGuideByDay = {};
@@ -262,22 +320,19 @@ const tourReservationSlice = createSlice({
         state.numInfants = 0;
       }
 
-      state.tourId = targetTourId; // تثبيت الـ ID الجديد فوراً
+      state.tourId = targetTourId;
 
       const saved = loadSelectionsFromStorage(targetTourId);
-
-      // لو مفيش حاجة محفوظة للرحلة دي، اقفل على كده بذاكرة نظيفة
       if (!saved) return;
 
-      // لو فيه داتا محفوظة، رجعها
+      if (saved.tourData) state.tourData = saved.tourData;
       if (saved.selectedByDay)
         state.selectedByDay = normalizeSelectedByDay(saved.selectedByDay);
       if (saved.tourGuideByDay)
         state.tourGuideByDay = normalizeTourGuideByDay(saved.tourGuideByDay);
-
-      if (saved.startDate) state.startDate = saved.startDate;
-      if (saved.endDate) state.endDate = saved.endDate;
-      if (saved.numAdults) state.numAdults = saved.numAdults;
+      if (saved.startDate !== undefined) state.startDate = saved.startDate;
+      if (saved.endDate !== undefined) state.endDate = saved.endDate;
+      if (saved.numAdults !== undefined) state.numAdults = saved.numAdults;
       if (saved.numChildren !== undefined)
         state.numChildren = saved.numChildren;
       if (saved.numInfants !== undefined) state.numInfants = saved.numInfants;
@@ -289,6 +344,7 @@ const tourReservationSlice = createSlice({
         state.discountPercentage = saved.discountPercentage;
 
       sanitizeDaysToItinerary(state);
+      syncDatesWithItinerary(state);
     },
 
     saveSelections: (state) => {
@@ -317,7 +373,6 @@ const tourReservationSlice = createSlice({
         }
       });
 
-      // Remove stale guide days
       sanitizeDaysToItinerary(state);
       saveSelectionsToStorage(state);
     },
@@ -346,13 +401,15 @@ const tourReservationSlice = createSlice({
 
         const activities = day.activities_options || [];
         const seen = new Set();
-
         state.selectedByDay[dayKey].activities = [];
 
         activities.forEach((activity) => {
           const activityId = String(activity.activity_id || activity.id);
           if (!activityId || seen.has(activityId)) return;
           seen.add(activityId);
+
+          const forChildren =
+            activity.for_children === "1" || activity.for_children === 1;
 
           state.selectedByDay[dayKey].activities.push({
             id: parseInt(activityId),
@@ -368,85 +425,15 @@ const tourReservationSlice = createSlice({
             price_current: parseFloat(
               activity.price_current || activity.price || 0
             ),
+            for_children: forChildren,
+            num_adults: state.numAdults || 1,
+            num_children: forChildren ? state.numChildren || 0 : 0,
             features: activity.features || [],
           });
         });
       });
 
-      // Remove stale day entries
       sanitizeDaysToItinerary(state);
-      saveSelectionsToStorage(state);
-    },
-
-    setUserId: (state, action) => {
-      state.userId = action.payload;
-    },
-
-    refreshUserId: (state) => {
-      state.userId = getUserIdFromStorage();
-    },
-
-    setTourInfo: (state, action) => {
-      const { userId, startDate, endDate, numAdults, numChildren, numInfants } =
-        action.payload;
-      if (userId !== undefined) state.userId = userId;
-      if (startDate !== undefined) state.startDate = startDate;
-      if (endDate !== undefined) state.endDate = endDate;
-      if (numAdults !== undefined) state.numAdults = numAdults;
-      if (numChildren !== undefined) state.numChildren = numChildren;
-      if (numInfants !== undefined) state.numInfants = numInfants;
-      saveSelectionsToStorage(state);
-    },
-
-    setPeopleCount: (state, action) => {
-      const { adults, children, infants } = action.payload;
-      state.numAdults = adults || 1;
-      state.numChildren = children || 0;
-      state.numInfants = infants || 0;
-      saveSelectionsToStorage(state);
-    },
-
-    selectHotel: (state, action) => {
-      const { day, hotel } = action.payload;
-      const dayKey = String(day);
-      ensureDayState(state, dayKey);
-      state.selectedByDay[dayKey].hotel = hotel;
-      saveSelectionsToStorage(state);
-    },
-
-    selectCar: (state, action) => {
-      const { day, car } = action.payload;
-      const dayKey = String(day);
-      ensureDayState(state, dayKey);
-      const normalizedCar = normalizeCar(
-        { ...car, withDriver: !!car?.withDriver },
-        dayKey,
-        0
-      );
-      state.selectedByDay[dayKey].cars = [normalizedCar];
-      state.selectedByDay[dayKey].car = normalizedCar;
-      saveSelectionsToStorage(state);
-    },
-
-    setDayCars: (state, action) => {
-      const { day, cars } = action.payload;
-      const dayKey = String(day);
-      ensureDayState(state, dayKey);
-      const normalizedCars = Array.isArray(cars)
-        ? cars.map((car, index) => normalizeCar(car, dayKey, index))
-        : [];
-      state.selectedByDay[dayKey].cars = normalizedCars;
-      state.selectedByDay[dayKey].car = normalizedCars[0] || null;
-      saveSelectionsToStorage(state);
-    },
-
-    setDayRooms: (state, action) => {
-      const { day, rooms } = action.payload;
-      const dayKey = String(day);
-      ensureDayState(state, dayKey);
-      state.selectedByDay[dayKey].rooms = Array.isArray(rooms)
-        ? rooms.map(normalizeRoom)
-        : [];
       saveSelectionsToStorage(state);
     },
 
@@ -454,29 +441,35 @@ const tourReservationSlice = createSlice({
       const { day, activity } = action.payload;
       const dayKey = String(day);
       ensureDayState(state, dayKey);
+
+      const forChildren =
+        activity.for_children === true ||
+        activity.for_children === "1" ||
+        activity.for_children === 1;
+
+      const activityWithPeople = {
+        ...activity,
+        for_children: forChildren,
+        num_adults: activity.num_adults ?? state.numAdults ?? 1,
+        num_children:
+          activity.num_children ?? (forChildren ? (state.numChildren ?? 0) : 0),
+        price_current: parseFloat(
+          activity.price_current || activity.price || 0
+        ),
+        price: parseFloat(activity.price || activity.price_current || 0),
+      };
+
       const existingIndex = state.selectedByDay[dayKey].activities.findIndex(
         (a) => (a.id || a.activity_id) === (activity.id || activity.activity_id)
       );
+
       if (existingIndex === -1) {
-        state.selectedByDay[dayKey].activities.push(activity);
+        state.selectedByDay[dayKey].activities.push(activityWithPeople);
       } else {
-        state.selectedByDay[dayKey].activities[existingIndex] = activity;
+        state.selectedByDay[dayKey].activities[existingIndex] =
+          activityWithPeople;
       }
-      saveSelectionsToStorage(state);
-    },
 
-    removeHotel: (state, action) => {
-      const dayKey = String(action.payload);
-      if (state.selectedByDay[dayKey]) delete state.selectedByDay[dayKey].hotel;
-      saveSelectionsToStorage(state);
-    },
-
-    removeCar: (state, action) => {
-      const dayKey = String(action.payload);
-      if (state.selectedByDay[dayKey]) {
-        state.selectedByDay[dayKey].cars = [];
-        delete state.selectedByDay[dayKey].car;
-      }
       saveSelectionsToStorage(state);
     },
 
@@ -493,6 +486,142 @@ const tourReservationSlice = createSlice({
       saveSelectionsToStorage(state);
     },
 
+    updateActivityPeople: (state, action) => {
+      const { day, activityId, num_adults, num_children } = action.payload;
+      const dayKey = String(day);
+      if (!state.selectedByDay[dayKey]?.activities) return;
+
+      const actIdx = state.selectedByDay[dayKey].activities.findIndex(
+        (a) => a.id === activityId || a.activity_id === activityId
+      );
+
+      if (actIdx !== -1) {
+        if (num_adults !== undefined) {
+          state.selectedByDay[dayKey].activities[actIdx].num_adults =
+            num_adults;
+        }
+        if (num_children !== undefined) {
+          state.selectedByDay[dayKey].activities[actIdx].num_children =
+            num_children;
+        }
+      }
+
+      saveSelectionsToStorage(state);
+    },
+
+    selectHotel: (state, action) => {
+      const { day, hotel } = action.payload;
+      const dayKey = String(day);
+      ensureDayState(state, dayKey);
+
+      const previousHotelId =
+        state.selectedByDay[dayKey].hotel?.id ||
+        state.selectedByDay[dayKey].hotel?.hotel_id;
+      const newHotelId = hotel?.id || hotel?.hotel_id;
+
+      state.selectedByDay[dayKey].hotel = hotel;
+
+      if (
+        previousHotelId &&
+        newHotelId &&
+        String(previousHotelId) !== String(newHotelId)
+      ) {
+        state.selectedByDay[dayKey].rooms = [];
+      }
+
+      saveSelectionsToStorage(state);
+    },
+
+    removeHotel: (state, action) => {
+      const dayKey = String(action.payload);
+      if (state.selectedByDay[dayKey]) {
+        delete state.selectedByDay[dayKey].hotel;
+        state.selectedByDay[dayKey].rooms = [];
+      }
+      saveSelectionsToStorage(state);
+    },
+
+    selectCar: (state, action) => {
+      const { day, car } = action.payload;
+      const dayKey = String(day);
+      ensureDayState(state, dayKey);
+
+      const normalizedCar = normalizeCar(
+        { ...car, withDriver: !!car?.withDriver },
+        dayKey,
+        0
+      );
+
+      state.selectedByDay[dayKey].cars = [normalizedCar];
+      state.selectedByDay[dayKey].car = normalizedCar;
+      saveSelectionsToStorage(state);
+    },
+
+    setDayCars: (state, action) => {
+      const { day, cars } = action.payload;
+      const dayKey = String(day);
+      ensureDayState(state, dayKey);
+
+      const normalizedCars = Array.isArray(cars)
+        ? cars.map((car, index) => normalizeCar(car, dayKey, index))
+        : [];
+
+      state.selectedByDay[dayKey].cars = normalizedCars;
+      state.selectedByDay[dayKey].car = normalizedCars[0] || null;
+      saveSelectionsToStorage(state);
+    },
+
+    removeCar: (state, action) => {
+      const dayKey = String(action.payload);
+      if (state.selectedByDay[dayKey]) {
+        state.selectedByDay[dayKey].cars = [];
+        delete state.selectedByDay[dayKey].car;
+      }
+      saveSelectionsToStorage(state);
+    },
+
+    setDayRooms: (state, action) => {
+      const { day, rooms } = action.payload;
+      const dayKey = String(day);
+      ensureDayState(state, dayKey);
+      state.selectedByDay[dayKey].rooms = Array.isArray(rooms)
+        ? rooms.map(normalizeRoom)
+        : [];
+      saveSelectionsToStorage(state);
+    },
+
+    setUserId: (state, action) => {
+      state.userId = action.payload;
+    },
+
+    refreshUserId: (state) => {
+      state.userId = getUserIdFromStorage();
+    },
+
+    setTourInfo: (state, action) => {
+      const { userId, startDate, endDate, numAdults, numChildren, numInfants } =
+        action.payload;
+
+      if (userId !== undefined) state.userId = userId;
+      if (startDate !== undefined) state.startDate = startDate;
+      if (endDate !== undefined) state.endDate = endDate;
+      if (numAdults !== undefined) state.numAdults = numAdults;
+      if (numChildren !== undefined) state.numChildren = numChildren;
+      if (numInfants !== undefined) state.numInfants = numInfants;
+
+      // ✅ لو startDate اتغير، endDate لازم يبقى متوافق مع itinerary
+      syncDatesWithItinerary(state);
+      saveSelectionsToStorage(state);
+    },
+
+    setPeopleCount: (state, action) => {
+      const { adults, children, infants } = action.payload;
+      state.numAdults = adults || 1;
+      state.numChildren = children || 0;
+      state.numInfants = infants || 0;
+      saveSelectionsToStorage(state);
+    },
+
     calculateTotal: (state) => {
       let subtotal = 0;
 
@@ -500,10 +629,8 @@ const tourReservationSlice = createSlice({
         subtotal +=
           parseFloat(state.tourData.per_adult || 0) * state.numAdults +
           parseFloat(state.tourData.per_child || 0) * state.numChildren;
-        // Infants: FREE
       }
 
-      // Only iterate over VALID days (from itinerary)
       const validDays = getValidDayNumbers(state);
 
       validDays.forEach((dayNum) => {
@@ -522,6 +649,7 @@ const tourReservationSlice = createSlice({
           : day.car
             ? [day.car]
             : [];
+
         cars.forEach((car) => {
           subtotal += parseFloat(car.price_current || car.price || 0);
           if (car.withDriver) {
@@ -544,7 +672,6 @@ const tourReservationSlice = createSlice({
         }
       });
 
-      // Tour guides — only valid days
       validDays.forEach((dayNum) => {
         const guide = state.tourGuideByDay[String(dayNum)];
         if (guide?.isAvailable && guide?.isSelected) {
@@ -563,13 +690,13 @@ const tourReservationSlice = createSlice({
       state.totalAmount = action.payload;
     },
 
-    // Called after successful booking — clears everything
-    resetReservation: () => {
-      clearAllReservationsFromStorage();
+    resetReservation: (state) => {
+      if (state.tourId) {
+        removeSingleTourFromStorage(state.tourId);
+      }
       return { ...initialState, userId: getUserIdFromStorage() };
     },
 
-    // Called when leaving a tour without booking — keeps other tours intact
     clearCurrentTourData: (state) => {
       state.selectedByDay = {};
       state.tourGuideByDay = {};
@@ -597,6 +724,7 @@ export const {
   removeHotel,
   removeCar,
   removeActivity,
+  updateActivityPeople,
   calculateTotal,
   setTotalAmount,
   resetReservation,
@@ -620,13 +748,11 @@ export const selectPriceDetails = (state) => {
   };
 };
 
-// ─── Validation (only valid itinerary days) ───────────────────────────────────
+// ─── Validation ───────────────────────────────────────────────────────────────
 export const validateRoomsForAllDays = (state) => {
   const { selectedByDay, numAdults, numChildren, tourData } =
     state.tourReservation;
   const totalTravelers = (numAdults || 1) + (numChildren || 0);
-
-  // Get only the days that actually exist in the current itinerary
   const validDayNumbers = (tourData?.itinerary || [])
     .map((d) => Number(d.day))
     .filter(Boolean);
@@ -636,8 +762,6 @@ export const validateRoomsForAllDays = (state) => {
   validDayNumbers.forEach((dayNum) => {
     const dayKey = String(dayNum);
     const dayData = selectedByDay?.[dayKey];
-
-    // No hotel selected for this day → skip room validation
     if (!dayData?.hotel) return;
 
     const rooms = Array.isArray(dayData.rooms) ? dayData.rooms : [];
@@ -679,9 +803,65 @@ export const validateRoomsForAllDays = (state) => {
   };
 };
 
-// ─── API Formatter (only valid itinerary days) ────────────────────────────────
+export const validateCarsForAllDays = (state) => {
+  const { selectedByDay, numAdults, numChildren, tourData } =
+    state.tourReservation;
+  const validDayNumbers = (tourData?.itinerary || [])
+    .map((d) => Number(d.day))
+    .filter(Boolean);
+
+  const errors = [];
+
+  validDayNumbers.forEach((dayNum) => {
+    const dayKey = String(dayNum);
+    const dayData = selectedByDay?.[dayKey];
+
+    const cars = Array.isArray(dayData?.cars)
+      ? dayData.cars
+      : dayData?.car
+        ? [dayData.car]
+        : [];
+
+    if (cars.length === 0) {
+      errors.push({
+        day: dayNum,
+        type: "no_cars",
+        message: `Day ${dayNum}: No cars selected`,
+        totalCapacity: 0,
+        requiredSeats: (numAdults || 1) + (numChildren || 0),
+      });
+      return;
+    }
+
+    const driversCount = cars.filter((c) => c.withDriver).length;
+    const totalPassengers =
+      (numAdults || 1) + (numChildren || 0) + driversCount;
+
+    const totalCapacity = cars.reduce(
+      (sum, car) => sum + (parseInt(car.capacity || car.max_people) || 4),
+      0
+    );
+
+    if (totalCapacity < totalPassengers) {
+      errors.push({
+        day: dayNum,
+        type: "insufficient_capacity",
+        message: `Day ${dayNum}: Cars capacity (${totalCapacity}) is less than passengers (${totalPassengers})`,
+        totalCapacity,
+        requiredSeats: totalPassengers,
+      });
+    }
+  });
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    firstErrorDay: errors.length > 0 ? errors[0].day : null,
+  };
+};
+
+// ─── API Formatter ────────────────────────────────────────────────────────────
 export const formatReservationForAPI = (state, inviteCode = "") => {
-  // Use ONLY itinerary days — never stale selectedByDay keys
   const validDays = (state.tourData?.itinerary || [])
     .map((d) => Number(d.day))
     .filter(Boolean)
@@ -698,38 +878,45 @@ export const formatReservationForAPI = (state, inviteCode = "") => {
 
   const formatActivities = () => {
     const segments = [];
+
     validDays.forEach((day) => {
       const activities = state.selectedByDay?.[String(day)]?.activities || [];
       const seen = new Set();
-      const ids = activities
-        .map((a) => a.id || a.activity_id)
-        .filter(Boolean)
-        .filter((id) => {
-          const k = String(id);
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        });
-      if (ids.length) ids.forEach((id) => segments.push(`${day}**${id}`));
+
+      activities.forEach((a) => {
+        const id = a.id || a.activity_id;
+        if (!id) return;
+        const key = String(id);
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        const numAdults = Number(a.num_adults ?? 1);
+        const numChildren = Number(a.num_children ?? 0);
+
+        segments.push(`${day}**${id}**${numAdults}**${numChildren}`);
+      });
     });
+
     return segments.join("**day**");
   };
 
   const formatCars = () => {
     const segments = [];
+
     validDays.forEach((day) => {
       const cars = state.selectedByDay?.[String(day)]?.cars || [];
       if (!cars.length) {
         segments.push(`${day}**0**0`);
         return;
       }
+
       cars.forEach((car) => {
         const carId = car.car_id || car.id;
         if (!carId) return;
-        const withDriver = car.withDriver ? 1 : 0;
-        segments.push(`${day}**${carId}**${withDriver}`);
+        segments.push(`${day}**${carId}**${car.withDriver ? 1 : 0}`);
       });
     });
+
     return segments.join("**day**");
   };
 

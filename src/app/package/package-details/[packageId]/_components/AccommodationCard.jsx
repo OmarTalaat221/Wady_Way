@@ -30,6 +30,7 @@ const AccommodationCard = ({
   cancelRoomSelection,
   assignedCounts,
   perRoomMax,
+  maxRooms, // ✅ prop جديد من ItineraryDay
 }) => {
   const locale = useLocale();
   const t = useTranslations("packageDetails");
@@ -51,9 +52,11 @@ const AccommodationCard = ({
 
   const amenities = item.amenities || item.originalData?.amenities || [];
 
-  // ✅ per_room from this specific hotel
   const thisPerRoom =
     parseInt(item.originalData?.per_room || item.per_room) || perRoomMax || 6;
+
+  // ✅ max rooms = عدد البالغين (من الـ prop أو fallback للـ totalAdults)
+  const effectiveMaxRooms = maxRooms ?? Math.max(totalAdults, 1);
 
   return (
     <div
@@ -207,8 +210,7 @@ const AccommodationCard = ({
               </span>
             </p>
 
-            {/* ✅ per_room info */}
-            <div
+            {/* <div
               style={{
                 fontSize: "11px",
                 color: "#295557",
@@ -219,30 +221,12 @@ const AccommodationCard = ({
                 fontWeight: "600",
               }}
             >
-              Max {thisPerRoom} persons per room (adults + children)
-            </div>
-
-            {/* Status bar */}
-            {/* <div
-              style={{
-                fontSize: "11px",
-                color: "#666",
-                marginBottom: "10px",
-                background: "#f7f7f7",
-                padding: "8px 10px",
-                borderRadius: "8px",
-              }}
-            >
-              Assigned: {assignedCounts.adults}/{totalAdults} adults,{" "}
-              {assignedCounts.children}/{totalChildren} children
-              {totalInfants > 0 && (
-                <>, {assignedCounts.babies}/{totalInfants} infants</>
-              )}
+              Max {thisPerRoom} persons per room (adults + children) •{" "}
+              {rooms.length}/{effectiveMaxRooms} rooms
             </div> */}
 
             <div className="rooms-container">
               {rooms.map((room, roomIdx) => {
-                // ✅ per_room occupancy (infants NOT counted)
                 const roomOccupancy = room.adults + room.children;
                 const isRoomFull = roomOccupancy >= thisPerRoom;
 
@@ -373,7 +357,7 @@ const AccommodationCard = ({
                         </div>
                       )}
 
-                      {/* ✅ Babies / Infants - NOT counted in per_room */}
+                      {/* Infants */}
                       {totalInfants > 0 && (
                         <div className="occupant-type">
                           <span>
@@ -417,7 +401,8 @@ const AccommodationCard = ({
               })}
             </div>
 
-            {rooms.length < 5 && (
+            {/* ✅ Add Room مقيد بـ effectiveMaxRooms بدل 5 */}
+            {rooms.length < effectiveMaxRooms && (
               <button
                 className="add-room-btn"
                 onClick={(e) => {
@@ -425,7 +410,7 @@ const AccommodationCard = ({
                   addRoom();
                 }}
               >
-                <FaPlus /> {t("addRoom")}
+                <FaPlus /> {t("addRoom")} ({rooms.length}/{effectiveMaxRooms})
               </button>
             )}
 

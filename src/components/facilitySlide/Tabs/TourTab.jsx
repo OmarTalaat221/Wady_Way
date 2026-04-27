@@ -18,7 +18,7 @@ const formatMoney = (currency, amount) => {
 export default function TourTab({ items = [] }) {
   const normalized = useMemo(() => {
     return items.map((item) => {
-      const currency = item?.price_currency || "$";
+      const currency = "$";
       const cities = safeSplit(item?.route).map((label) => ({
         label,
         href: "/package",

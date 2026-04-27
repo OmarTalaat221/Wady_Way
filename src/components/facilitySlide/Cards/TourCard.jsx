@@ -1,50 +1,150 @@
-// TourCard.jsx
 "use client";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useQueryClient } from "@tanstack/react-query";
 import "./discount_ribbon.css";
 
-export const TourCard = ({ item }) => {
+const getFirstImage = (image) => {
+  if (Array.isArray(image)) return getFirstImage(image[0]);
+  if (typeof image === "string") {
+    return image?.split("//CAMP//")[0] || "";
+  }
+  return "";
+};
+
+const normalizeLocationItems = (items, fallbackHref) => {
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .map((item) => {
+      if (typeof item === "string") {
+        return {
+          label: item,
+          href: fallbackHref,
+        };
+      }
+
+      return {
+        label: item?.label || item?.name || "",
+        href: item?.href || fallbackHref,
+      };
+    })
+    .filter((item) => item.label);
+};
+
+const buildShareUrl = (detailsHref) => {
+  if (!detailsHref) return window.location.href;
+  if (/^https?:\/\//i.test(detailsHref)) return detailsHref;
+  return `${window.location.origin}${detailsHref}`;
+};
+
+const cleanIcon = (icon) => {
+  if (!icon) return "";
+  let result = icon;
+  let prevResult = "";
+  while (prevResult !== result) {
+    prevResult = result;
+    result = result
+      .replace(/\\\\/g, "TEMP_BACKSLASH")
+      .replace(/\\"/g, '"')
+      .replace(/TEMP_BACKSLASH/g, "")
+      .replace(/\\n/g, "")
+      .replace(/\\r/g, "")
+      .replace(/\\t/g, "");
+  }
+  result = result.replace(/\\/g, "");
+  return result.trim();
+};
+
+const TourCard = ({ item, onFavoriteChange }) => {
   const { toggleWishlist, isLoading } = useWishlist();
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [animatedId, setAnimatedId] = useState(null);
   const queryClient = useQueryClient();
 
-  // Extract ID
-  const tourId = item?.detailsHref?.split("/").pop() || item?.id;
+  const cardId = String(item?.id || item?.detailsHref?.split("/").pop() || "");
+  const itemType = item?.itemType || "tour";
+  const detailsHref = item?.detailsHref || "#";
+  const imageSrc =
+    getFirstImage(item?.image) ||
+    "https://via.placeholder.com/400x300?text=Item";
+  const priceLabel = item?.priceLabel || "Starting From:";
+  const priceNote = item?.priceNote || "TAXES INCL/PERS";
+  const ctaLabel = item?.ctaLabel || "Book a Trip";
+  const isWishlistDisabled = !!item?.isWishlistDisabled;
+
+  const badgeLocations = useMemo(
+    () => normalizeLocationItems(item?.badgeLocations, detailsHref),
+    [item?.badgeLocations, detailsHref]
+  );
+
+  const cities = useMemo(
+    () => normalizeLocationItems(item?.cities, detailsHref),
+    [item?.cities, detailsHref]
+  );
+
+  const features = useMemo(() => {
+    if (!item?.features || !Array.isArray(item.features)) return [];
+    return item.features.map((f) => {
+      if (typeof f === "string") {
+        return { id: f, name: f, icon: "" };
+      }
+      return {
+        id: f.feature_id || f.id || "",
+        name: f.name || f.feature || "",
+        icon: cleanIcon(f.icon),
+      };
+    });
+  }, [item?.features]);
 
   const handleToggleFavorite = async () => {
-    setAnimatedId(tourId);
-    const result = await toggleWishlist(tourId, "tour", item.is_fav || false);
+    if (isWishlistDisabled || !cardId) return;
+
+    setAnimatedId(cardId);
+
+    const result = await toggleWishlist(
+      cardId,
+      itemType,
+      Boolean(item?.is_fav)
+    );
+
     if (result.success) {
-      item.is_fav = result.is_fav;
+      if (typeof onFavoriteChange === "function") {
+        onFavoriteChange(result.is_fav);
+      } else {
+        item.is_fav = result.is_fav;
+      }
 
-      queryClient.setQueryData(["homeData"], (oldData) => {
-        if (!oldData?.message) return oldData;
+      if (itemType === "tour") {
+        queryClient.setQueryData(["homeData"], (oldData) => {
+          if (!oldData?.message) return oldData;
 
-        return {
-          ...oldData,
-          message: {
-            ...oldData.message,
-            // Update in tours array
-            tours: oldData.message.tours?.map((tour) =>
-              tour.id === tourId ? { ...tour, is_fav: result.is_fav } : tour
-            ),
-            // Update in affordable_tours array
-            affordable_tours: oldData.message.affordable_tours?.map((tour) =>
-              tour.id === tourId ? { ...tour, is_fav: result.is_fav } : tour
-            ),
-          },
-        };
-      });
+          return {
+            ...oldData,
+            message: {
+              ...oldData.message,
+              tours: oldData.message.tours?.map((tour) =>
+                String(tour.id) === String(cardId)
+                  ? { ...tour, is_fav: result.is_fav }
+                  : tour
+              ),
+              affordable_tours: oldData.message.affordable_tours?.map((tour) =>
+                String(tour.id) === String(cardId)
+                  ? { ...tour, is_fav: result.is_fav }
+                  : tour
+              ),
+            },
+          };
+        });
+      }
     }
+
     setTimeout(() => setAnimatedId(null), 600);
   };
 
   const toggleShareModal = () => {
-    setShareModalOpen(!shareModalOpen);
+    setShareModalOpen((prev) => !prev);
   };
 
   const closeShareModal = () => {
@@ -52,7 +152,7 @@ export const TourCard = ({ item }) => {
   };
 
   const shareOnFacebook = () => {
-    const url = `${window.location.origin}${item.detailsHref}`;
+    const url = buildShareUrl(detailsHref);
     window.open(
       `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
       "_blank"
@@ -61,59 +161,82 @@ export const TourCard = ({ item }) => {
   };
 
   const shareOnWhatsapp = () => {
-    const url = `${window.location.origin}${item.detailsHref}`;
-    const message = `Check out this amazing tour: ${item.title} - ${url}`;
+    const url = buildShareUrl(detailsHref);
+    const labelMap = {
+      hotel: "hotel",
+      transport: "car rental",
+      tour: "tour",
+    };
+    const label = labelMap[itemType] || "item";
+    const message = `Check out this amazing ${label}: ${item?.title || "Item"} - ${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
     closeShareModal();
   };
 
   const copyToClipboard = () => {
-    const url = `${window.location.origin}${item.detailsHref}`;
+    const url = buildShareUrl(detailsHref);
     navigator.clipboard.writeText(url).then(() => {
       closeShareModal();
     });
   };
 
+  // Rating display (from 5)
+  const ratingValue = useMemo(() => {
+    if (!item?.rating && item?.rating !== 0) return null;
+    const raw = parseFloat(item.rating);
+    if (isNaN(raw)) return null;
+    // If rating > 5, assume it's out of 10 and convert
+    return raw > 5 ? raw / 2 : raw;
+  }, [item?.rating]);
+
   return (
-    <div className="package-card !overflow-visible">
-      {item.offer_percentage && (
+    <div className="package-card !overflow-visible h-full">
+      {item?.offer_percentage ? (
         <div className="discount-ribbon">
           <span>{item.offer_percentage}% OFF</span>
         </div>
-      )}
+      ) : null}
+
       <div className="package-card-img-wrap">
-        <Link href={item.detailsHref} className="card-img">
+        <Link href={detailsHref} className="card-img">
           <img
-            src={item.image}
-            alt={item.title}
+            src={imageSrc}
+            alt={item?.title || "Item"}
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/400x300?text=Tour";
+              e.target.src = "https://via.placeholder.com/400x300?text=Item";
             }}
           />
         </Link>
 
-        {/* Favorite Button - Top Right */}
         <div
-          className={`favorite-btn ${item.is_fav ? "active" : ""} ${
-            animatedId === tourId ? "animate" : ""
-          } ${isLoading(tourId) ? "loading" : ""}`}
+          className={`favorite-btn ${item?.is_fav ? "active" : ""} ${
+            animatedId === cardId ? "animate" : ""
+          } ${isLoading(cardId) ? "loading" : ""} ${
+            isWishlistDisabled ? "disabled" : ""
+          }`}
           onClick={(e) => {
             e.preventDefault();
-            if (!isLoading(tourId)) {
+            e.stopPropagation();
+            if (!isLoading(cardId) && !isWishlistDisabled) {
               handleToggleFavorite();
             }
           }}
+          title={
+            isWishlistDisabled
+              ? "Login to add to favorites"
+              : "Add to favorites"
+          }
         >
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
           </svg>
         </div>
 
-        {/* Share Button - Bottom Left */}
         <div
           className="share-btn"
           onClick={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             toggleShareModal();
           }}
         >
@@ -122,8 +245,10 @@ export const TourCard = ({ item }) => {
           </svg>
         </div>
 
-        {/* Share Options Modal */}
-        <div className={`share-options ${shareModalOpen ? "show" : ""}`}>
+        <div
+          className={`share-options ${shareModalOpen ? "show" : ""}`}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="share-option facebook" onClick={shareOnFacebook}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
               <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96C15.9164 21.5878 18.0622 20.3855 19.6099 18.57C21.1576 16.7546 22.0054 14.4456 22 12.06C22 6.53 17.5 2.04 12 2.04Z" />
@@ -144,65 +269,99 @@ export const TourCard = ({ item }) => {
           </div>
         </div>
 
-        {/* Backdrop */}
         {shareModalOpen && (
           <div className="share-backdrop show" onClick={closeShareModal}></div>
         )}
 
-        {/* Badge/Duration */}
         <div className="batch">
-          {item.duration && <span className="date">{item.duration}</span>}
-          <div className="location">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width={18}
-              height={18}
-              viewBox="0 0 18 18"
-            >
-              <path d="M8.99939 0C5.40484 0 2.48047 2.92437 2.48047 6.51888C2.48047 10.9798 8.31426 17.5287 8.56264 17.8053C8.79594 18.0651 9.20326 18.0646 9.43613 17.8053C9.68451 17.5287 15.5183 10.9798 15.5183 6.51888C15.5182 2.92437 12.5939 0 8.99939 0ZM8.99939 9.79871C7.19088 9.79871 5.71959 8.32739 5.71959 6.51888C5.71959 4.71037 7.19091 3.23909 8.99939 3.23909C10.8079 3.23909 12.2791 4.71041 12.2791 6.51892C12.2791 8.32743 10.8079 9.79871 8.99939 9.79871Z" />
-            </svg>
-            <ul className="location-list">
-              {item.badgeLocations?.slice(0, 2).map((loc, idx) => (
-                <li key={idx}>
-                  <Link href={loc.href}>{loc.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {item?.duration ? (
+            <span className="date">{item.duration}</span>
+          ) : null}
+
+          {badgeLocations.length > 0 ? (
+            <div className="location">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={18}
+                height={18}
+                viewBox="0 0 18 18"
+              >
+                <path d="M8.99939 0C5.40484 0 2.48047 2.92437 2.48047 6.51888C2.48047 10.9798 8.31426 17.5287 8.56264 17.8053C8.79594 18.0651 9.20326 18.0646 9.43613 17.8053C9.68451 17.5287 15.5183 10.9798 15.5183 6.51888C15.5182 2.92437 12.5939 0 8.99939 0ZM8.99939 9.79871C7.19088 9.79871 5.71959 8.32739 5.71959 6.51888C5.71959 4.71037 7.19091 3.23909 8.99939 3.23909C10.8079 3.23909 12.2791 4.71041 12.2791 6.51892C12.2791 8.32743 10.8079 9.79871 8.99939 9.79871Z" />
+              </svg>
+              <ul className="location-list">
+                {badgeLocations.slice(0, 2).map((loc, idx) => (
+                  <li key={`${loc.label}-${idx}`}>
+                    <Link href={loc.href}>{loc.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </div>
 
       <div className="package-card-content">
         <div className="card-content-top">
           <h5 style={{ height: "60px", overflow: "hidden" }}>
-            <Link href={item.detailsHref}>{item.title}</Link>
+            <Link href={detailsHref}>{item?.title || "Item"}</Link>
           </h5>
-          <div className="location-area">
-            <ul className="location-list scrollTextAni">
-              {item.cities?.map((city, idx) => (
-                <li key={idx}>
-                  <Link href={city.href}>{city.label}</Link>
-                </li>
+
+          {/* Features row - only shown if features exist */}
+          {features.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2 mb-2">
+              {features.slice(0, 3).map((feature, idx) => (
+                <span
+                  key={feature.id || idx}
+                  className="tc-feature-tag group inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 text-[11px] rounded-md hover:bg-[#295557] hover:text-white transition-all duration-300"
+                >
+                  {feature.icon && (
+                    <span
+                      className="tc-feature-icon flex-shrink-0 [&_svg]:w-3 [&_svg]:h-3 group-hover:[&_svg]:stroke-white group-hover:[&_svg]:fill-white transition-colors duration-300"
+                      dangerouslySetInnerHTML={{ __html: feature.icon }}
+                    />
+                  )}
+                  <span>{feature.name}</span>
+                </span>
               ))}
-            </ul>
-          </div>
+              {features.length > 3 && (
+                <span className="inline-flex items-center px-2 py-1 bg-[#295557] text-white text-[11px] rounded-md font-medium">
+                  +{features.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+
+          {cities.length > 0 ? (
+            <div className="location-area">
+              <ul className="location-list scrollTextAni">
+                {cities.slice(0, 2).map((city, idx) => (
+                  <li key={`${city.label}-${idx}`}>
+                    <Link href={city.href}>{city.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
+
         <div className="card-content-bottom">
           <div className="price-area">
-            <h6>Starting From:</h6>
+            <h6>{priceLabel}</h6>
             <span>
-              {item.price}{" "}
-              {item?.oldPrice && item?.oldPrice > item?.price && (
-                <del>{item.oldPrice}</del>
-              )}
+              {item?.price || "Contact Us"}{" "}
+              {item?.oldPrice ? <del>{item.oldPrice}</del> : null}
             </span>
-            <p>TAXES INCL/PERS</p>
+            <p>{priceNote}</p>
           </div>
-          <Link href={item.detailsHref} className="primary-btn2">
-            Book a Trip
+
+          <Link href={detailsHref} className="primary-btn2">
+            {ctaLabel}
           </Link>
         </div>
       </div>
     </div>
   );
 };
+
+export { TourCard };
+export default TourCard;

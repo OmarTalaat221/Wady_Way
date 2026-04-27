@@ -1,56 +1,48 @@
 "use client";
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import ModalVideo from "react-modal-video";
+import React, { useState, useEffect, useMemo } from "react";
+import { Modal } from "antd";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import QuantityCounter from "@/uitils/QuantityCounter";
-import Lightbox from "yet-another-react-lightbox";
-import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
 import FAQ from "../../package/package-details/[packageId]/_components/FAQ";
 import { FaClock, FaFlag, FaUser } from "react-icons/fa6";
-import { TiArrowForward } from "react-icons/ti";
 import { base_url } from "../../../uitils/base_url";
 import { useSearchParams } from "next/navigation";
 import ReviewModal from "@/components/reviews/ReviewModal";
 import toast from "react-hot-toast";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
-// import InvitationCodeModal from "@/components/modals/InvitationCodeModal";
-import { FaTicket } from "react-icons/fa6";
+import GallerySection from "../../package/package-details/[packageId]/_components/GallerySection";
 
 const Page = () => {
-  const [isOpenModalVideo, setOpenModalVideo] = useState(false);
+  const [isOpen, setOpen] = useState(false);
   const [isOpenimg, setOpenimg] = useState({
     openingState: false,
     openingIndex: 0,
   });
 
-  // Dynamic data states
   const [activityData, setActivityData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Quantity states
   const [adultQuantity, setAdultQuantity] = useState(1);
   const [childQuantity, setChildQuantity] = useState(0);
 
-  // Booking states
   const [selectedDate, setSelectedDate] = useState("");
+  const [calendarDate, setCalendarDate] = useState(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState(null);
 
-  // Review modal state
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-
-  // Refs for modal click outside detection
-  const confirmModalRef = useRef(null);
-  const bookingModalRef = useRef(null);
 
   const searchParams = useSearchParams();
   const activityId = searchParams.get("id");
 
-  // Add the invite code hook
   const {
     inviteCode,
     hasStoredCode,
@@ -59,43 +51,29 @@ const Page = () => {
     clearCurrentInviteCode,
   } = useInviteCode(INVITE_CODE_TYPES.ACTIVITY, activityId);
 
-  // Add invitation modal states
   const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
   const [invitationLoading, setInvitationLoading] = useState(false);
 
-  // ─── Derived: is this activity suitable for children? ───────────────────────
   const isForChildren = useMemo(() => {
     return (
       activityData?.for_children === "1" || activityData?.for_children === 1
     );
   }, [activityData?.for_children]);
 
-  // Extract YouTube Video ID
   const extractYouTubeVideoId = (url) => {
     if (!url) return null;
-
-    // Already just an ID
-    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
-      return url;
-    }
-
-    // Extract from various YouTube URL formats
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
     const patterns = [
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
       /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
     ];
-
     for (const pattern of patterns) {
       const match = url.match(pattern);
-      if (match && match[1]) {
-        return match[1];
-      }
+      if (match && match[1]) return match[1];
     }
-
     return null;
   };
 
-  // Generate images array from activity data
   const images = useMemo(() => {
     if (
       activityData?.image &&
@@ -106,56 +84,35 @@ const Page = () => {
         imageBig: image,
       }));
     }
-    return [
-      {
-        id: 1,
-        imageBig: "/path/to/default-activity-image.jpg",
-      },
-    ];
+    return [{ id: 1, imageBig: "/path/to/default-activity-image.jpg" }];
   }, [activityData?.image]);
 
-  // Extract video ID
   const extractedVideoId = useMemo(() => {
     return extractYouTubeVideoId(activityData?.video_link);
   }, [activityData?.video_link]);
 
-  const hasVideo = !!extractedVideoId;
-  const imageCount = images.length;
-
-  // Max people calculation
   const maxPeople = useMemo(() => {
     const max = parseInt(activityData?.max_people) || 0;
     return max > 0 ? max : null;
   }, [activityData?.max_people]);
 
-  // Calculate remaining slots
-  const remainingSlots = useMemo(() => {
-    if (!maxPeople) return null;
-    return maxPeople - (adultQuantity + childQuantity);
-  }, [maxPeople, adultQuantity, childQuantity]);
-
-  // Calculate max for adult quantity
   const maxAdultQuantity = useMemo(() => {
     if (!maxPeople) return 99;
-    // If not for children, children will always be 0 so adults can fill all slots
     return Math.max(1, maxPeople - childQuantity);
   }, [maxPeople, childQuantity]);
 
-  // Calculate max for child quantity
   const maxChildQuantity = useMemo(() => {
-    if (!isForChildren) return 0; // hard cap — no children allowed
+    if (!isForChildren) return 0;
     if (!maxPeople) return 99;
     return Math.max(0, maxPeople - adultQuantity);
   }, [isForChildren, maxPeople, adultQuantity]);
 
-  // Reset child quantity to 0 if activity is not for children
   useEffect(() => {
     if (activityData && !isForChildren && childQuantity > 0) {
       setChildQuantity(0);
     }
   }, [isForChildren, activityData]);
 
-  // Handle adult quantity change with max people validation
   const handleAdultQuantityChange = (newQuantity) => {
     if (maxPeople) {
       const totalAfterChange = newQuantity + childQuantity;
@@ -167,9 +124,7 @@ const Page = () => {
     setAdultQuantity(newQuantity);
   };
 
-  // Handle child quantity change with max people validation
   const handleChildQuantityChange = (newQuantity) => {
-    // Guard: activity not suitable for children
     if (!isForChildren) {
       toast.error("This activity is not suitable for children");
       return;
@@ -184,20 +139,15 @@ const Page = () => {
     setChildQuantity(newQuantity);
   };
 
-  // Calculate total price
   const calculateTotalPrice = () => {
     if (!activityData) return 0;
-
     const adultTotal = parseFloat(activityData.per_adult) * adultQuantity;
-    // If not for children, child total is always 0
     const childTotal = isForChildren
       ? parseFloat(activityData.per_child) * childQuantity
       : 0;
-
     return (adultTotal + childTotal).toFixed(2);
   };
 
-  // Fetch activity data
   const fetchActivityData = async () => {
     try {
       setLoading(true);
@@ -205,17 +155,11 @@ const Page = () => {
         `${base_url}/user/activities/select_activity_by_id.php`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            activity_id: parseInt(activityId),
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ activity_id: parseInt(activityId) }),
         }
       );
-
       const result = await response.json();
-
       if (result.status === "success" && result.message.length > 0) {
         setActivityData(result.message[0]);
       } else {
@@ -229,16 +173,23 @@ const Page = () => {
     }
   };
 
-  // Handle review submission success
   const handleReviewSuccess = (reviewData) => {
     console.log("Review submitted:", reviewData);
     fetchActivityData();
   };
 
+  // --- Calendar handler ---
+  const handleCalendarChange = (date) => {
+    setCalendarDate(date);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    setSelectedDate(`${year}-${month}-${day}`);
+    setIsCalendarOpen(false);
+  };
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
-
-    // Get user data
     const userData = localStorage.getItem("user");
     if (!userData) {
       toast.error("Please login to make a booking");
@@ -247,38 +198,21 @@ const Page = () => {
       }, 1500);
       return;
     }
-
     if (!selectedDate) {
       toast.error("Please select a booking date");
       return;
     }
-
-    // Validate max people
     if (maxPeople && adultQuantity + childQuantity > maxPeople) {
       toast.error(`Maximum ${maxPeople} people allowed for this activity`);
       return;
     }
-
-    // Guard: children selected but activity not for children (extra safety)
     if (!isForChildren && childQuantity > 0) {
       toast.error("This activity is not suitable for children");
       return;
     }
-
     setIsConfirmModalOpen(true);
   };
 
-  const handleInvitationSubmit = (code) => {
-    setInvitationLoading(true);
-    setTimeout(() => {
-      setManualInviteCode(code);
-      setInvitationLoading(false);
-      setIsInvitationModalOpen(false);
-      setIsConfirmModalOpen(true);
-    }, 600);
-  };
-
-  // Handle actual booking submission
   const handleConfirmBooking = async () => {
     setIsConfirmModalOpen(false);
     setIsBookingModalOpen(true);
@@ -302,15 +236,11 @@ const Page = () => {
         invite_code: inviteCode || "",
       };
 
-      console.log("📤 Booking with invite code:", inviteCode);
-
       const response = await fetch(
         `${base_url}/user/activities/reserve_activity.php`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(bookingData),
         }
       );
@@ -319,7 +249,6 @@ const Page = () => {
 
       if (result.status === "success") {
         clearCurrentInviteCode();
-        console.log("🗑️ Invite code cleared after successful booking");
         setBookingSuccess(true);
       } else {
         setBookingError(result.message || "Booking failed. Please try again.");
@@ -335,23 +264,12 @@ const Page = () => {
     }
   };
 
-  // Close confirmation modal
-  const closeConfirmModal = () => {
-    setIsConfirmModalOpen(false);
-  };
+  const closeConfirmModal = () => setIsConfirmModalOpen(false);
 
-  // Close booking modal
   const closeBookingModal = () => {
     setIsBookingModalOpen(false);
     setBookingSuccess(false);
     setBookingError(null);
-  };
-
-  // Handle click outside modal
-  const handleModalOutsideClick = (e, modalRef, closeFunction) => {
-    if (modalRef.current && !modalRef.current.contains(e.target)) {
-      closeFunction();
-    }
   };
 
   useEffect(() => {
@@ -360,7 +278,38 @@ const Page = () => {
     }
   }, [activityId]);
 
-  // Loading state
+  // --- Ratings ---
+  const validRatings = useMemo(() => {
+    if (!activityData?.ratings || !Array.isArray(activityData.ratings))
+      return [];
+    return activityData.ratings.filter(
+      (r) => r.score !== null && r.score !== undefined && r.score !== ""
+    );
+  }, [activityData?.ratings]);
+
+  const overallRating = useMemo(() => {
+    if (validRatings.length === 0) return null;
+    const total = validRatings.reduce((sum, r) => {
+      let score = parseFloat(r.score);
+      if (isNaN(score)) return sum;
+      const max = parseFloat(r.maxScore) || 10;
+      const normalized = max > 5 ? (score / max) * 5 : score;
+      return sum + normalized;
+    }, 0);
+    const avg = total / validRatings.length;
+    return avg > 0 ? avg.toFixed(1) : null;
+  }, [validRatings]);
+
+  // --- Map ---
+  const mapFallbackUrl = useMemo(() => {
+    const lat = parseFloat(activityData?.latitude);
+    const lng = parseFloat(activityData?.longitude);
+    if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+      return `https://maps.google.com/maps?q=${lat},${lng}&z=12&output=embed`;
+    }
+    return null;
+  }, [activityData?.latitude, activityData?.longitude]);
+
   if (loading || inviteCodeLoading) {
     return (
       <>
@@ -369,7 +318,11 @@ const Page = () => {
           pagetitle="Activities Details"
         />
         <div className="loading-container text-center py-5">
-          <div className="spinner-border border-[#295557]" role="status">
+          <div
+            className="spinner-border"
+            style={{ color: "#295557" }}
+            role="status"
+          >
             <span className="visually-hidden">Loading...</span>
           </div>
           <p className="mt-3">Loading activity details...</p>
@@ -378,7 +331,6 @@ const Page = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <>
@@ -393,7 +345,6 @@ const Page = () => {
     );
   }
 
-  // No data state
   if (!activityData) {
     return (
       <>
@@ -408,6 +359,58 @@ const Page = () => {
     );
   }
 
+  // --- Confirm Modal Footer ---
+  const confirmModalFooter = (
+    <div className="flex justify-end gap-3">
+      <button
+        type="button"
+        className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors"
+        onClick={closeConfirmModal}
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="px-5 py-2.5 rounded-lg text-white font-medium text-sm transition-colors flex items-center gap-2"
+        style={{ backgroundColor: "#295557" }}
+        onClick={handleConfirmBooking}
+        onMouseEnter={(e) => (e.target.style.backgroundColor = "#1e3e40")}
+        onMouseLeave={(e) => (e.target.style.backgroundColor = "#295557")}
+      >
+        <i className="bi bi-check-circle"></i>
+        Confirm Booking
+      </button>
+    </div>
+  );
+
+  // --- Booking Status Modal Footer ---
+  const bookingModalFooter = bookingLoading ? null : (
+    <div className="flex justify-end gap-3">
+      <button
+        type="button"
+        className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors"
+        onClick={closeBookingModal}
+      >
+        Close
+      </button>
+      {bookingError && (
+        <button
+          type="button"
+          className="px-5 py-2.5 rounded-lg text-white font-medium text-sm transition-colors"
+          style={{ backgroundColor: "#295557" }}
+          onClick={() => {
+            closeBookingModal();
+            setIsConfirmModalOpen(true);
+          }}
+          onMouseEnter={(e) => (e.target.style.backgroundColor = "#1e3e40")}
+          onMouseLeave={(e) => (e.target.style.backgroundColor = "#295557")}
+        >
+          Try Again
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <>
       <Breadcrumb
@@ -418,171 +421,14 @@ const Page = () => {
         <div className="container">
           <div className="row">
             <div className="col-lg-12">
-              {/* Dynamic Gallery Section */}
-              <div className="package-img-group mb-50">
-                <div className="row g-3">
-                  {/* Single Image */}
-                  {imageCount === 1 && (
-                    <div className="col-lg-12">
-                      <div className="gallery-img-wrap position-relative">
-                        <img
-                          src={
-                            images[0]?.imageBig || "/path/to/default-image.jpg"
-                          }
-                          alt={activityData?.title || "Activity Image"}
-                        />
-                        <a>
-                          <i
-                            className="bi bi-eye"
-                            onClick={() =>
-                              setOpenimg({
-                                openingState: true,
-                                openingIndex: 0,
-                              })
-                            }
-                          />
-                        </a>
-                        {hasVideo && (
-                          <button
-                            className="position-absolute bottom-0 end-0 m-3 btn btn-primary"
-                            onClick={() => setOpenModalVideo(true)}
-                          >
-                            <i className="bi bi-play-circle me-2" />
-                            Watch Video
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Two Images */}
-                  {imageCount === 2 && (
-                    <>
-                      {images.slice(0, 2).map((image, index) => (
-                        <div key={image.id} className="col-lg-6">
-                          <div className="gallery-img-wrap position-relative">
-                            <img
-                              src={
-                                image.imageBig || "/path/to/default-image.jpg"
-                              }
-                              alt={`${activityData?.title || "Activity"} Image ${index + 1}`}
-                            />
-                            <a>
-                              <i
-                                className="bi bi-eye"
-                                onClick={() =>
-                                  setOpenimg({
-                                    openingState: true,
-                                    openingIndex: index,
-                                  })
-                                }
-                              />{" "}
-                              View Activity
-                            </a>
-                            {index === 1 && hasVideo && (
-                              <button
-                                className="position-absolute bottom-0 end-0 m-3"
-                                style={{ cursor: "pointer" }}
-                                onClick={() => setOpenModalVideo(true)}
-                              >
-                                <i className="bi bi-play-circle" /> Watch Video
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
-
-                  {/* Three or More Images */}
-                  {imageCount >= 3 && (
-                    <>
-                      <div className="col-lg-6">
-                        <div className="gallery-img-wrap">
-                          <img
-                            src={
-                              images[0]?.imageBig ||
-                              "/path/to/default-image.jpg"
-                            }
-                            alt={activityData?.title || "Activity Image"}
-                          />
-                          <a>
-                            <i
-                              className="bi bi-eye"
-                              onClick={() =>
-                                setOpenimg({
-                                  openingState: true,
-                                  openingIndex: 0,
-                                })
-                              }
-                            />{" "}
-                            View Activity
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="col-lg-6">
-                        <div className="row g-3">
-                          {images
-                            .slice(1, imageCount >= 5 ? 5 : imageCount)
-                            .map((image, index) => (
-                              <div key={image.id} className="col-6">
-                                <div
-                                  className={`gallery-img-wrap ${index >= 2 ? "active" : ""}`}
-                                >
-                                  <img
-                                    src={image.imageBig}
-                                    alt={`${activityData?.title || "Activity"} Image ${index + 2}`}
-                                  />
-                                  {index === 3 && imageCount > 5 ? (
-                                    <button
-                                      onClick={() =>
-                                        setOpenimg({
-                                          openingState: true,
-                                          openingIndex: index + 1,
-                                        })
-                                      }
-                                      className="StartSlideShowFirstImage"
-                                    >
-                                      <i className="bi bi-plus-lg" /> View More
-                                      Images
-                                    </button>
-                                  ) : index === 2 && hasVideo ? (
-                                    <a
-                                      data-fancybox="gallery-01"
-                                      style={{ cursor: "pointer" }}
-                                      onClick={() => setOpenModalVideo(true)}
-                                    >
-                                      <i className="bi bi-play-circle" /> Watch
-                                      Video
-                                    </a>
-                                  ) : index === 2 &&
-                                    !hasVideo &&
-                                    imageCount === 4 ? (
-                                    <button
-                                      onClick={() =>
-                                        setOpenimg({
-                                          openingState: true,
-                                          openingIndex: index + 1,
-                                        })
-                                      }
-                                      className="StartSlideShowFirstImage"
-                                    >
-                                      <i className="bi bi-plus-lg" /> View More
-                                      Images
-                                    </button>
-                                  ) : index === 3 && hasVideo ? (
-                                    <></>
-                                  ) : null}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+              <GallerySection
+                images={images}
+                videoId={extractedVideoId}
+                setOpenimg={setOpenimg}
+                isOpenimg={isOpenimg}
+                isOpen={isOpen}
+                setOpen={setOpen}
+              />
             </div>
           </div>
 
@@ -597,13 +443,12 @@ const Page = () => {
               <div className="flex items-center gap-3">
                 <div className="tour-price">
                   <h3>
-                    {activityData.price_currency}
+                    {"$"}
                     {activityData.per_adult}/
                   </h3>
-                  <span>{"adult"}</span>
+                  <span>adult</span>
                 </div>
 
-                {/* Only show child price if activity is for children */}
                 {isForChildren && (
                   <>
                     <div className="tour-price">
@@ -611,10 +456,10 @@ const Page = () => {
                     </div>
                     <div className="tour-price">
                       <h3>
-                        {activityData.price_currency}
+                        {"$"}
                         {activityData.per_child}/
                       </h3>
-                      <span>{"child"}</span>
+                      <span>child</span>
                     </div>
                   </>
                 )}
@@ -648,11 +493,23 @@ const Page = () => {
                   <h4>Highlights of the Activity</h4>
                   <ul>
                     {activityData.features.map((feature, index) => (
-                      <li key={feature.id || index}>
-                        <span>
-                          <i className="bi bi-check" />
-                        </span>{" "}
-                        <strong>{feature.label}:</strong> {feature.name}
+                      <li
+                        key={feature.id || index}
+                        className="activity-highlight-item"
+                      >
+                        {feature.icon ? (
+                          <span
+                            className="activity-highlight-icon"
+                            dangerouslySetInnerHTML={{ __html: feature.icon }}
+                          />
+                        ) : (
+                          <span className="activity-highlight-icon">
+                            <i className="bi bi-check" />
+                          </span>
+                        )}
+                        <div className="activity-highlight-text">
+                          <strong>{feature.label}:</strong> {feature.name}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -661,16 +518,27 @@ const Page = () => {
 
               <div className="tour-location">
                 <h4>Location Map</h4>
-                <div className="map-area mb-30">
-                  <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d193325.0481540361!2d-74.06757856146028!3d40.79052383652264!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c24fa5d33f083b%3A0xc80b8f06e177fe62!2sNew%20York%2C%20NY%2C%20USA!5e0!3m2!1sen!2sbd!4v1660366711448!5m2!1sen!2sbd"
-                    width={600}
-                    height={450}
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
+                <div className=" mb-30">
+                  {mapFallbackUrl ? (
+                    <iframe
+                      src={mapFallbackUrl}
+                      width="100%"
+                      height={450}
+                      style={{ border: 0, borderRadius: "12px" }}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  ) : (
+                    <div
+                      className="flex items-center justify-center bg-gray-100 rounded-xl"
+                      style={{ height: 450 }}
+                    >
+                      <p className="text-gray-500">
+                        Location not available for this activity
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -680,29 +548,71 @@ const Page = () => {
                 </div>
               )}
 
-              {/* Review Section */}
               <div className="review-wrapper">
                 <h4>Customer Review</h4>
                 <div className="review-box">
                   <div className="total-review">
-                    <h2>{activityData?.rating || "9.5"}</h2>
+                    <h2>{overallRating || "N/A"}</h2>
                     <div className="review-wrap">
                       <ul className="star-list">
-                        {[...Array(5)].map((_, i) => (
-                          <li key={i}>
-                            <i
-                              className={
-                                i < 4 ? "bi bi-star-fill" : "bi bi-star-half"
-                              }
-                            />
-                          </li>
-                        ))}
+                        {[...Array(5)].map((_, i) => {
+                          const rating = parseFloat(overallRating) || 0;
+                          const starIndex = i + 1;
+                          return (
+                            <li key={i}>
+                              <i
+                                className={
+                                  rating >= starIndex
+                                    ? "bi bi-star-fill"
+                                    : rating >= starIndex - 0.5
+                                      ? "bi bi-star-half"
+                                      : "bi bi-star"
+                                }
+                              />
+                            </li>
+                          );
+                        })}
                       </ul>
-                      <span>
-                        {activityData?.reviews_count || "2590"} Reviews
+                      <span className="text-gray-500 text-sm">
+                        {overallRating
+                          ? `${overallRating} / 5`
+                          : "No ratings yet"}
                       </span>
                     </div>
                   </div>
+
+                  {validRatings.length > 0 && (
+                    <div className="flex flex-wrap gap-3 mt-3 mb-3">
+                      {validRatings.map((r, idx) => {
+                        const score = parseFloat(r.score);
+                        const max = parseFloat(r.maxScore) || 10;
+                        const normalized =
+                          max > 5
+                            ? ((score / max) * 5).toFixed(1)
+                            : score.toFixed(1);
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"
+                          >
+                            {r.logo && (
+                              <img
+                                src={r.logo}
+                                alt={r.platform || "Rating"}
+                                className="w-5 h-5 object-contain"
+                              />
+                            )}
+                            <span className="text-sm font-medium text-gray-700">
+                              {r.platform || "Rating"}
+                            </span>
+                            <span className="text-sm font-bold text-[#e8a355]">
+                              {normalized}/5
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   <button
                     className="primary-btn1"
@@ -714,7 +624,7 @@ const Page = () => {
               </div>
             </div>
 
-            {/* ─── Booking Sidebar ─────────────────────────────────────────── */}
+            {/* ===== Sidebar Booking Form ===== */}
             <div className="col-xl-4">
               <div className="booking-form-wrap">
                 <h4>Reserve Your Activity</h4>
@@ -722,7 +632,6 @@ const Page = () => {
                   Secure your spot for an unforgettable nature adventure now!
                 </p>
 
-                {/* Max People Notice */}
                 {maxPeople && (
                   <div className="alert alert-info mb-3">
                     <i className="bi bi-info-circle me-2"></i>
@@ -731,7 +640,6 @@ const Page = () => {
                   </div>
                 )}
 
-                {/* Adults-only notice in sidebar */}
                 {!isForChildren && (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 text-amber-800 text-xs font-medium px-3 py-2 rounded-lg mb-3">
                     <svg
@@ -760,35 +668,136 @@ const Page = () => {
                   >
                     <div className="sidebar-booking-form">
                       <form onSubmit={handleFormSubmit}>
+                        {/* ===== Calendar Date Picker ===== */}
                         <div className="tour-date-wrap mb-50">
                           <h6>Select Your Booking Date:</h6>
-                          <div className="form-inner mb-[20px]">
-                            <div className="form-group">
-                              <input
-                                type="date"
-                                name="inOut"
-                                value={selectedDate}
-                                onChange={(e) =>
-                                  setSelectedDate(e.target.value)
-                                }
-                                min={new Date().toISOString().split("T")[0]}
-                                required
+
+                          {/* Clickable Date Display */}
+                          <div
+                            className="activity-cal-trigger"
+                            onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                          >
+                            <div className="activity-cal-trigger-left">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <rect
+                                  x="3"
+                                  y="4"
+                                  width="18"
+                                  height="18"
+                                  rx="2"
+                                  ry="2"
+                                />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                              </svg>
+                              <div className="activity-cal-trigger-text">
+                                {selectedDate ? (
+                                  <>
+                                    <span className="activity-cal-date-main">
+                                      {new Date(
+                                        selectedDate + "T00:00:00"
+                                      ).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })}
+                                    </span>
+                                    <span className="activity-cal-date-sub">
+                                      {new Date(
+                                        selectedDate + "T00:00:00"
+                                      ).toLocaleDateString("en-US", {
+                                        weekday: "long",
+                                      })}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="activity-cal-placeholder">
+                                    Choose a date
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className={`activity-cal-chevron ${isCalendarOpen ? "activity-cal-chevron-open" : ""}`}
+                            >
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </div>
+
+                          {/* Calendar Dropdown */}
+                          {isCalendarOpen && (
+                            <div className="activity-cal-dropdown">
+                              <Calendar
+                                onChange={handleCalendarChange}
+                                value={calendarDate}
+                                minDate={new Date()}
+                                locale="en-US"
+                                className="activity-react-calendar"
                               />
                             </div>
-                          </div>
+                          )}
+
+                          {/* Selected date chip */}
+                          {selectedDate && !isCalendarOpen && (
+                            <div className="activity-cal-selected-chip">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                <polyline points="22 4 12 14.01 9 11.01" />
+                              </svg>
+                              <span>
+                                {new Date(
+                                  selectedDate + "T00:00:00"
+                                ).toLocaleDateString("en-US", {
+                                  weekday: "long",
+                                  month: "long",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="booking-form-item-type mb-45">
-                          {/* Adults counter — always shown */}
                           <div className="number-input-item adults">
                             <label className="number-input-lable">
                               Adult:<span></span>
                               <span className="mx-1">
-                                {activityData.price_currency}
+                                {"$"}
                                 {activityData.per_adult}
                                 {activityData.price_original && (
                                   <del>
-                                    {activityData.price_currency}
+                                    {"$"}
                                     {activityData.price_original}
                                   </del>
                                 )}
@@ -804,13 +813,12 @@ const Page = () => {
                             />
                           </div>
 
-                          {/* Children counter — only shown if activity is for children */}
                           {isForChildren && (
                             <div className="number-input-item children">
                               <label className="number-input-lable">
                                 Children:<span></span>
                                 <span>
-                                  {activityData.price_currency}
+                                  {"$"}
                                   {activityData.per_child}
                                 </span>
                               </label>
@@ -826,7 +834,6 @@ const Page = () => {
                           )}
                         </div>
 
-                        {/* Price breakdown */}
                         <div className="booking-form-item-type">
                           {adultQuantity > 0 && (
                             <div className="single-total mb-30">
@@ -834,7 +841,7 @@ const Page = () => {
                               <ul>
                                 <li>
                                   <strong>
-                                    {activityData.price_currency}
+                                    {"$"}
                                     {activityData.per_adult}
                                   </strong>{" "}
                                   PRICE
@@ -859,7 +866,7 @@ const Page = () => {
                                 />
                               </svg>
                               <div className="total">
-                                {activityData.price_currency}
+                                {"$"}
                                 {(
                                   parseFloat(activityData.per_adult) *
                                   adultQuantity
@@ -868,14 +875,13 @@ const Page = () => {
                             </div>
                           )}
 
-                          {/* Children price row — only when for_children AND quantity > 0 */}
                           {isForChildren && childQuantity > 0 && (
                             <div className="single-total mb-30">
                               <span>Children</span>
                               <ul>
                                 <li>
                                   <strong>
-                                    {activityData.price_currency}
+                                    {"$"}
                                     {activityData.per_child}
                                   </strong>{" "}
                                   PRICE
@@ -900,7 +906,7 @@ const Page = () => {
                                 />
                               </svg>
                               <div className="total">
-                                {activityData.price_currency}
+                                {"$"}
                                 {(
                                   parseFloat(activityData.per_child) *
                                   childQuantity
@@ -911,8 +917,7 @@ const Page = () => {
                         </div>
 
                         <div className="total-price">
-                          <span>Total Price:</span>{" "}
-                          {activityData.price_currency}
+                          <span>Total Price:</span> {"$"}
                           {calculateTotalPrice()}
                         </div>
                         <button type="submit" className="primary-btn1 two">
@@ -927,273 +932,382 @@ const Page = () => {
           </div>
         </div>
 
-        {/* ─── Confirmation Modal ──────────────────────────────────────────── */}
-        {isConfirmModalOpen && (
-          <div
-            className="modal fade show d-block"
-            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-            onClick={(e) =>
-              handleModalOutsideClick(e, confirmModalRef, closeConfirmModal)
-            }
-          >
-            <div className="modal-dialog !max-w-[800px] modal-dialog-centered">
-              <div className="modal-content" ref={confirmModalRef}>
-                <div className="modal-header border-0">
-                  <h5 className="modal-title">Confirm Your Booking</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={closeConfirmModal}
-                  ></button>
-                </div>
-                <div className="modal-body py-4">
-                  <div className="booking-confirmation">
-                    <div className="alert alert-info mb-4">
-                      <h6 className="alert-heading mb-3">
-                        <i className="bi bi-info-circle-fill me-2"></i>
-                        Please review your booking details
-                      </h6>
-                      <p className="mb-0">
-                        Once confirmed, your booking request will be submitted
-                        for review.
-                      </p>
-                    </div>
-
-                    <div className="booking-summary">
-                      <h6 className="mb-3">Booking Summary:</h6>
-                      <div className="row">
-                        <div className="col-12">
-                          <div className="summary-item mb-3 p-3 bg-light rounded">
-                            <h6 className="text-primary mb-2">
-                              {activityData.title}
-                            </h6>
-                            <div className="summary-details">
-                              <div className="row mb-2">
-                                <div className="col-6">
-                                  <strong>Date:</strong>
-                                </div>
-                                <div className="col-6">
-                                  {new Date(selectedDate).toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      weekday: "long",
-                                      year: "numeric",
-                                      month: "long",
-                                      day: "numeric",
-                                    }
-                                  )}
-                                </div>
-                              </div>
-                              <div className="row mb-2">
-                                <div className="col-6">
-                                  <strong>Adults:</strong>
-                                </div>
-                                <div className="col-6">
-                                  {adultQuantity} ×{" "}
-                                  {activityData.price_currency}
-                                  {activityData.per_adult}
-                                </div>
-                              </div>
-                              {/* Only show children row in confirmation if applicable */}
-                              {isForChildren && childQuantity > 0 && (
-                                <div className="row mb-2">
-                                  <div className="col-6">
-                                    <strong>Children:</strong>
-                                  </div>
-                                  <div className="col-6">
-                                    {childQuantity} ×{" "}
-                                    {activityData.price_currency}
-                                    {activityData.per_child}
-                                  </div>
-                                </div>
-                              )}
-                              <div className="row mb-2">
-                                <div className="col-6">
-                                  <strong>Total Guests:</strong>
-                                </div>
-                                <div className="col-6">
-                                  {adultQuantity +
-                                    (isForChildren ? childQuantity : 0)}{" "}
-                                  {isForChildren ? "people" : "adults"}
-                                  {maxPeople && ` (Max: ${maxPeople})`}
-                                </div>
-                              </div>
-
-                              {/* Adults-only notice inside confirmation modal */}
-                              {!isForChildren && (
-                                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs px-3 py-2 rounded mb-2">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="w-3.5 h-3.5 shrink-0"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                                    <line x1="12" y1="9" x2="12" y2="13" />
-                                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                                  </svg>
-                                  Adults only activity — no children included
-                                </div>
-                              )}
-
-                              <hr />
-                              <div className="row">
-                                <div className="col-6">
-                                  <strong>Total Amount:</strong>
-                                </div>
-                                <div className="col-6">
-                                  <strong className="text-success">
-                                    {activityData.price_currency}
-                                    {calculateTotalPrice()}
-                                  </strong>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer border-0">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={closeConfirmModal}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleConfirmBooking}
-                  >
-                    <i className="bi bi-check-circle me-2"></i>
-                    Confirm Booking
-                  </button>
-                </div>
+        {/* ===== Ant Design Confirmation Modal ===== */}
+        <Modal
+          open={isConfirmModalOpen}
+          onCancel={closeConfirmModal}
+          title={null}
+          footer={null}
+          centered
+          width={720}
+          destroyOnClose
+          className="activity-booking-modal"
+          styles={{
+            body: {
+              maxHeight: "65vh",
+              overflowY: "auto",
+              padding: 0,
+            },
+          }}
+        >
+          <div className="activity-modal-inner">
+            <div className="activity-modal-header">
+              <div className="activity-modal-header-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="activity-modal-title">Confirm Your Booking</h3>
+                <p className="activity-modal-subtitle">
+                  Please review the details below before confirming
+                </p>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* ─── Booking Status Modal ────────────────────────────────────────── */}
-        {isBookingModalOpen && (
-          <div
-            className="modal fade show d-block"
-            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-            onClick={(e) =>
-              !bookingLoading &&
-              handleModalOutsideClick(e, bookingModalRef, closeBookingModal)
-            }
-          >
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content" ref={bookingModalRef}>
-                <div className="modal-header border-0">
-                  <h5 className="modal-title">
-                    {bookingLoading
-                      ? "Processing Booking..."
-                      : bookingSuccess
-                        ? "Booking Submitted!"
-                        : "Booking Error"}
-                  </h5>
-                  {!bookingLoading && (
-                    <button
-                      type="button"
-                      className="btn-close"
-                      onClick={closeBookingModal}
-                    ></button>
-                  )}
-                </div>
-                <div className="modal-body text-center py-4">
-                  {bookingLoading && (
-                    <>
-                      <div
-                        className="spinner-border text-primary mb-3"
-                        role="status"
-                      >
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                      <p>Please wait while we process your booking...</p>
-                    </>
-                  )}
+            <div className="activity-modal-info-banner">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span>
+                Once confirmed, the total amount will be held from your wallet
+                balance until the booking is approved or rejected.
+              </span>
+            </div>
 
-                  {bookingSuccess && (
-                    <>
-                      <div className="text-success mb-3">
-                        <i
-                          className="bi bi-check-circle-fill"
-                          style={{ fontSize: "3rem" }}
-                        ></i>
-                      </div>
-                      <h4 className="text-success mb-3">
-                        Booking Under Review
-                      </h4>
-                      <div className="alert alert-info">
-                        <p className="mb-2">
-                          <strong>Thank you for your booking!</strong>
-                        </p>
-                        <p className="mb-2">
-                          Your booking request is currently under review. Our
-                          team will verify your information and check the
-                          required papers.
-                        </p>
-                        <p className="mb-0">
-                          <strong>
-                            Once approved, we will send a payment link to your
-                            email address to complete your reservation.
-                          </strong>
-                        </p>
-                      </div>
-                    </>
-                  )}
+            <div className="activity-modal-summary-card">
+              <div className="activity-modal-summary-header">
+                <h4>{activityData.title}</h4>
+                <span className="activity-modal-type-badge">
+                  {activityData.activity_type}
+                </span>
+              </div>
 
-                  {bookingError && (
-                    <>
-                      <div className="text-danger mb-3">
-                        <i
-                          className="bi bi-exclamation-triangle-fill"
-                          style={{ fontSize: "3rem" }}
-                        ></i>
-                      </div>
-                      <h4 className="text-danger mb-3">Booking Failed</h4>
-                      <div className="alert alert-danger">{bookingError}</div>
-                    </>
-                  )}
-                </div>
-                {!bookingLoading && (
-                  <div className="modal-footer border-0">
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={closeBookingModal}
+              <div className="activity-modal-summary-grid">
+                <div className="activity-modal-summary-row">
+                  <span className="activity-modal-summary-label">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      Close
-                    </button>
-                    {bookingError && (
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => {
-                          closeBookingModal();
-                          setIsConfirmModalOpen(true);
-                        }}
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Date
+                  </span>
+                  <span className="activity-modal-summary-value">
+                    {selectedDate
+                      ? new Date(selectedDate + "T00:00:00").toLocaleDateString(
+                          "en-US",
+                          {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )
+                      : "—"}
+                  </span>
+                </div>
+
+                <div className="activity-modal-summary-row">
+                  <span className="activity-modal-summary-label">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    Adults
+                  </span>
+                  <span className="activity-modal-summary-value">
+                    {adultQuantity} × ${activityData.per_adult} ={" "}
+                    <strong>
+                      $
+                      {(
+                        parseFloat(activityData.per_adult) * adultQuantity
+                      ).toFixed(2)}
+                    </strong>
+                  </span>
+                </div>
+
+                {isForChildren && childQuantity > 0 && (
+                  <div className="activity-modal-summary-row">
+                    <span className="activity-modal-summary-label">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       >
-                        Try Again
-                      </button>
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                      </svg>
+                      Children
+                    </span>
+                    <span className="activity-modal-summary-value">
+                      {childQuantity} × ${activityData.per_child} ={" "}
+                      <strong>
+                        $
+                        {(
+                          parseFloat(activityData.per_child) * childQuantity
+                        ).toFixed(2)}
+                      </strong>
+                    </span>
+                  </div>
+                )}
+
+                <div className="activity-modal-summary-row">
+                  <span className="activity-modal-summary-label">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    Total Guests
+                  </span>
+                  <span className="activity-modal-summary-value">
+                    {adultQuantity + (isForChildren ? childQuantity : 0)}{" "}
+                    {isForChildren ? "people" : "adults"}
+                    {maxPeople && (
+                      <span className="text-gray-400 text-xs ml-1">
+                        (Max: {maxPeople})
+                      </span>
                     )}
+                  </span>
+                </div>
+
+                {!isForChildren && (
+                  <div className="activity-modal-adults-only-badge">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    Adults only activity — no children included
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Review Modal */}
+              <div className="activity-modal-total-bar">
+                <span>Total Amount</span>
+                <span className="activity-modal-total-amount">
+                  ${calculateTotalPrice()}
+                </span>
+              </div>
+            </div>
+
+            <div className="activity-modal-footer">{confirmModalFooter}</div>
+          </div>
+        </Modal>
+
+        {/* ===== Ant Design Booking Status Modal ===== */}
+        <Modal
+          open={isBookingModalOpen}
+          onCancel={bookingLoading ? undefined : closeBookingModal}
+          title={null}
+          footer={null}
+          centered
+          width={520}
+          closable={!bookingLoading}
+          maskClosable={!bookingLoading}
+          destroyOnClose
+          className="activity-booking-modal"
+          styles={{
+            body: {
+              maxHeight: "65vh",
+              overflowY: "auto",
+              padding: 0,
+            },
+          }}
+        >
+          <div className="activity-modal-inner">
+            {bookingLoading && (
+              <div className="activity-modal-status-content">
+                <div className="activity-modal-spinner">
+                  <div className="activity-spinner-ring"></div>
+                </div>
+                <h4 className="activity-modal-status-title">
+                  Processing Your Booking
+                </h4>
+                <p className="activity-modal-status-text">
+                  Please wait while we process your booking request...
+                </p>
+              </div>
+            )}
+
+            {bookingSuccess && (
+              <div className="activity-modal-status-content">
+                <div className="activity-modal-success-icon">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <h4 className="activity-modal-status-title text-green-700">
+                  Booking Submitted Successfully!
+                </h4>
+                <p className="activity-modal-status-text">
+                  Thank you for your booking!
+                </p>
+
+                <div className="activity-modal-wallet-info">
+                  <div className="activity-modal-wallet-row">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                      <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                    <div>
+                      <strong>${calculateTotalPrice()}</strong> has been held
+                      from your wallet balance.
+                    </div>
+                  </div>
+                  <p className="activity-modal-wallet-note">
+                    Your booking is now under review. Our team will verify your
+                    request shortly.
+                  </p>
+                  <div className="activity-modal-wallet-divider"></div>
+                  <div className="activity-modal-wallet-detail">
+                    <div className="activity-modal-wallet-detail-item">
+                      <span className="activity-dot activity-dot-green"></span>
+                      If <strong>approved</strong>, the held amount will be
+                      deducted from your wallet.
+                    </div>
+                    <div className="activity-modal-wallet-detail-item">
+                      <span className="activity-dot activity-dot-red"></span>
+                      If <strong>rejected</strong>, the full amount will be
+                      released back to your wallet.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="activity-modal-footer">
+                  {bookingModalFooter}
+                </div>
+              </div>
+            )}
+
+            {bookingError && (
+              <div className="activity-modal-status-content">
+                <div className="activity-modal-error-icon">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                </div>
+                <h4 className="activity-modal-status-title text-red-600">
+                  Booking Failed
+                </h4>
+                <div className="activity-modal-error-msg">{bookingError}</div>
+
+                <div className="activity-modal-footer">
+                  {bookingModalFooter}
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+
         <ReviewModal
           open={isReviewModalOpen}
           onClose={() => setIsReviewModalOpen(false)}
@@ -1203,44 +1317,78 @@ const Page = () => {
           apiEndpoint="/user/rating/activity_rating.php"
           onSuccess={handleReviewSuccess}
         />
-
-        <React.Fragment>
-          <ModalVideo
-            channel="youtube"
-            onClick={() => setOpenModalVideo(true)}
-            isOpen={isOpenModalVideo}
-            animationSpeed="350"
-            videoId={extractedVideoId || "r4KpWiK08vM"}
-            ratio="16:9"
-            onClose={() => setOpenModalVideo(false)}
-          />
-        </React.Fragment>
-        <Lightbox
-          className="img-fluid"
-          open={isOpenimg.openingState}
-          plugins={[Fullscreen]}
-          index={isOpenimg.openingIndex}
-          close={() => setOpenimg({ openingState: false, openingIndex: 0 })}
-          styles={{ container: { backgroundColor: "rgba(0, 0, 0, .9)" } }}
-          slides={
-            images && images.length > 0
-              ? images.map(function (elem) {
-                  return { src: elem.imageBig };
-                })
-              : []
-          }
-        />
       </div>
 
+      {/* ===== Scoped CSS — does NOT touch old CSS ===== */}
       <style jsx>{`
-        .modal.show {
-          animation: modalFadeIn 0.3s ease-out;
+        /* ===== Calendar Trigger Button ===== */
+        .activity-cal-trigger {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 16px;
+          border: 2px solid #e0e0e0;
+          border-radius: 12px;
+          cursor: pointer;
+          background: #fff;
+          transition:
+            border-color 0.25s ease,
+            box-shadow 0.25s ease;
+          user-select: none;
+        }
+        .activity-cal-trigger:hover {
+          border-color: #295557;
+        }
+        .activity-cal-trigger:active {
+          box-shadow: 0 0 0 3px rgba(41, 85, 87, 0.1);
+        }
+        .activity-cal-trigger-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: #295557;
+        }
+        .activity-cal-trigger-text {
+          display: flex;
+          flex-direction: column;
+        }
+        .activity-cal-date-main {
+          font-size: 15px;
+          font-weight: 600;
+          color: #1a1a1a;
+          line-height: 1.3;
+        }
+        .activity-cal-date-sub {
+          font-size: 12px;
+          color: #888;
+          line-height: 1.3;
+        }
+        .activity-cal-placeholder {
+          font-size: 15px;
+          color: #aaa;
+        }
+        .activity-cal-chevron {
+          color: #888;
+          transition: transform 0.25s ease;
+          flex-shrink: 0;
+        }
+        .activity-cal-chevron-open {
+          transform: rotate(180deg);
         }
 
-        @keyframes modalFadeIn {
+        /* ===== Calendar Dropdown ===== */
+        .activity-cal-dropdown {
+          margin-top: 8px;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+          animation: actCalSlideDown 0.2s ease-out;
+        }
+        @keyframes actCalSlideDown {
           from {
             opacity: 0;
-            transform: translateY(-50px);
+            transform: translateY(-6px);
           }
           to {
             opacity: 1;
@@ -1248,29 +1396,418 @@ const Page = () => {
           }
         }
 
-        .modal-content {
-          border-radius: 15px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .booking-details,
-        .booking-summary {
-          background-color: #f8f9fa;
-          padding: 15px;
+        /* ===== Selected Date Chip ===== */
+        .activity-cal-selected-chip {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 10px;
+          padding: 8px 14px;
+          background: rgba(41, 85, 87, 0.06);
+          border: 1px solid rgba(41, 85, 87, 0.15);
           border-radius: 8px;
-          border-left: 4px solid #007bff;
+          font-size: 13px;
+          color: #295557;
+          font-weight: 500;
+        }
+        .activity-cal-selected-chip svg {
+          color: #059669;
+          flex-shrink: 0;
         }
 
-        .summary-item {
-          border: 1px solid #e9ecef;
+        /* ===== react-calendar overrides (scoped) ===== */
+        :global(.activity-react-calendar) {
+          width: 100% !important;
+          border: none !important;
+          font-family: inherit !important;
+          background: #fff !important;
+        }
+        :global(.activity-react-calendar .react-calendar__navigation) {
+          margin-bottom: 0 !important;
+          padding: 8px 4px;
+          background: #f9fafb;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        :global(.activity-react-calendar .react-calendar__navigation button) {
+          min-width: 36px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #295557;
+          background: none;
+          border: none;
+          border-radius: 8px;
+          padding: 6px 8px;
+        }
+        :global(
+          .activity-react-calendar .react-calendar__navigation button:hover
+        ) {
+          background: rgba(41, 85, 87, 0.08);
+        }
+        :global(
+          .activity-react-calendar .react-calendar__navigation button:disabled
+        ) {
+          color: #ccc;
+          background: none;
+        }
+        :global(
+          .activity-react-calendar .react-calendar__month-view__weekdays
+        ) {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #888;
+          padding: 8px 0 4px;
+        }
+        :global(
+          .activity-react-calendar .react-calendar__month-view__weekdays abbr
+        ) {
+          text-decoration: none !important;
+        }
+        :global(.activity-react-calendar .react-calendar__tile) {
+          padding: 10px 6px !important;
+          font-size: 14px;
+          border-radius: 8px;
+          color: #333;
+          transition: all 0.15s ease;
+        }
+        :global(.activity-react-calendar .react-calendar__tile:hover) {
+          background: rgba(41, 85, 87, 0.08) !important;
+        }
+        :global(.activity-react-calendar .react-calendar__tile--now) {
+          background: rgba(232, 163, 85, 0.12) !important;
+          color: #e8a355;
+          font-weight: 700;
+        }
+        :global(.activity-react-calendar .react-calendar__tile--now:hover) {
+          background: rgba(232, 163, 85, 0.2) !important;
+        }
+        :global(.activity-react-calendar .react-calendar__tile--active) {
+          background: #295557 !important;
+          color: #fff !important;
+          font-weight: 700;
+          border-radius: 8px;
+        }
+        :global(.activity-react-calendar .react-calendar__tile--active:hover) {
+          background: #1e3e40 !important;
+        }
+        :global(.activity-react-calendar .react-calendar__tile:disabled) {
+          color: #d1d5db !important;
+          background: transparent !important;
+          cursor: not-allowed;
+        }
+        :global(
+          .activity-react-calendar
+            .react-calendar__month-view__days__day--neighboringMonth
+        ) {
+          color: #d1d5db !important;
         }
 
-        .summary-details .row {
-          margin-bottom: 0;
+        /* ===== Highlight items with icons ===== */
+        .activity-highlight-item {
+          display: flex !important;
+          align-items: flex-start !important;
+          gap: 10px;
+          margin-bottom: 8px;
+          list-style: none !important;
+        }
+        .activity-highlight-icon {
+          flex-shrink: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          margin-top: 2px;
+        }
+        .activity-highlight-icon :global(svg) {
+          width: 20px;
+          height: 20px;
+        }
+        .activity-highlight-text {
+          flex: 1;
+          line-height: 1.5;
         }
 
-        .booking-confirmation .alert-info {
-          border-left: 4px solid #0dcaf0;
+        /* ===== Ant Design Modal Overrides (scoped) ===== */
+        :global(.activity-booking-modal .ant-modal-content) {
+          border-radius: 16px !important;
+          overflow: hidden;
+          padding: 0 !important;
+        }
+        :global(.activity-booking-modal .ant-modal-header) {
+          display: none !important;
+        }
+        :global(.activity-booking-modal .ant-modal-body) {
+          padding: 0 !important;
+        }
+        :global(.activity-booking-modal .ant-modal-close) {
+          top: 16px;
+          right: 16px;
+          color: #666;
+        }
+        :global(.activity-booking-modal .ant-modal-close:hover) {
+          color: #333;
+        }
+
+        /* ===== Modal Inner Layout ===== */
+        .activity-modal-inner {
+          padding: 0;
+        }
+        .activity-modal-header {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 24px 28px 16px;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        .activity-modal-header-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          background: rgba(41, 85, 87, 0.08);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #295557;
+          flex-shrink: 0;
+        }
+        .activity-modal-title {
+          font-size: 20px;
+          font-weight: 700;
+          color: #1a1a1a;
+          margin: 0;
+          line-height: 1.3;
+        }
+        .activity-modal-subtitle {
+          font-size: 13px;
+          color: #888;
+          margin: 2px 0 0;
+        }
+        .activity-modal-info-banner {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          margin: 16px 28px;
+          padding: 12px 16px;
+          background: #f0f9ff;
+          border: 1px solid #bae6fd;
+          border-radius: 10px;
+          font-size: 13px;
+          color: #0369a1;
+          line-height: 1.5;
+        }
+        .activity-modal-info-banner svg {
+          flex-shrink: 0;
+          margin-top: 1px;
+        }
+        .activity-modal-summary-card {
+          margin: 0 28px 20px;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          overflow: hidden;
+        }
+        .activity-modal-summary-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 18px;
+          background: #f9fafb;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .activity-modal-summary-header h4 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: #295557;
+        }
+        .activity-modal-type-badge {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          padding: 4px 10px;
+          border-radius: 20px;
+          background: rgba(232, 163, 85, 0.12);
+          color: #e8a355;
+        }
+        .activity-modal-summary-grid {
+          padding: 16px 18px;
+        }
+        .activity-modal-summary-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 0;
+          border-bottom: 1px solid #f3f4f6;
+        }
+        .activity-modal-summary-row:last-child {
+          border-bottom: none;
+        }
+        .activity-modal-summary-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .activity-modal-summary-label svg {
+          color: #295557;
+        }
+        .activity-modal-summary-value {
+          font-size: 14px;
+          color: #1f2937;
+        }
+        .activity-modal-adults-only-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 8px;
+          padding: 8px 12px;
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-radius: 8px;
+          font-size: 12px;
+          color: #92400e;
+        }
+        .activity-modal-total-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 16px 18px;
+          background: #295557;
+          color: #fff;
+          font-size: 16px;
+          font-weight: 600;
+        }
+        .activity-modal-total-amount {
+          font-size: 22px;
+          font-weight: 700;
+          color: #e8a355;
+        }
+        .activity-modal-footer {
+          padding: 16px 28px 24px;
+          border-top: 1px solid #f0f0f0;
+        }
+        .activity-modal-status-content {
+          padding: 32px 28px 0;
+          text-align: center;
+        }
+        .activity-modal-status-title {
+          font-size: 20px;
+          font-weight: 700;
+          margin: 16px 0 8px;
+        }
+        .activity-modal-status-text {
+          font-size: 14px;
+          color: #6b7280;
+          margin-bottom: 20px;
+        }
+        .activity-modal-spinner {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 8px;
+        }
+        .activity-spinner-ring {
+          width: 52px;
+          height: 52px;
+          border: 4px solid #e5e7eb;
+          border-top-color: #295557;
+          border-radius: 50%;
+          animation: activitySpin 0.8s linear infinite;
+        }
+        @keyframes activitySpin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        .activity-modal-success-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: #ecfdf5;
+          color: #059669;
+          margin-bottom: 4px;
+        }
+        .activity-modal-error-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: #fef2f2;
+          color: #dc2626;
+          margin-bottom: 4px;
+        }
+        .activity-modal-error-msg {
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 10px;
+          padding: 14px 18px;
+          font-size: 14px;
+          color: #991b1b;
+          text-align: left;
+          margin-bottom: 20px;
+        }
+        .activity-modal-wallet-info {
+          text-align: left;
+          background: #f0f9ff;
+          border: 1px solid #bae6fd;
+          border-radius: 12px;
+          padding: 18px;
+          margin-bottom: 20px;
+        }
+        .activity-modal-wallet-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          font-size: 14px;
+          color: #0c4a6e;
+          line-height: 1.5;
+        }
+        .activity-modal-wallet-row svg {
+          flex-shrink: 0;
+          margin-top: 2px;
+          color: #0284c7;
+        }
+        .activity-modal-wallet-note {
+          font-size: 13px;
+          color: #6b7280;
+          margin: 10px 0 0;
+        }
+        .activity-modal-wallet-divider {
+          height: 1px;
+          background: #e0f2fe;
+          margin: 14px 0;
+        }
+        .activity-modal-wallet-detail {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .activity-modal-wallet-detail-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          font-size: 13px;
+          color: #4b5563;
+          line-height: 1.4;
+        }
+        .activity-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          flex-shrink: 0;
+          margin-top: 5px;
+        }
+        .activity-dot-green {
+          background: #059669;
+        }
+        .activity-dot-red {
+          background: #dc2626;
         }
       `}</style>
     </>

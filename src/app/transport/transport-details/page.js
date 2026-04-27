@@ -21,8 +21,7 @@ import { FreeCancellation, PayAtPickup } from "../../../uitils/icnos";
 import axios from "axios";
 import { base_url } from "../../../uitils/base_url";
 import ReviewModal from "@/components/reviews/ReviewModal";
-import InvitationCodeModal from "@/components/modals/InvitationCodeModal";
-import BookingSuccessModal from "@/components/modals/BookingSuccessModal";
+import { Modal } from "antd";
 import toast from "react-hot-toast";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 
@@ -65,7 +64,6 @@ const Page = () => {
   const locale = useLocale();
   const t = useTranslations("transportDetails");
 
-  // Date states
   const [dateRange, setDateRange] = useState([
     new Date(),
     moment().add(1, "day").toDate(),
@@ -73,13 +71,11 @@ const Page = () => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [nightCount, setNightCount] = useState(1);
 
-  // Car data states
   const [carData, setCarData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [drivingType, setDrivingType] = useState("self_riding");
 
-  // Invite code hook
   const {
     inviteCode,
     hasStoredCode,
@@ -88,9 +84,6 @@ const Page = () => {
     clearCurrentInviteCode,
   } = useInviteCode(INVITE_CODE_TYPES.TRANSPORT, carId);
 
-  // Modal states
-  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
-  const [invitationLoading, setInvitationLoading] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -99,12 +92,8 @@ const Page = () => {
   const [bookingDetails, setBookingDetails] = useState(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
-  // Refs
   const calendarRef = useRef(null);
-  const confirmModalRef = useRef(null);
-  const bookingModalRef = useRef(null);
 
-  // Slider settings
   const settings = useMemo(() => {
     return {
       slidesPerView: "auto",
@@ -119,7 +108,6 @@ const Page = () => {
     };
   }, []);
 
-  // ✅ Clean Icon Function
   const cleanIcon = useCallback((icon) => {
     if (!icon) return "";
     let result = icon;
@@ -138,7 +126,6 @@ const Page = () => {
     return result.trim();
   }, []);
 
-  // Fetch car data
   useEffect(() => {
     const fetchCarData = async () => {
       try {
@@ -147,15 +134,16 @@ const Page = () => {
           setLoading(false);
           return;
         }
+
         const response = await axios.post(
           `${base_url}/user/cars/select_car_by_id.php`,
           { car_id: carId },
           { headers: { "Content-Type": "application/json" } }
         );
+
         if (response.data.status === "success") {
           const car = response.data.message[0];
 
-          // ✅ معالجة الـ features مع تنظيف الـ icons
           if (car.features && Array.isArray(car.features)) {
             car.features = car.features.map((f) => {
               if (typeof f === "string") {
@@ -180,10 +168,10 @@ const Page = () => {
         setLoading(false);
       }
     };
+
     fetchCarData();
   }, [carId, cleanIcon]);
 
-  // Calculate night count
   useEffect(() => {
     if (dateRange[0] && dateRange[1]) {
       const days = moment(dateRange[1]).diff(moment(dateRange[0]), "days");
@@ -191,23 +179,16 @@ const Page = () => {
     }
   }, [dateRange]);
 
-  // Close calendar on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (calendarRef.current && !calendarRef.current.contains(event.target)) {
         setIsCalendarOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Helper functions
-  const handleModalOutsideClick = (e, modalRef, closeFunction) => {
-    if (modalRef.current && !modalRef.current.contains(e.target)) {
-      closeFunction();
-    }
-  };
 
   const formatDate = (date, loc) => {
     if (!date) return "";
@@ -224,7 +205,6 @@ const Page = () => {
     console.log("Review submitted:", reviewData);
   };
 
-  // Parse car images
   const carImages = useMemo(() => {
     if (!carData?.image) return [];
     return carData.image.split("//CAMP//").map((url, i) => ({
@@ -233,9 +213,36 @@ const Page = () => {
     }));
   }, [carData]);
 
-  // ============================================
-  // BOOKING FLOW
-  // ============================================
+  const selfRidingPrice = useMemo(() => {
+    return parseFloat(carData?.price_current || 0);
+  }, [carData]);
+
+  const driverExtraPrice = useMemo(() => {
+    return parseFloat(carData?.driver_price || 0);
+  }, [carData]);
+
+  const withDriverPrice = useMemo(() => {
+    return selfRidingPrice + driverExtraPrice;
+  }, [selfRidingPrice, driverExtraPrice]);
+
+  const currentPrice = useMemo(() => {
+    return drivingType === "with_driver" ? withDriverPrice : selfRidingPrice;
+  }, [drivingType, withDriverPrice, selfRidingPrice]);
+
+  const totalPrice = useMemo(() => {
+    return nightCount > 0 ? currentPrice * nightCount : currentPrice;
+  }, [currentPrice, nightCount]);
+
+  const displayRating = useMemo(() => {
+    if (!carData?.ratings || !Array.isArray(carData.ratings)) return null;
+    const validRating = carData.ratings.find(
+      (r) => r?.score !== null && r?.score !== undefined && r?.score !== ""
+    );
+    if (!validRating) return null;
+    const raw = parseFloat(validRating.score);
+    if (isNaN(raw)) return null;
+    return raw > 5 ? raw / 2 : raw;
+  }, [carData]);
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
@@ -270,16 +277,6 @@ const Page = () => {
     }
 
     setIsConfirmModalOpen(true);
-  };
-
-  const handleInvitationSubmit = (code) => {
-    setInvitationLoading(true);
-    setTimeout(() => {
-      setManualInviteCode(code);
-      setInvitationLoading(false);
-      setIsInvitationModalOpen(false);
-      setIsConfirmModalOpen(true);
-    }, 600);
   };
 
   const handleConfirmBooking = async () => {
@@ -362,9 +359,84 @@ const Page = () => {
     setBookingDetails(null);
   };
 
-  // ============================================
-  // LOADING STATE
-  // ============================================
+  // Confirm modal summary rows
+  const confirmSummaryRows = useMemo(() => {
+    if (!carData) return [];
+    return [
+      {
+        icon: "bi-tag",
+        label: locale === "ar" ? "السيارة" : "Car",
+        value: carData.title,
+      },
+      {
+        icon: "bi-geo-alt",
+        label: locale === "ar" ? "الموقع" : "Location",
+        value: carData.location || "N/A",
+      },
+      {
+        icon: "bi-gear",
+        label: locale === "ar" ? "نوع القيادة" : "Driving Type",
+        value:
+          drivingType === "self_riding"
+            ? locale === "ar"
+              ? "قيادة ذاتية"
+              : "Self Driving"
+            : locale === "ar"
+              ? "مع سائق"
+              : "With Driver",
+      },
+      {
+        icon: "bi-calendar-check",
+        label: locale === "ar" ? "تاريخ البداية" : "Start Date",
+        value: formatDate(dateRange[0], locale),
+      },
+      {
+        icon: "bi-calendar-x",
+        label: locale === "ar" ? "تاريخ النهاية" : "End Date",
+        value: formatDate(dateRange[1], locale),
+      },
+      {
+        icon: "bi-clock",
+        label: locale === "ar" ? "المدة" : "Duration",
+        value: `${nightCount} ${
+          nightCount === 1
+            ? locale === "ar"
+              ? "يوم"
+              : "Day"
+            : locale === "ar"
+              ? "أيام"
+              : "Days"
+        }`,
+      },
+      {
+        icon: "bi-currency-exchange",
+        label:
+          locale === "ar"
+            ? drivingType === "with_driver"
+              ? "السعر اليومي (العربية + السائق)"
+              : "السعر اليومي"
+            : drivingType === "with_driver"
+              ? "Daily Rate (Car + Driver)"
+              : "Daily Rate",
+        value: `$${currentPrice.toFixed(2)}`,
+      },
+      {
+        icon: "bi-calculator",
+        label: locale === "ar" ? "المبلغ الإجمالي" : "Total Amount",
+        value: `$${totalPrice.toFixed(2)}`,
+        isTotal: true,
+      },
+    ];
+  }, [
+    carData,
+    drivingType,
+    dateRange,
+    nightCount,
+    currentPrice,
+    totalPrice,
+    locale,
+  ]);
+
   if (loading || inviteCodeLoading) {
     return (
       <>
@@ -393,9 +465,6 @@ const Page = () => {
     );
   }
 
-  // ============================================
-  // ERROR STATE
-  // ============================================
   if (error || !carData) {
     return (
       <>
@@ -427,13 +496,6 @@ const Page = () => {
     );
   }
 
-  // Calculate prices
-  const currentPrice = parseFloat(carData.price_current || 0);
-  const totalPrice = nightCount > 0 ? currentPrice * nightCount : currentPrice;
-
-  // ============================================
-  // MAIN RENDER
-  // ============================================
   return (
     <>
       <Breadcrumb
@@ -444,9 +506,7 @@ const Page = () => {
       <div className="transport-details-section pt-[50px] mb-[30px]">
         <div className="container">
           <div className="row g-lg-4 gy-5">
-            {/* LEFT COLUMN - Car Details */}
             <div className="col-lg-8">
-              {/* Car Images */}
               <div className="transport-image-area mb-50">
                 <div className="w-full">
                   {carImages.length > 0 ? (
@@ -463,10 +523,8 @@ const Page = () => {
                 </div>
               </div>
 
-              {/* Car Title */}
               <h3 className="text-2xl font-bold mb-4">{carData.title}</h3>
 
-              {/* Features List */}
               <ul className="fetures">
                 <li>
                   <FreeCancellation />
@@ -482,18 +540,8 @@ const Page = () => {
                 </li>
               </ul>
 
-              {/* Subtitle */}
               <p className="text-base mb-4">{carData.subtitle}</p>
 
-              {/* Car Type */}
-              <p className="text-base mb-4">
-                <strong>
-                  {locale === "ar" ? "نوع السيارة:" : "Car Type:"}
-                </strong>{" "}
-                {carData.car_type}
-              </p>
-
-              {/* ✅ Car Features with Icons */}
               {carData.features && carData.features.length > 0 && (
                 <>
                   <h4 className="text-xl font-semibold mt-5 mb-3">
@@ -507,7 +555,6 @@ const Page = () => {
                             key={feature.id || i}
                             className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
                           >
-                            {/* ✅ عرض الـ Icon */}
                             {feature.icon && (
                               <span
                                 className="feature-icon flex-shrink-0 [&>span]:flex [&>span]:items-center [&_svg]:w-5 [&_svg]:h-5 [&>span]:text-[#e8a355]"
@@ -516,7 +563,6 @@ const Page = () => {
                                 }}
                               />
                             )}
-                            {/* ✅ عرض الاسم */}
                             <span className="text-sm font-medium text-gray-700">
                               {feature.name}
                             </span>
@@ -528,7 +574,6 @@ const Page = () => {
                 </>
               )}
 
-              {/* FAQ Section */}
               <div className="mb-7">
                 <div className="mb-5">
                   <h4 className="text-2xl font-semibold">
@@ -538,31 +583,56 @@ const Page = () => {
                 <Accordion items={faqData} />
               </div>
 
-              {/* Review Section */}
               <div className="review-wrapper">
                 <h4>
                   {locale === "ar" ? "تقييمات العملاء" : "Customer Review"}
                 </h4>
                 <div className="review-box">
                   <div className="total-review">
-                    <h2>{carData?.rating || "9.5"}</h2>
-                    <div className="review-wrap">
-                      <ul className="star-list">
-                        {[...Array(5)].map((_, i) => (
-                          <li key={i}>
-                            <i
-                              className={
-                                i < 4 ? "bi bi-star-fill" : "bi bi-star-half"
-                              }
-                            />
-                          </li>
-                        ))}
-                      </ul>
-                      <span>
-                        {carData?.reviews_count || "2590"}{" "}
-                        {locale === "ar" ? "تقييم" : "Reviews"}
-                      </span>
-                    </div>
+                    {displayRating !== null ? (
+                      <>
+                        <h2>{displayRating.toFixed(1)}</h2>
+                        <div className="review-wrap">
+                          <ul className="star-list">
+                            {[...Array(5)].map((_, i) => (
+                              <li key={i}>
+                                <i
+                                  className={
+                                    i < Math.floor(displayRating)
+                                      ? "bi bi-star-fill"
+                                      : i < displayRating
+                                        ? "bi bi-star-half"
+                                        : "bi bi-star"
+                                  }
+                                />
+                              </li>
+                            ))}
+                          </ul>
+                          <span>
+                            {carData?.reviews_count || ""}{" "}
+                            {locale === "ar" ? "تقييم" : "Reviews"}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h2>—</h2>
+                        <div className="review-wrap">
+                          <ul className="star-list">
+                            {[...Array(5)].map((_, i) => (
+                              <li key={i}>
+                                <i className="bi bi-star" />
+                              </li>
+                            ))}
+                          </ul>
+                          <span>
+                            {locale === "ar"
+                              ? "لا توجد تقييمات بعد"
+                              : "No reviews yet"}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <button
                     className="primary-btn1"
@@ -574,7 +644,6 @@ const Page = () => {
               </div>
             </div>
 
-            {/* RIGHT COLUMN - Booking Sidebar */}
             <div className="col-lg-4">
               <div className="transport-sidebar">
                 <div className="booking-form-wrap">
@@ -597,7 +666,6 @@ const Page = () => {
                     >
                       <div className="sidebar-booking-form">
                         <form onSubmit={handleFormSubmit}>
-                          {/* Date Selection */}
                           <h6 className="text-lg font-semibold mb-3">
                             {locale === "ar"
                               ? "اختر تاريخ الحجز:"
@@ -662,7 +730,6 @@ const Page = () => {
                             </div>
                           </div>
 
-                          {/* Driving Type Selection */}
                           <h6 className="text-lg font-semibold mb-3">
                             {locale === "ar"
                               ? "اختر نوع القيادة:"
@@ -683,11 +750,11 @@ const Page = () => {
                                   : "Self Driving"}
                               </div>
                               <small className="text-gray-500">
-                                {locale === "ar"
-                                  ? "قُد بنفسك"
-                                  : "Drive yourself"}
+                                ${selfRidingPrice.toFixed(2)} /{" "}
+                                {locale === "ar" ? "يوم" : "day"}
                               </small>
                             </div>
+
                             <div
                               className={`flex-1 p-3 border-2 rounded-lg text-center cursor-pointer transition-all ${
                                 drivingType === "with_driver"
@@ -700,28 +767,25 @@ const Page = () => {
                                 {locale === "ar" ? "مع سائق" : "With Driver"}
                               </div>
                               <small className="text-gray-500">
-                                {locale === "ar"
-                                  ? "سائق محترف"
-                                  : "Professional driver"}
+                                ${withDriverPrice.toFixed(2)} /{" "}
+                                {locale === "ar" ? "يوم" : "day"}
                               </small>
                             </div>
                           </div>
 
-                          {/* Price per Day */}
                           <div className="bg-gray-50 p-4 rounded-lg mb-4">
                             <div className="flex items-center justify-between">
                               <span className="text-base font-medium">
                                 {carData.title}:
                               </span>
                               <span className="text-base font-medium">
-                                ${currentPrice} /{" "}
+                                ${currentPrice.toFixed(2)} /{" "}
                                 {carData.price_note?.toLowerCase() ||
                                   (locale === "ar" ? "يوم" : "day")}
                               </span>
                             </div>
                           </div>
 
-                          {/* Number of Days */}
                           <div className="bg-gray-50 p-4 rounded-lg mb-4">
                             <div className="flex items-center justify-between">
                               <span className="text-base font-medium">
@@ -735,7 +799,6 @@ const Page = () => {
                             </div>
                           </div>
 
-                          {/* Total Price */}
                           <div className="flex items-center justify-between p-4 mb-6 bg-orange-50 rounded-lg">
                             <span className="text-lg font-semibold">
                               {locale === "ar"
@@ -747,7 +810,6 @@ const Page = () => {
                             </span>
                           </div>
 
-                          {/* Book Now Button */}
                           <button
                             type="submit"
                             className="w-full py-4 px-6 text-white font-semibold primary-btn1 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-opacity-50"
@@ -765,253 +827,285 @@ const Page = () => {
         </div>
       </div>
 
-      {/* MODALS */}
-      {/* Confirmation Modal */}
-      {isConfirmModalOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center p-4"
-          onClick={(e) =>
-            handleModalOutsideClick(e, confirmModalRef, closeConfirmModal)
-          }
-        >
-          <div
-            ref={confirmModalRef}
-            className="bg-white rounded-2xl w-full max-w-[600px] shadow-2xl animate-[slideUp_0.3s_ease-out] overflow-hidden"
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h5 className="text-lg font-bold flex items-center gap-2 m-0">
-                <i className="bi bi-check-circle text-blue-500"></i>
-                {locale === "ar" ? "تأكيد الحجز" : "Confirm Your Booking"}
-              </h5>
-              <button
-                onClick={closeConfirmModal}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors border-none bg-transparent"
-              >
-                <i className="bi bi-x-lg text-gray-500"></i>
-              </button>
-            </div>
-
-            <div className="px-6 py-5">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
-                <i className="bi bi-info-circle mr-2"></i>
-                {locale === "ar"
-                  ? "يرجى مراجعة تفاصيل الحجز بعناية قبل التأكيد."
-                  : "Please review your booking details carefully before confirming."}
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4 mb-4">
-                <h6 className="text-[#295557] font-bold mb-3 text-sm flex items-center gap-2">
-                  <i className="bi bi-car-front"></i>
-                  {locale === "ar" ? "ملخص الحجز" : "Booking Summary"}
-                </h6>
-
-                {[
-                  {
-                    icon: "bi-tag",
-                    label: locale === "ar" ? "السيارة" : "Car",
-                    value: carData.title,
-                  },
-                  {
-                    icon: "bi-geo-alt",
-                    label: locale === "ar" ? "الموقع" : "Location",
-                    value: carData.location || "N/A",
-                  },
-                  {
-                    icon: "bi-gear",
-                    label: locale === "ar" ? "نوع القيادة" : "Driving Type",
-                    value:
-                      drivingType === "self_riding"
-                        ? locale === "ar"
-                          ? "قيادة ذاتية"
-                          : "Self Driving"
-                        : locale === "ar"
-                          ? "مع سائق"
-                          : "With Driver",
-                  },
-                  {
-                    icon: "bi-calendar-check",
-                    label: locale === "ar" ? "تاريخ البداية" : "Start Date",
-                    value: formatDate(dateRange[0], locale),
-                  },
-                  {
-                    icon: "bi-calendar-x",
-                    label: locale === "ar" ? "تاريخ النهاية" : "End Date",
-                    value: formatDate(dateRange[1], locale),
-                  },
-                  {
-                    icon: "bi-clock",
-                    label: locale === "ar" ? "المدة" : "Duration",
-                    value: `${nightCount} ${
-                      nightCount === 1
-                        ? locale === "ar"
-                          ? "يوم"
-                          : "Day"
-                        : locale === "ar"
-                          ? "أيام"
-                          : "Days"
-                    }`,
-                  },
-                  {
-                    icon: "bi-currency-exchange",
-                    label: locale === "ar" ? "السعر اليومي" : "Daily Rate",
-                    value: `$${currentPrice.toFixed(2)}`,
-                  },
-                  {
-                    icon: "bi-calculator",
-                    label: locale === "ar" ? "المبلغ الإجمالي" : "Total Amount",
-                    value: `$${totalPrice.toFixed(2)}`,
-                    isTotal: true,
-                  },
-                ].map((row, i) => (
-                  <div
-                    key={i}
-                    className={`flex justify-between items-center py-2 ${
-                      row.isTotal
-                        ? "border-t-2 border-gray-200 mt-2 pt-3 font-bold text-[#e8a355] text-lg"
-                        : "border-b border-gray-200"
-                    }`}
-                  >
-                    <span
-                      className={`font-medium ${
-                        row.isTotal ? "text-[#e8a355]" : "text-gray-500"
-                      } text-sm flex items-center`}
-                    >
-                      {row.icon && <i className={`bi ${row.icon} mr-2`}></i>}
-                      {row.label}:
-                    </span>
-                    <span
-                      className={`font-semibold ${
-                        row.isTotal ? "text-[#e8a355]" : "text-gray-800"
-                      } text-sm`}
-                    >
-                      {row.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                <i className="bi bi-exclamation-triangle mr-2"></i>
-                <strong>{locale === "ar" ? "مهم:" : "Important:"}</strong>{" "}
-                {locale === "ar"
-                  ? "سيتم مراجعة حجزك. بمجرد الموافقة، سنرسل رابط الدفع لإكمال الحجز."
-                  : "Your booking will be under review. Once approved, we will send a payment link to complete your reservation."}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
-              <button
-                onClick={closeConfirmModal}
-                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors border-none cursor-pointer"
-              >
-                <i className="bi bi-arrow-left mr-2"></i>
-                {locale === "ar" ? "رجوع للتعديل" : "Back to Edit"}
-              </button>
-              <button
-                onClick={handleConfirmBooking}
-                className="px-5 py-2.5 bg-gradient-to-br from-[#e8a355] to-[#d4903e] text-white rounded-lg font-bold text-sm hover:shadow-lg transition-all border-none cursor-pointer"
-              >
-                {locale === "ar" ? "تأكيد الحجز" : "Confirm Booking"}
-              </button>
-            </div>
+      {/* ✅ Confirmation Modal — Ant Design */}
+      <Modal
+        open={isConfirmModalOpen}
+        onCancel={closeConfirmModal}
+        footer={
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+            <button
+              onClick={closeConfirmModal}
+              className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors border-none cursor-pointer"
+            >
+              <i className="bi bi-arrow-left mr-2"></i>
+              {locale === "ar" ? "رجوع للتعديل" : "Back to Edit"}
+            </button>
+            <button
+              onClick={handleConfirmBooking}
+              className="px-5 py-2.5 bg-gradient-to-br from-[#e8a355] to-[#d4903e] text-white rounded-lg font-bold text-sm hover:shadow-lg transition-all border-none cursor-pointer"
+            >
+              {locale === "ar" ? "تأكيد الحجز" : "Confirm Booking"}
+            </button>
           </div>
+        }
+        centered
+        width={600}
+        destroyOnClose
+        styles={{
+          body: {
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "20px 24px",
+          },
+        }}
+        title={
+          <div className="flex items-center gap-2">
+            <i className="bi bi-check-circle text-blue-500"></i>
+            <span className="text-lg font-bold">
+              {locale === "ar" ? "تأكيد الحجز" : "Confirm Your Booking"}
+            </span>
+          </div>
+        }
+      >
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
+          <i className="bi bi-info-circle mr-2"></i>
+          {locale === "ar"
+            ? "يرجى مراجعة تفاصيل الحجز بعناية قبل التأكيد."
+            : "Please review your booking details carefully before confirming."}
         </div>
-      )}
 
-      {/* Booking Loading/Error Modal */}
-      {isBookingModalOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center p-4"
-          onClick={(e) =>
-            !bookingLoading &&
-            handleModalOutsideClick(e, bookingModalRef, closeBookingModal)
-          }
-        >
-          <div
-            ref={bookingModalRef}
-            className="bg-white rounded-2xl w-full max-w-[420px] shadow-2xl animate-[slideUp_0.3s_ease-out] overflow-hidden"
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h5 className="text-lg font-bold m-0">
-                {bookingLoading
-                  ? locale === "ar"
-                    ? "جاري معالجة الحجز..."
-                    : "Processing Booking..."
-                  : locale === "ar"
-                    ? "خطأ في الحجز"
-                    : "Booking Error"}
-              </h5>
-              {!bookingLoading && (
-                <button
-                  onClick={closeBookingModal}
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors border-none bg-transparent"
-                >
-                  <i className="bi bi-x-lg text-gray-500"></i>
-                </button>
-              )}
+        <div className="bg-gray-50 rounded-xl p-4 mb-4">
+          <h6 className="text-[#295557] font-bold mb-3 text-sm flex items-center gap-2">
+            <i className="bi bi-car-front"></i>
+            {locale === "ar" ? "ملخص الحجز" : "Booking Summary"}
+          </h6>
+
+          {confirmSummaryRows.map((row, i) => (
+            <div
+              key={i}
+              className={`flex justify-between items-center py-2 ${
+                row.isTotal
+                  ? "border-t-2 border-gray-200 mt-2 pt-3 font-bold text-[#e8a355] text-lg"
+                  : "border-b border-gray-200"
+              }`}
+            >
+              <span
+                className={`font-medium ${
+                  row.isTotal ? "text-[#e8a355]" : "text-gray-500"
+                } text-sm flex items-center`}
+              >
+                {row.label}:
+              </span>
+              <span
+                className={`font-semibold ${
+                  row.isTotal ? "text-[#e8a355]" : "text-gray-800"
+                } text-sm`}
+              >
+                {row.value}
+              </span>
             </div>
+          ))}
+        </div>
 
-            <div className="px-6 py-8 text-center">
-              {bookingLoading && (
-                <>
-                  <div className="w-12 h-12 border-4 border-gray-200 border-t-[#e8a355] rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-600">
-                    {locale === "ar"
-                      ? "يرجى الانتظار أثناء معالجة حجزك..."
-                      : "Please wait while we process your booking..."}
-                  </p>
-                </>
-              )}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800 mb-4">
+          <i className="bi bi-exclamation-triangle mr-2"></i>
+          <strong>{locale === "ar" ? "مهم:" : "Important:"}</strong>{" "}
+          {locale === "ar"
+            ? "سيتم مراجعة حجزك. بمجرد الموافقة، سنرسل رابط الدفع لإكمال الحجز."
+            : "Your booking will be under review. Once approved, we will send a payment link to complete your reservation."}
+        </div>
+      </Modal>
 
-              {bookingError && (
-                <>
-                  <div className="text-red-500 mb-3">
-                    <i
-                      className="bi bi-exclamation-triangle-fill"
-                      style={{ fontSize: "3rem" }}
-                    ></i>
-                  </div>
-                  <h4 className="text-red-500 font-bold mb-3">
-                    {locale === "ar" ? "فشل الحجز" : "Booking Failed"}
-                  </h4>
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-                    {bookingError}
-                  </div>
-                </>
-              )}
-            </div>
+      {/* ✅ Booking Loading/Error Modal — Ant Design */}
+      <Modal
+        open={isBookingModalOpen}
+        onCancel={bookingLoading ? undefined : closeBookingModal}
+        footer={null}
+        centered
+        width={420}
+        closable={!bookingLoading}
+        maskClosable={!bookingLoading}
+        destroyOnClose
+        styles={{
+          body: {
+            maxHeight: "60vh",
+            overflowY: "auto",
+            padding: "24px",
+          },
+        }}
+        title={
+          <span className="text-lg font-bold">
+            {bookingLoading
+              ? locale === "ar"
+                ? "جاري معالجة الحجز..."
+                : "Processing Booking..."
+              : locale === "ar"
+                ? "خطأ في الحجز"
+                : "Booking Error"}
+          </span>
+        }
+      >
+        <div className="text-center py-4">
+          {bookingLoading && (
+            <>
+              <div className="w-12 h-12 border-4 border-gray-200 border-t-[#e8a355] rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">
+                {locale === "ar"
+                  ? "يرجى الانتظار أثناء معالجة حجزك..."
+                  : "Please wait while we process your booking..."}
+              </p>
+            </>
+          )}
 
-            {!bookingLoading && (
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          {bookingError && (
+            <>
+              <div className="text-red-500 mb-3">
+                <i
+                  className="bi bi-exclamation-triangle-fill"
+                  style={{ fontSize: "3rem" }}
+                ></i>
+              </div>
+              <h4 className="text-red-500 font-bold mb-3">
+                {locale === "ar" ? "فشل الحجز" : "Booking Failed"}
+              </h4>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mb-4">
+                {bookingError}
+              </div>
+
+              <div className="flex items-center justify-center gap-3">
                 <button
                   onClick={closeBookingModal}
                   className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors border-none cursor-pointer"
                 >
                   {locale === "ar" ? "إغلاق" : "Close"}
                 </button>
-                {bookingError && (
-                  <button
-                    onClick={() => {
-                      closeBookingModal();
-                      setIsConfirmModalOpen(true);
-                    }}
-                    className="px-5 py-2.5 bg-gradient-to-br from-[#e8a355] to-[#d4903e] text-white rounded-lg font-bold text-sm hover:shadow-lg transition-all border-none cursor-pointer"
-                  >
-                    {locale === "ar" ? "حاول مرة أخرى" : "Try Again"}
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    closeBookingModal();
+                    setIsConfirmModalOpen(true);
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-br from-[#e8a355] to-[#d4903e] text-white rounded-lg font-bold text-sm hover:shadow-lg transition-all border-none cursor-pointer"
+                >
+                  {locale === "ar" ? "حاول مرة أخرى" : "Try Again"}
+                </button>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
-      )}
+      </Modal>
 
-      {/* Success Modal */}
-      <BookingSuccessModal
+      {/* ✅ Success Modal — Ant Design */}
+      <Modal
         open={isSuccessModalOpen}
-        onClose={closeSuccessModal}
-        bookingDetails={bookingDetails}
-      />
+        onCancel={closeSuccessModal}
+        footer={null}
+        centered
+        width={500}
+        destroyOnClose
+        styles={{
+          body: {
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "24px",
+          },
+        }}
+        title={null}
+      >
+        <div className="text-center py-4">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i
+              className="bi bi-check-lg text-green-600"
+              style={{ fontSize: "2.5rem" }}
+            ></i>
+          </div>
+
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">
+            {locale === "ar" ? "تم الحجز بنجاح!" : "Booking Successful!"}
+          </h3>
+          <p className="text-gray-500 mb-6">
+            {locale === "ar"
+              ? "سيتم مراجعة حجزك وإرسال رابط الدفع قريبًا."
+              : "Your booking is under review. A payment link will be sent soon."}
+          </p>
+
+          {bookingDetails && (
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+              {[
+                {
+                  icon: "bi-car-front",
+                  label: locale === "ar" ? "السيارة" : "Car",
+                  value: bookingDetails.carName,
+                },
+                {
+                  icon: "bi-gear",
+                  label: locale === "ar" ? "نوع القيادة" : "Type",
+                  value: bookingDetails.drivingType,
+                },
+                {
+                  icon: "bi-calendar-check",
+                  label: locale === "ar" ? "من" : "From",
+                  value: bookingDetails.startDate,
+                },
+                {
+                  icon: "bi-calendar-x",
+                  label: locale === "ar" ? "إلى" : "To",
+                  value: bookingDetails.endDate,
+                },
+                {
+                  icon: "bi-clock",
+                  label: locale === "ar" ? "المدة" : "Duration",
+                  value: `${bookingDetails.days} ${
+                    bookingDetails.days === 1
+                      ? locale === "ar"
+                        ? "يوم"
+                        : "Day"
+                      : locale === "ar"
+                        ? "أيام"
+                        : "Days"
+                  }`,
+                },
+                {
+                  icon: "bi-cash-stack",
+                  label: locale === "ar" ? "الإجمالي" : "Total",
+                  value: `$${bookingDetails.totalPrice}`,
+                  isTotal: true,
+                },
+              ].map((row, i) => (
+                <div
+                  key={i}
+                  className={`flex justify-between items-center py-2 ${
+                    row.isTotal
+                      ? "border-t-2 border-gray-200 mt-2 pt-3 font-bold text-[#e8a355] text-base"
+                      : "border-b border-gray-100"
+                  }`}
+                >
+                  <span
+                    className={`text-sm flex items-center gap-1.5 ${
+                      row.isTotal ? "text-[#e8a355] font-bold" : "text-gray-500"
+                    }`}
+                  >
+                    {row.label}:
+                  </span>
+                  <span
+                    className={`text-sm font-semibold ${
+                      row.isTotal ? "text-[#e8a355]" : "text-gray-800"
+                    }`}
+                  >
+                    {row.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={closeSuccessModal}
+            className="px-8 py-3 bg-gradient-to-br from-[#295557] to-[#1e3f40] text-white rounded-lg font-bold text-sm hover:shadow-lg transition-all border-none cursor-pointer"
+          >
+            {locale === "ar" ? "تم" : "Done"}
+          </button>
+        </div>
+      </Modal>
 
       {/* Review Modal */}
       <ReviewModal
@@ -1023,28 +1117,6 @@ const Page = () => {
         apiEndpoint="/user/rating/car_rating.php"
         onSuccess={handleReviewSuccess}
       />
-
-      <style jsx global>{`
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        /* Features with Icons Styling */
-        .feature-icon span {
-          color: #e8a355 !important;
-        }
-
-        .feature-icon svg {
-          stroke: #e8a355;
-        }
-      `}</style>
     </>
   );
 };

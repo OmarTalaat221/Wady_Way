@@ -27,10 +27,8 @@ export const PackageCard = ({ item }) => {
   );
   const cities = splitList(item?.route).slice(0, 12);
 
-  const priceNow = money(item?.price_currency, item?.price_current);
-  const priceWas = item?.price_original
-    ? money(item?.price_currency, item?.price_original)
-    : "";
+  const priceNow = money("$", item?.price_current);
+  const priceWas = item?.price_original ? money("$", item?.price_original) : "";
 
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
@@ -143,4 +141,3 @@ export const PackageCard = ({ item }) => {
     </div>
   );
 };
-  

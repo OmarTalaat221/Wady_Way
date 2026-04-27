@@ -47,9 +47,9 @@ export const mapApiItemToTourCardItem = (apiItem) => {
     })),
     is_fav: apiItem?.is_fav || false,
 
-    price: money(apiItem?.price_currency, apiItem?.price_current),
+    price: money("$", apiItem?.price_current),
     oldPrice: apiItem?.price_original
-      ? money(apiItem?.price_currency, apiItem?.price_original)
+      ? money("$", apiItem?.price_original)
       : "",
     offer_percentage: apiItem?.offer_percentage?.match(/\d+/)?.[0] || null,
   };

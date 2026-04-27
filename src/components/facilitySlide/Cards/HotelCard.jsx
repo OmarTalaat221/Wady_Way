@@ -105,15 +105,13 @@ export default function HotelCard({ hotel }) {
   const country = hotel?.country_name || "";
   const category = hotel?.category || "";
 
-  const priceNow =
-    hotel?.price_currency && hotel?.price_current
-      ? `${hotel.price_currency}${hotel.price_current}`
-      : hotel?.price_current;
+  const priceNow = hotel?.price_current
+    ? `$${hotel.price_current}`
+    : hotel?.price_current;
 
-  const priceWas =
-    hotel?.price_currency && hotel?.price_original
-      ? `${hotel.price_currency}${hotel.price_original}`
-      : hotel?.price_original;
+  const priceWas = hotel?.price_original
+    ? `$${hotel.price_original}`
+    : hotel?.price_original;
 
   const priceNote = hotel?.price_note || "";
   const ctaText = "Book Now";

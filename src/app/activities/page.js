@@ -103,7 +103,7 @@ const ActivityCard = ({
       <div className="activity-card-img-wrapper relative overflow-hidden h-72">
         <img
           src={image}
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+          className="!h-full w-full !max-h-full object-cover transition-transform duration-700 group-hover:scale-110"
           alt={title}
           onError={(e) => {
             e.target.src =
@@ -143,7 +143,7 @@ const ActivityCard = ({
           className="absolute bottom-6 right-6 text-white px-4 py-2 rounded-full text-lg font-bold shadow-lg"
           style={{ background: "#295557" }}
         >
-          {price_currency}
+          {"$"}
           {price_current}
         </div>
 
@@ -267,7 +267,7 @@ const ActivityCard = ({
         {/* Price Note */}
         {price_current && (
           <div className="mb-4 text-xs text-gray-500 text-center">
-            {price_current} {price_currency} {price_note}
+            {price_current} {"$"} {price_note}
           </div>
         )}
 

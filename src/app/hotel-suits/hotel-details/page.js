@@ -16,7 +16,7 @@ import { base_url } from "../../../uitils/base_url";
 import { Drawer } from "antd";
 import { FaPlus, FaMinus, FaHotel } from "react-icons/fa6";
 import moment from "moment";
-
+import "./style.css";
 import ReviewModal from "../../../components/reviews/ReviewModal";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 import GallerySection from "../../package/package-details/[packageId]/_components/GallerySection";
@@ -36,7 +36,6 @@ const Page = () => {
     openingIndex: 0,
   });
 
-  // ✅ Rooms start EMPTY - user must distribute manually
   const [rooms, setRooms] = useState([
     { id: 1, adults: 0, children: 0, babies: 0 },
   ]);
@@ -71,6 +70,7 @@ const Page = () => {
   };
 
   const [hotelData, setHotelData] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -140,9 +140,15 @@ const Page = () => {
     return parseInt(hotelData?.per_room) || 4;
   }, [hotelData?.per_room]);
 
+  const maxRooms = useMemo(() => {
+    return Math.max(adults, 1);
+  }, [adults]);
+
   const addRoom = () => {
-    if (rooms.length >= 5) {
-      toast.error("Maximum 5 rooms allowed");
+    if (rooms.length >= maxRooms) {
+      toast.error(
+        `Maximum ${maxRooms} ${maxRooms === 1 ? "room" : "rooms"} allowed (1 room per adult)`
+      );
       return;
     }
     setRooms((prev) => [
@@ -200,7 +206,6 @@ const Page = () => {
     );
   };
 
-  // ✅ Check if distribution is complete (for UI indicators)
   const isDistributionComplete = useMemo(() => {
     const totalDistributedAdults = rooms.reduce((s, r) => s + r.adults, 0);
     const totalDistributedChildren = rooms.reduce((s, r) => s + r.children, 0);
@@ -269,7 +274,6 @@ const Page = () => {
     return true;
   };
 
-  // ✅ Confirm only works if distribution is valid
   const confirmRoomSelection = () => {
     if (validateRoomDistribution()) {
       setIsRoomDrawerOpen(false);
@@ -277,7 +281,6 @@ const Page = () => {
     }
   };
 
-  // ✅ Reset rooms to EMPTY when guests change - user must redistribute
   useEffect(() => {
     setRooms([{ id: 1, adults: 0, children: 0, babies: 0 }]);
   }, [adults, children, infants]);
@@ -371,7 +374,6 @@ const Page = () => {
     }));
   }, [rooms]);
 
-  // ✅ handleBooking - ALWAYS validates rooms, opens drawer if not distributed
   const handleBooking = async (e) => {
     e.preventDefault();
 
@@ -419,7 +421,6 @@ const Page = () => {
       return;
     }
 
-    // ✅ ALWAYS check room distribution - open drawer if not complete
     if (!isDistributionComplete) {
       toast.error("Please distribute all guests across rooms first");
       setIsRoomDrawerOpen(true);
@@ -447,8 +448,6 @@ const Page = () => {
         invite_code: inviteCode || "",
         rooms: formatRoomsForAPI(),
       };
-
-      console.log("Booking data being sent:", bookingData);
 
       const response = await axios.post(
         `${base_url}/user/hotels/reserve_hotel.php`,
@@ -503,7 +502,35 @@ const Page = () => {
     return hotelData.amenities.filter((a) => a.name || a.label);
   }, [hotelData?.amenities]);
 
-  // ✅ Distribution progress for UI
+  const overallRating = useMemo(() => {
+    if (!hotelData?.ratings || !Array.isArray(hotelData.ratings)) return null;
+    const validRating = hotelData.ratings.find(
+      (r) => r.score !== null && r.score !== undefined && r.score !== ""
+    );
+    if (!validRating) return null;
+    const score = parseFloat(validRating.score);
+    const maxScore = parseFloat(validRating.maxScore) || 5;
+    if (isNaN(score)) return null;
+    // normalize to /5
+    return maxScore > 5 ? (score / maxScore) * 5 : score;
+  }, [hotelData?.ratings]);
+
+  // ─── Map ────────────────────────────────────────────────────────────────────
+  const mapEmbedUrl = useMemo(() => {
+    const lat = parseFloat(hotelData?.latitude);
+    const lng = parseFloat(hotelData?.longitude);
+    if (
+      !hotelData?.latitude ||
+      !hotelData?.longitude ||
+      isNaN(lat) ||
+      isNaN(lng)
+    ) {
+      return null;
+    }
+    return `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+  }, [hotelData?.latitude, hotelData?.longitude]);
+  // ────────────────────────────────────────────────────────────────────────────
+
   const distributionProgress = useMemo(() => {
     const distributedAdults = rooms.reduce((s, r) => s + r.adults, 0);
     const distributedChildren = rooms.reduce((s, r) => s + r.children, 0);
@@ -579,7 +606,15 @@ const Page = () => {
 
   const formatCurrency = (amount) => {
     const currency = hotelData.price_currency || "$";
-    return `${currency}${parseFloat(amount || 0).toFixed(0)}`;
+    const symbol =
+      currency === "USD"
+        ? "$"
+        : currency === "EUR"
+          ? "€"
+          : currency === "GBP"
+            ? "£"
+            : currency;
+    return `${symbol}${parseFloat(amount || 0).toFixed(0)}`;
   };
 
   return (
@@ -600,19 +635,52 @@ const Page = () => {
 
           <div className="row g-xl-4 gy-5">
             <div className="col-xl-8">
-              <h2>{hotelData?.name || "Hotel Name"}</h2>
+              <h2>{hotelData?.title || "Hotel Name"}</h2>
+
+              {hotelData?.subtitle && (
+                <p className="text-gray-600 text-sm mb-3">
+                  {hotelData.subtitle}
+                </p>
+              )}
+
+              {hotelData?.location && (
+                <p className="text-gray-500 text-sm !mb-3 flex items-center gap-1">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {hotelData.location}
+                  {hotelData?.country_name && `, ${hotelData.country_name}`}
+                </p>
+              )}
 
               <div className="price-area">
                 <div className="flex items-center gap-3">
                   <div className="tour-price">
-                    <h3>{formatCurrency(adultPrice)}/</h3>
+                    <h3>
+                      {"$"}
+                      {adultPrice + " "}
+                    </h3>
                     <span>adult</span>
                   </div>
                   <div className="tour-price">
                     <h3 className="!text-[rgb(226,155,75)]">&</h3>
                   </div>
                   <div className="tour-price">
-                    <h3>{formatCurrency(childPrice)}/</h3>
+                    <h3>
+                      {"$"}
+                      {childPrice + " "}
+                    </h3>
                     <span>child</span>
                   </div>
                 </div>
@@ -661,12 +729,6 @@ const Page = () => {
                 </>
               )}
 
-              <h4>Children and extra beds</h4>
-              <p>
-                {hotelData?.children_policy ||
-                  "Children are welcome! Kids stay free when using existing bedding. Additional bed charges may apply."}
-              </p>
-
               {perRoom && (
                 <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-3 mt-3 mb-4 bg-gray-50">
                   <FaHotel className="text-[#295557] shrink-0" />
@@ -677,24 +739,153 @@ const Page = () => {
                 </div>
               )}
 
+              {/* ─── Map Section ─────────────────────────────────────────────── */}
+              <div className="hotel-map-section mt-4 mb-4">
+                <h4 className="mb-3">Location</h4>
+                {mapEmbedUrl ? (
+                  <div
+                    className="hotel-map-wrapper"
+                    style={{
+                      borderRadius: "12px",
+                      overflow: "hidden",
+                      border: "1px solid #e5e7eb",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    <iframe
+                      src={mapEmbedUrl}
+                      width="100%"
+                      height="380"
+                      style={{ border: 0, display: "block" }}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      title={`Map for ${hotelData?.title || "Hotel"}`}
+                    />
+                    {(hotelData?.location || hotelData?.country_name) && (
+                      <div
+                        style={{
+                          padding: "10px 16px",
+                          background: "#f9fafb",
+                          borderTop: "1px solid #e5e7eb",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#295557"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                          <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        <span style={{ fontSize: "13px", color: "#4b5563" }}>
+                          {[hotelData?.location, hotelData?.country_name]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      borderRadius: "12px",
+                      border: "1px dashed #d1d5db",
+                      background: "#f9fafb",
+                      height: "200px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "10px",
+                      color: "#9ca3af",
+                    }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="36"
+                      height="36"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#d1d5db"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        color: "#6b7280",
+                      }}
+                    >
+                      Location not available for this hotel
+                    </p>
+                    {(hotelData?.location || hotelData?.country_name) && (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "12px",
+                          color: "#9ca3af",
+                        }}
+                      >
+                        {[hotelData?.location, hotelData?.country_name]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* ──────────────────────────────────────────────────────────────── */}
+
               <div className="review-wrapper mt-70">
                 <h4>Customer Review</h4>
                 <div className="review-box">
                   <div className="total-review">
-                    <h2>{hotelData?.overall_rating || "9.5"}</h2>
+                    <h2>
+                      {overallRating !== null
+                        ? overallRating.toFixed(1)
+                        : "N/A"}
+                    </h2>
                     <div className="review-wrap">
                       <ul className="star-list">
-                        {[...Array(5)].map((_, i) => (
-                          <li key={i}>
-                            <i
-                              className={
-                                i < 4 ? "bi bi-star-fill" : "bi bi-star-half"
-                              }
-                            />
-                          </li>
-                        ))}
+                        {[...Array(5)].map((_, i) => {
+                          const rating = overallRating || 0;
+                          const starIndex = i + 1;
+                          return (
+                            <li key={i}>
+                              <i
+                                className={
+                                  rating >= starIndex
+                                    ? "bi bi-star-fill"
+                                    : rating >= starIndex - 0.5
+                                      ? "bi bi-star-half"
+                                      : "bi bi-star"
+                                }
+                              />
+                            </li>
+                          );
+                        })}
                       </ul>
-                      <span>{hotelData?.total_reviews || "2590"} Reviews</span>
+                      <span className="text-gray-500 text-sm">
+                        {overallRating !== null
+                          ? `${overallRating.toFixed(1)} / 5`
+                          : "No ratings yet"}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -757,15 +948,12 @@ const Page = () => {
                             <label className="number-input-lable">
                               Adult:<span></span>
                               <span>
-                                {formatCurrency(adultPrice)}
-                                {hotelData?.adult_price_original && (
-                                  <del>
-                                    {" "}
-                                    {formatCurrency(
-                                      hotelData.adult_price_original
-                                    )}
-                                  </del>
-                                )}
+                                {"$" + adultPrice}
+                                {hotelData?.price_original &&
+                                  parseFloat(hotelData.price_original) >
+                                    parseFloat(hotelData.adult_price) && (
+                                    <del> {"$" + hotelData.price_original}</del>
+                                  )}
                               </span>
                             </label>
                             <QuantityCounter
@@ -778,7 +966,7 @@ const Page = () => {
                           <div className="number-input-item children">
                             <label className="number-input-lable">
                               Children:<span></span>
-                              <span>{formatCurrency(childPrice)}</span>
+                              <span>{"$" + childPrice}</span>
                             </label>
                             <QuantityCounter
                               quantity={children}
@@ -808,8 +996,7 @@ const Page = () => {
                             <span>Adult</span>
                             <ul>
                               <li>
-                                <strong>{formatCurrency(adultPrice)}</strong>{" "}
-                                PRICE
+                                <strong>{"$" + adultPrice}</strong> PRICE
                               </li>
                               <li>
                                 <i className="bi bi-x-lg" />
@@ -837,7 +1024,7 @@ const Page = () => {
                               />
                             </svg>
                             <div className="total">
-                              {formatCurrency(adultPrice * adults * totalDays)}
+                              {"$" + adultPrice * adults * totalDays}
                             </div>
                           </div>
 
@@ -846,8 +1033,7 @@ const Page = () => {
                               <span>Children</span>
                               <ul>
                                 <li>
-                                  <strong>{formatCurrency(childPrice)}</strong>{" "}
-                                  PRICE
+                                  <strong>{"$" + childPrice}</strong> PRICE
                                 </li>
                                 <li>
                                   <i className="bi bi-x-lg" />
@@ -875,14 +1061,11 @@ const Page = () => {
                                 />
                               </svg>
                               <div className="total">
-                                {formatCurrency(
-                                  childPrice * children * totalDays
-                                )}
+                                {"$" + childPrice * children * totalDays}
                               </div>
                             </div>
                           )}
 
-                          {/* ✅ Room Distribution Button with status indicator */}
                           <div className="mt-3 pb-3">
                             <button
                               type="button"
@@ -914,14 +1097,15 @@ const Page = () => {
                               </span>
                             </button>
                             <p className="text-xs text-gray-400 mt-1 mb-0 !border-none">
-                              Max {perRoom} guests per room (excl. infants)
+                              Max {perRoom} guests per room (excl. infants) •
+                              Max {maxRooms} {maxRooms === 1 ? "room" : "rooms"}{" "}
+                              (1 per adult)
                             </p>
                           </div>
                         </div>
 
                         <div className="total-price">
-                          <span>Total Price:</span>{" "}
-                          {formatCurrency(calculateTotal)}
+                          <span>Total Price:</span> {"$" + calculateTotal}
                           {totalDays > 0 && (
                             <small className="d-block text-muted">
                               for {totalDays}{" "}
@@ -1037,7 +1221,7 @@ const Page = () => {
                       <div className="col-12">
                         <div className="summary-item mb-3 p-3 bg-light rounded">
                           <h6 className="text-primary mb-2">
-                            {hotelData?.name || "Hotel Booking"}
+                            {hotelData?.title || "Hotel Booking"}
                           </h6>
                           <div className="summary-details">
                             <div className="row mb-2">
@@ -1070,7 +1254,7 @@ const Page = () => {
                                 <strong>Adults:</strong>
                               </div>
                               <div className="col-6">
-                                {adults} x {formatCurrency(adultPrice)}
+                                {adults} x {"$" + adultPrice}
                               </div>
                             </div>
                             {children > 0 && (
@@ -1079,7 +1263,7 @@ const Page = () => {
                                   <strong>Children:</strong>
                                 </div>
                                 <div className="col-6">
-                                  {children} x {formatCurrency(childPrice)}
+                                  {children} x {"$" + childPrice}
                                 </div>
                               </div>
                             )}
@@ -1094,7 +1278,6 @@ const Page = () => {
                               </div>
                             )}
                             <hr />
-
                             <div className="row mb-2">
                               <div className="col-6">
                                 <strong>Rooms:</strong>
@@ -1121,7 +1304,7 @@ const Page = () => {
                               </div>
                               <div className="col-6">
                                 <strong className="text-success">
-                                  {formatCurrency(calculateTotal)}
+                                  {"$" + calculateTotal}
                                 </strong>
                               </div>
                             </div>
@@ -1195,7 +1378,7 @@ const Page = () => {
                   </>
                 )}
 
-                {bookingSuccess && (
+                {bookingSuccess && !bookingLoading && (
                   <>
                     <div className="text-success mb-3">
                       <i
@@ -1204,26 +1387,30 @@ const Page = () => {
                       ></i>
                     </div>
                     <h4 className="text-success mb-3">Booking Under Review</h4>
-                    <div className="alert alert-info">
+                    <div className="alert alert-info text-start">
                       <p className="mb-2">
                         <strong>Thank you for your booking!</strong>
                       </p>
                       <p className="mb-2">
-                        Your booking request is currently under review. Our team
-                        will verify your information and check the required
-                        details.
+                        The total amount of <strong>${calculateTotal}</strong>{" "}
+                        has been <strong>held from your wallet</strong> and your
+                        booking is currently under review.
                       </p>
-                      <p className="mb-0">
-                        <strong>
-                          Once approved, we will send a payment link to your
-                          email address to complete your reservation.
-                        </strong>
-                      </p>
+                      <ul className="mb-0 ps-3" style={{ fontSize: "14px" }}>
+                        <li className="mb-1">
+                          <strong>If approved:</strong> The amount will be
+                          deducted from your wallet.
+                        </li>
+                        <li>
+                          <strong>If rejected:</strong> The held amount will be
+                          released back to your wallet automatically.
+                        </li>
+                      </ul>
                     </div>
                   </>
                 )}
 
-                {bookingError && (
+                {bookingError && !bookingLoading && (
                   <>
                     <div className="text-danger mb-3">
                       <i
@@ -1269,14 +1456,14 @@ const Page = () => {
         onClose={() => setIsReviewModalOpen(false)}
         itemId={hotelID}
         itemType="hotel"
-        itemName={hotelData?.name}
+        itemName={hotelData?.title}
         apiEndpoint="/user/rating/hotel_rating.php"
         onSuccess={(data) => {
           console.log("Review submitted:", data);
         }}
       />
 
-      {/* ✅ Room Distribution Drawer */}
+      {/* Room Distribution Drawer */}
       <Drawer
         title={
           <div>
@@ -1284,8 +1471,8 @@ const Page = () => {
             <p className="text-xs text-gray-500 mb-0 mt-1">
               {adults} Adults
               {children > 0 ? `, ${children} Children` : ""}
-              {infants > 0 ? `, ${infants} Infants` : ""} - {rooms.length}{" "}
-              {rooms.length === 1 ? "Room" : "Rooms"}
+              {infants > 0 ? `, ${infants} Infants` : ""} — {rooms.length}{" "}
+              {rooms.length === 1 ? "Room" : "Rooms"} (max {maxRooms})
             </p>
           </div>
         }
@@ -1316,7 +1503,6 @@ const Page = () => {
         }
       >
         <div className="space-y-4">
-          {/* ✅ Remaining guests indicator */}
           <div className="border border-gray-200 rounded-lg px-4 py-3 bg-gray-50">
             <p className="text-sm font-medium text-gray-800 mb-2">
               Remaining to distribute:
@@ -1355,11 +1541,11 @@ const Page = () => {
               )}
             </div>
             <p className="text-[11px] text-gray-400 mt-2 mb-0">
-              Max {perRoom} per room (adults + children). Infants not counted.
+              Max {perRoom} per room (adults + children). Infants not counted. •
+              Max {maxRooms} {maxRooms === 1 ? "room" : "rooms"} total.
             </p>
           </div>
 
-          {/* Rooms list */}
           {rooms.map((room, roomIdx) => {
             const roomOccupancy = room.adults + room.children;
             const isAtCapacity = roomOccupancy >= perRoom;
@@ -1396,7 +1582,7 @@ const Page = () => {
 
                 {room.adults === 0 && room.children > 0 && (
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg mb-3">
-                    <span>Children can't stay alone in a room</span>
+                    <span>Children can&apos;t stay alone in a room</span>
                   </div>
                 )}
 
@@ -1406,7 +1592,6 @@ const Page = () => {
                   </div>
                 )}
 
-                {/* Adults counter */}
                 <div className="flex items-center justify-between py-2">
                   <span className="text-sm text-gray-700">Adults</span>
                   <div className="flex items-center gap-3">
@@ -1437,7 +1622,6 @@ const Page = () => {
                   </div>
                 </div>
 
-                {/* Children counter */}
                 {children > 0 && (
                   <div className="flex items-center justify-between py-2">
                     <span className="text-sm text-gray-700">Children</span>
@@ -1470,7 +1654,6 @@ const Page = () => {
                   </div>
                 )}
 
-                {/* Infants counter */}
                 {infants > 0 && (
                   <div className="flex items-center justify-between py-2">
                     <div>
@@ -1505,7 +1688,6 @@ const Page = () => {
                   </div>
                 )}
 
-                {/* Room summary */}
                 <div className="mt-2 pt-2 border-t border-gray-100">
                   <p className="text-xs text-gray-400 mb-0">
                     {room.adults + room.children} countable guest(s)
@@ -1516,15 +1698,25 @@ const Page = () => {
             );
           })}
 
-          {/* Add room button */}
-          {rooms.length < 5 && (
+          {rooms.length < maxRooms && (
             <button
               onClick={addRoom}
               className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-3 text-gray-500 hover:border-[#295557] hover:text-[#295557] transition-colors"
             >
               <FaPlus className="text-xs" />
-              <span className="text-sm font-medium">Add Room</span>
+              <span className="text-sm font-medium">
+                Add Room ({rooms.length}/{maxRooms})
+              </span>
             </button>
+          )}
+
+          {rooms.length >= maxRooms && maxRooms > 1 && (
+            <div className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-3 text-gray-400">
+              <span className="text-sm">
+                Maximum {maxRooms} {maxRooms === 1 ? "room" : "rooms"} reached
+                (1 per adult)
+              </span>
+            </div>
           )}
         </div>
       </Drawer>

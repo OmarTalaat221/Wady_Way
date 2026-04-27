@@ -27,13 +27,11 @@ const Account = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // State for API data
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
 
-  // Initialize pagination from URL params
   const [currentPage, setCurrentPage] = useState(() => {
     const pageParam = searchParams.get("page");
     return pageParam ? parseInt(pageParam) : 1;
@@ -44,20 +42,27 @@ const Account = () => {
     return limitParam ? parseInt(limitParam) : 6;
   });
 
-  // Initialize filters from URL params
   const [statusFilter, setStatusFilter] = useState(() => {
     return searchParams.get("status") || "all";
   });
 
-  // Active tab state
   const [activeTab, setActiveTab] = useState(() => {
     return searchParams.get("tab") || "all";
   });
 
-  // Mobile filter visibility
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Function to update URL params
+  const parseMaybeJsonArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (!value || typeof value !== "string") return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
   const updateURLParams = (updates = {}) => {
     const params = new URLSearchParams(searchParams.toString());
 
@@ -95,7 +100,6 @@ const Account = () => {
     router.push(newURL, { scroll: false });
   };
 
-  // Sync state with URL params
   useEffect(() => {
     const pageParam = searchParams.get("page");
     const limitParam = searchParams.get("limit");
@@ -113,7 +117,6 @@ const Account = () => {
     if (newTab !== activeTab) setActiveTab(newTab);
   }, [searchParams]);
 
-  // Get user ID from localStorage
   useEffect(() => {
     const userDataString = localStorage.getItem("user");
     if (userDataString) {
@@ -126,15 +129,18 @@ const Account = () => {
     }
   }, []);
 
-  // Calculate progress based on dates (kept for UI purposes)
   const calculateProgress = (startDate, endDate, status) => {
-    // If completed, return 100%
     if (status === "completed") return 100;
-    // If upcoming or pending or rejected, return 0%
-    if (status === "upcoming" || status === "pending" || status === "rejected")
+    if (
+      status === "upcoming" ||
+      status === "pending" ||
+      status === "rejected" ||
+      status === "cancelled_by_user" ||
+      status === "cancelled"
+    ) {
       return 0;
+    }
 
-    // For in_progress, calculate based on dates
     if (status === "in_progress") {
       const now = new Date();
       const start = new Date(startDate);
@@ -157,10 +163,8 @@ const Account = () => {
     return 0;
   };
 
-  // Get status config based on booking type and API status
   const getStatusConfig = (bookingType, apiStatus) => {
     const statusConfigs = {
-      // Pending status
       pending: {
         tour: {
           label: "Pending",
@@ -183,7 +187,6 @@ const Account = () => {
           classes: "bg-amber-50 text-amber-600 border-amber-200",
         },
       },
-      // Rejected status
       rejected: {
         tour: {
           label: "Rejected",
@@ -206,7 +209,50 @@ const Account = () => {
           classes: "bg-red-50 text-red-600 border-red-200",
         },
       },
-      // Upcoming status
+      cancelled_by_user: {
+        tour: {
+          label: "Cancelled",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-gray-50 text-gray-500 border-gray-200",
+        },
+        activity: {
+          label: "Cancelled",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-gray-50 text-gray-500 border-gray-200",
+        },
+        hotel: {
+          label: "Cancelled",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-gray-50 text-gray-500 border-gray-200",
+        },
+        transportation: {
+          label: "Cancelled",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-gray-50 text-gray-500 border-gray-200",
+        },
+      },
+      cancelled: {
+        tour: {
+          label: "Cancelled",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-gray-50 text-gray-500 border-gray-200",
+        },
+        activity: {
+          label: "Cancelled",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-gray-50 text-gray-500 border-gray-200",
+        },
+        hotel: {
+          label: "Cancelled",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-gray-50 text-gray-500 border-gray-200",
+        },
+        transportation: {
+          label: "Cancelled",
+          icon: <FiX className="w-3 h-3" />,
+          classes: "bg-gray-50 text-gray-500 border-gray-200",
+        },
+      },
       upcoming: {
         tour: {
           label: "Upcoming Trip",
@@ -229,7 +275,6 @@ const Account = () => {
           classes: "bg-blue-50 text-blue-600 border-blue-200",
         },
       },
-      // In Progress status
       in_progress: {
         tour: {
           label: "On Trip",
@@ -252,7 +297,6 @@ const Account = () => {
           classes: "bg-emerald-50 text-emerald-600 border-emerald-200",
         },
       },
-      // Completed status
       completed: {
         tour: {
           label: "Completed",
@@ -282,7 +326,6 @@ const Account = () => {
     );
   };
 
-  // Fetch all bookings
   const fetchAllBookings = async () => {
     try {
       setLoading(true);
@@ -309,7 +352,6 @@ const Account = () => {
 
       let allBookings = [];
 
-      // Map Tours
       if (toursRes?.data?.status === "success") {
         const mappedTours = toursRes.data.message.map((item) => {
           const reservation = item.reservation;
@@ -323,7 +365,6 @@ const Account = () => {
               ? tour.gallery.map((g) => g.image)
               : [tour.image];
 
-          // Use API status directly
           const apiStatus = reservation.status || "pending";
           const progress = calculateProgress(
             reservation.start_date,
@@ -335,16 +376,16 @@ const Account = () => {
 
           return {
             id: reservation.reservation_id,
-            reservation_id: reservation.reservation_id, // ✅
+            reservation_id: reservation.reservation_id,
             bookingType: "tour",
-            tour_id: reservation.tour_id, // ✅
-            tourId: reservation.tour_id, // ✅
+            tour_id: reservation.tour_id,
+            tourId: reservation.tour_id,
             title: tour.title || reservation.tour_title,
             duration: tour.duration,
             status: apiStatus,
-            apiStatus: apiStatus,
-            statusConfig: statusConfig,
-            images: images,
+            apiStatus,
+            statusConfig,
+            images,
             image:
               reservation.background_image ||
               tour.background_image ||
@@ -359,7 +400,7 @@ const Account = () => {
             numChildren: parseInt(reservation.num_children),
             startDate: reservation.start_date,
             endDate: reservation.end_date,
-            progress: progress,
+            progress,
             category: tour.category,
             countryName: tour.country_name,
             itinerary: tour.itinerary,
@@ -367,27 +408,21 @@ const Account = () => {
             includes: tour.includes,
             excludes: tour.excludes,
             dayTourGuide: reservation.day_tour_guide,
-            max_persons: tour.max_persons, // ✅
-
-            // ════════════════════════════════════
-            // ✅ الـ reservation strings الكاملة
-            // ════════════════════════════════════
-            day_hotel: reservation.day_hotel, // "22**1**day**5**2"
-            day_car: reservation.day_car, // "4**1**day**1**2"
-            day_activities: reservation.day_activities, // "5**1**day**4**1..."
-            day_tour_guide: reservation.day_tour_guide, // "0**1"
+            max_persons: tour.max_persons,
+            day_hotel: reservation.day_hotel,
+            day_car: reservation.day_car,
+            day_activities: reservation.day_activities,
+            day_tour_guide: reservation.day_tour_guide,
+            _rawApiItem: item,
           };
         });
         allBookings = [...allBookings, ...mappedTours];
       }
 
-      // Map Activities
       if (activitiesRes?.data?.status === "success") {
         const mappedActivities = activitiesRes.data.message.map((item) => {
-          // Use API status directly
           const apiStatus = item.status || "pending";
           const progress = calculateProgress(item.date, item.date, apiStatus);
-
           const statusConfig = getStatusConfig("activity", apiStatus);
 
           return {
@@ -397,8 +432,8 @@ const Account = () => {
             title: item.title,
             duration: "1 Day",
             status: apiStatus,
-            apiStatus: apiStatus,
-            statusConfig: statusConfig,
+            apiStatus,
+            statusConfig,
             image: item.background_image,
             backgroundImage: item.background_image,
             price: parseFloat(item.total_amount),
@@ -407,20 +442,19 @@ const Account = () => {
             numChildren: parseInt(item.childs_num),
             startDate: item.date,
             endDate: item.date,
-            progress: progress,
+            progress,
             features: item.activity_features,
             ratings: item.activity_ratings,
             countryId: item.country_id,
+            _rawApiItem: item,
           };
         });
         allBookings = [...allBookings, ...mappedActivities];
       }
 
-      // Map Transportation
       if (transportationRes?.data?.status === "success") {
         const mappedTransportation = transportationRes.data.message.map(
           (item) => {
-            // Use API status directly
             const apiStatus = item.status || "pending";
             const progress = calculateProgress(
               item.start_date,
@@ -442,8 +476,8 @@ const Account = () => {
               title: item.title,
               duration: `${daysDiff} ${daysDiff === 1 ? "Day" : "Days"}`,
               status: apiStatus,
-              apiStatus: apiStatus,
-              statusConfig: statusConfig,
+              apiStatus,
+              statusConfig,
               image: item.background_image,
               backgroundImage: item.background_image,
               price: parseFloat(item.total_amount),
@@ -452,20 +486,19 @@ const Account = () => {
               driverId: item.driver_id,
               startDate: item.start_date,
               endDate: item.end_date,
-              progress: progress,
+              progress,
               features: item.car_features,
               ratings: item.car_ratings,
               countryId: item.country_id,
+              _rawApiItem: item,
             };
           }
         );
         allBookings = [...allBookings, ...mappedTransportation];
       }
 
-      // Map Hotels
       if (hotelsRes?.data?.status === "success") {
         const mappedHotels = hotelsRes.data.message.map((item) => {
-          // Use API status directly
           const apiStatus = item.status || "pending";
           const progress = calculateProgress(
             item.start_date,
@@ -475,15 +508,34 @@ const Account = () => {
 
           const statusConfig = getStatusConfig("hotel", apiStatus);
 
-          // Parse additional services
           const additionalServices = item.aditional_services
             ? item.aditional_services.split("**").filter(Boolean)
             : [];
 
-          // Calculate nights
           const nights = Math.ceil(
             (new Date(item.end_date) - new Date(item.start_date)) /
               (1000 * 60 * 60 * 24)
+          );
+
+          const parsedRooms = [
+            ...(Array.isArray(item.rooms) ? item.rooms : []),
+            ...(Array.isArray(item.hotel_reserved?.rooms)
+              ? item.hotel_reserved.rooms
+              : []),
+            ...(parseMaybeJsonArray(item.rooms_json) || []),
+          ];
+
+          const uniqueRooms = parsedRooms.filter(
+            (room, index, arr) =>
+              arr.findIndex(
+                (r) =>
+                  String(r.id || index) === String(room.id || index) &&
+                  String(r.adults || 0) === String(room.adults || 0) &&
+                  String(r.kids ?? r.children ?? 0) ===
+                    String(room.kids ?? room.children ?? 0) &&
+                  String(r.babies ?? r.infants ?? 0) ===
+                    String(room.babies ?? room.infants ?? 0)
+              ) === index
           );
 
           return {
@@ -496,33 +548,34 @@ const Account = () => {
             duration:
               item.duration || `${nights} ${nights === 1 ? "Night" : "Nights"}`,
             status: apiStatus,
-            apiStatus: apiStatus,
-            statusConfig: statusConfig,
+            apiStatus,
+            statusConfig,
             image: item.background_image || item.image,
             backgroundImage: item.background_image,
             mainLocations: item.location ? [item.location] : [],
             price: parseFloat(item.total_amount),
-            priceCurrency: item.price_currency || "USD",
+            priceCurrency: item.price_currency || "$",
             pricePerNight: parseFloat(item.price_current),
             originalPrice: parseFloat(item.price_original),
             numAdults: parseInt(item.adults_num),
             numChildren: 0,
             startDate: item.start_date,
             endDate: item.end_date,
-            progress: progress,
+            progress,
             category: item.category,
             location: item.location,
             countryId: item.country_id,
             amenities: item.hotel_amenities || [],
             ratings: item.hotel_ratings || [],
-            additionalServices: additionalServices,
+            additionalServices,
             priceNote: item.price_note,
+            rooms: uniqueRooms,
+            _rawApiItem: item,
           };
         });
         allBookings = [...allBookings, ...mappedHotels];
       }
 
-      // Sort by start date (most recent first)
       allBookings.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
 
       setBookings(allBookings);
@@ -541,13 +594,20 @@ const Account = () => {
     }
   }, [userId]);
 
-  // Tab configurations
   const tabs = [
     {
       id: "all",
       label: "All",
       fullLabel: "All Bookings",
       icon: <IoGridOutline className="w-4 h-4" />,
+      color: "#295557",
+    },
+
+    {
+      id: "schedule",
+      label: "Schedule",
+      fullLabel: "My Schedule",
+      icon: <FiCalendar className="w-4 h-4" />,
       color: "#295557",
     },
     {
@@ -580,7 +640,6 @@ const Account = () => {
     },
   ];
 
-  // Status filter options - Only the 5 statuses from API
   const getStatusFilters = () => {
     return [
       {
@@ -599,6 +658,12 @@ const Account = () => {
         value: "rejected",
         label: "Rejected",
         fullLabel: "Rejected",
+        icon: <FiX className="w-3.5 h-3.5" />,
+      },
+      {
+        value: "cancelled_by_user",
+        label: "Cancelled",
+        fullLabel: "Cancelled",
         icon: <FiX className="w-3.5 h-3.5" />,
       },
       {
@@ -622,13 +687,11 @@ const Account = () => {
     ];
   };
 
-  // Get count for each tab
   const getTabCount = (tabId) => {
     if (tabId === "all") return bookings.length;
     return bookings.filter((b) => b.bookingType === tabId).length;
   };
 
-  // Get status count
   const getStatusCount = (statusValue) => {
     let filtered = bookings;
     if (activeTab !== "all") {
@@ -638,7 +701,6 @@ const Account = () => {
     return filtered.filter((b) => b.status === statusValue).length;
   };
 
-  // Filter bookings based on active tab and status
   const filteredBookings = bookings.filter((booking) => {
     const tabMatch = activeTab === "all" || booking.bookingType === activeTab;
     const statusMatch =
@@ -646,13 +708,11 @@ const Account = () => {
     return tabMatch && statusMatch;
   });
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedBookings = filteredBookings.slice(startIndex, endIndex);
 
-  // Handle tab change
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     setCurrentPage(1);
@@ -660,7 +720,6 @@ const Account = () => {
     updateURLParams({ tab: tabId, page: 1, status: "all" });
   };
 
-  // Handle page change
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages && page !== currentPage) {
       setCurrentPage(page);
@@ -669,7 +728,6 @@ const Account = () => {
     }
   };
 
-  // Handle status filter change
   const handleStatusFilterChange = (status) => {
     setStatusFilter(status);
     setCurrentPage(1);
@@ -677,7 +735,6 @@ const Account = () => {
     updateURLParams({ page: 1, status });
   };
 
-  // Generate pagination numbers
   const getPaginationNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -714,7 +771,6 @@ const Account = () => {
     return pages;
   };
 
-  // Get empty state message based on active tab
   const getEmptyStateMessage = () => {
     const messages = {
       all: {
@@ -751,7 +807,6 @@ const Account = () => {
   const statusFilters = getStatusFilters();
   const emptyState = getEmptyStateMessage();
 
-  // Loading state
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -761,7 +816,6 @@ const Account = () => {
     );
   }
 
-  // Error state
   if (error && bookings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -783,7 +837,6 @@ const Account = () => {
 
   return (
     <div className="px-2 sm:px-4 lg:px-0">
-      {/* Tabs Navigation */}
       <div className="bg-gray-50 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 mb-4 overflow-x-auto no-scrollbar">
         <div className="flex gap-1 sm:gap-2 min-w-max sm:min-w-0">
           {tabs.map((tab) => {
@@ -795,7 +848,7 @@ const Account = () => {
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
                 className={`
-                  flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 
+                  flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5
                   rounded-lg sm:rounded-xl font-medium text-sm sm:text-base
                   transition-all duration-300 whitespace-nowrap
                   ${
@@ -826,7 +879,6 @@ const Account = () => {
         </div>
       </div>
 
-      {/* Status Filters - Desktop */}
       <div className="hidden md:flex items-center gap-2 flex-wrap mb-4">
         <span className="text-sm font-medium text-gray-600 flex items-center gap-1.5">
           <FiFilter className="w-4 h-4" />
@@ -841,7 +893,7 @@ const Account = () => {
               key={filter.value}
               onClick={() => handleStatusFilterChange(filter.value)}
               className={`
-                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full 
+                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
                 text-sm font-medium border transition-all duration-200
                 ${
                   isActive
@@ -865,7 +917,6 @@ const Account = () => {
         })}
       </div>
 
-      {/* Status Filters - Mobile */}
       <div className="md:hidden mb-4">
         <button
           onClick={() => setShowMobileFilters(!showMobileFilters)}
@@ -922,7 +973,6 @@ const Account = () => {
         )}
       </div>
 
-      {/* Results Info */}
       {filteredBookings.length > 0 && (
         <div className="mb-4">
           <p className="text-sm text-gray-500">
@@ -944,7 +994,6 @@ const Account = () => {
         </div>
       )}
 
-      {/* Bookings Grid */}
       {paginatedBookings.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {paginatedBookings.map((booking) => (
@@ -980,11 +1029,9 @@ const Account = () => {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && paginatedBookings.length > 0 && (
         <div className="mt-6 sm:mt-8 flex justify-center">
           <nav className="flex items-center gap-1 sm:gap-2">
-            {/* Previous Button */}
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
@@ -1000,7 +1047,6 @@ const Account = () => {
               <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            {/* Page Numbers */}
             <div className="flex items-center gap-1">
               {getPaginationNumbers().map((page, index) =>
                 page === "..." ? (
@@ -1029,7 +1075,6 @@ const Account = () => {
               )}
             </div>
 
-            {/* Next Button */}
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}

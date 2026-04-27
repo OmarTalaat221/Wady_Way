@@ -61,6 +61,10 @@ const ItineraryDay = ({
     (state) => state.tourReservation.tourGuideByDay?.[String(dayNumber)]
   );
 
+  const numAdults = useSelector(
+    (state) => state.tourReservation.numAdults || 1
+  );
+
   const isGuideAvailable = tourGuideData?.isAvailable || false;
   const isGuideSelected = tourGuideData?.isSelected || false;
 
@@ -80,6 +84,14 @@ const ItineraryDay = ({
   const totalChildren = people.children;
   const totalInfants = people.infants || 0;
   const totalTravelers = totalAdults + totalChildren;
+
+  // ✅ max rooms = عدد البالغين
+  const maxRooms = Math.max(totalAdults, 1);
+
+  const activeHotelId = useMemo(() => {
+    const activeHotel = activeAccommodations?.[index];
+    return activeHotel?.id || activeHotel?.hotel_id || null;
+  }, [activeAccommodations, index]);
 
   const perRoomMax = useMemo(() => {
     const activeHotel = activeAccommodations?.[index];
@@ -119,6 +131,35 @@ const ItineraryDay = ({
       );
     }
   }, []); // eslint-disable-line
+
+  // ✅ Reset rooms when hotel changes
+  const prevHotelIdRef = useRef(activeHotelId);
+  useEffect(() => {
+    if (prevHotelIdRef.current === null && activeHotelId === null) return;
+
+    if (
+      prevHotelIdRef.current !== null &&
+      activeHotelId !== null &&
+      String(prevHotelIdRef.current) !== String(activeHotelId)
+    ) {
+      setLocalRooms([{ id: 1, adults: 1, children: 0, babies: 0 }]);
+      dispatch(setDayRooms({ day: dayNumber, rooms: [] }));
+
+      if (isDayFlipped) {
+        setIsFlipped(false);
+        setSelectedAccommodation(null);
+      }
+    }
+
+    prevHotelIdRef.current = activeHotelId;
+  }, [
+    activeHotelId,
+    dayNumber,
+    dispatch,
+    isDayFlipped,
+    setIsFlipped,
+    setSelectedAccommodation,
+  ]);
 
   // Hydrate cars from Redux (one-time)
   useEffect(() => {
@@ -177,7 +218,6 @@ const ItineraryDay = ({
     return () => clearTimeout(timer);
   }, [selectedCars, dayNumber, dispatch]);
 
-  // Room management
   const getRoomOccupancy = useCallback((room) => {
     return room.adults + room.children;
   }, []);
@@ -260,9 +300,12 @@ const ItineraryDay = ({
     ]
   );
 
+  // ✅ addRoom مقيد بـ totalAdults بدل 5
   const addRoom = useCallback(() => {
-    if (localRooms.length >= 5) {
-      toast.error("Maximum 5 rooms allowed");
+    if (localRooms.length >= maxRooms) {
+      toast.error(
+        `Maximum ${maxRooms} ${maxRooms === 1 ? "room" : "rooms"} allowed (1 room per adult)`
+      );
       return;
     }
     const assignedAdults = localRooms.reduce((sum, r) => sum + r.adults, 0);
@@ -281,7 +324,7 @@ const ItineraryDay = ({
         babies: 0,
       },
     ]);
-  }, [localRooms, totalAdults]);
+  }, [localRooms, totalAdults, maxRooms]);
 
   const removeRoom = useCallback(
     (roomId) => {
@@ -387,7 +430,6 @@ const ItineraryDay = ({
     [activeAccommodations, setSelectedAccommodation, setIsFlipped]
   );
 
-  // Car management
   const totalPassengers = useMemo(() => {
     const drivers = selectedCars.filter((c) => c.withDriver).length;
     return totalAdults + totalChildren + drivers;
@@ -405,6 +447,14 @@ const ItineraryDay = ({
 
   const addCar = useCallback(
     (carItem) => {
+      if (selectedCars.length >= numAdults) {
+        toast.error(
+          `Maximum ${numAdults} car${numAdults > 1 ? "s" : ""} allowed (1 car per adult)`,
+          { icon: "🚗", duration: 3000 }
+        );
+        return;
+      }
+
       const newCar = {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         carData: {
@@ -416,7 +466,7 @@ const ItineraryDay = ({
       setSelectedCars((prev) => [...prev, newCar]);
       handleTransferClick(carItem, index);
     },
-    [handleTransferClick, index]
+    [handleTransferClick, index, selectedCars.length, numAdults]
   );
 
   const removeCar = useCallback((carId) => {
@@ -489,6 +539,8 @@ const ItineraryDay = ({
     }
     return `${firstName} + ${carsSource.length - 1} more`;
   })();
+
+  const isMaxCarsReached = selectedCars.length >= numAdults;
 
   return (
     <div className="day-section" data-day={index}>
@@ -629,6 +681,7 @@ const ItineraryDay = ({
                         cancelRoomSelection={cancelRoomSelection}
                         assignedCounts={assignedCounts}
                         perRoomMax={perRoomMax}
+                        maxRooms={maxRooms}
                       />
                     ))
                   ) : (
@@ -641,10 +694,18 @@ const ItineraryDay = ({
             </div>
 
             {/* ═══ Transfers / Cars ═══ */}
-            <div className="day-section-bg">
+            <div className="day-section-bg" data-cars={`day-${dayNumber}`}>
               <p className="section-title !text-[22px]">
                 <MdEmojiTransportation /> {t("cars")}
               </p>
+
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg mb-3 bg-gray-50 border border-gray-200">
+                <span className="text-gray-500 text-sm">🚗</span>
+                <span className="text-xs text-gray-600">
+                  {selectedCars.length}/{numAdults} cars selected (max 1 per
+                  adult)
+                </span>
+              </div>
 
               {totalInfants > 0 && (
                 <div className="flex items-center gap-2 px-4 py-2 rounded-lg mb-3 bg-blue-50 border border-blue-200">
@@ -783,8 +844,17 @@ const ItineraryDay = ({
                             e.stopPropagation();
                             addCar(item);
                           }}
-                          className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#295557] text-white shadow-lg hover:bg-[#1e3e40] transition-colors"
-                          title="Add this car"
+                          disabled={isMaxCarsReached}
+                          className={`absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center rounded-full shadow-lg transition-colors ${
+                            isMaxCarsReached
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                              : "bg-[#295557] text-white hover:bg-[#1e3e40]"
+                          }`}
+                          title={
+                            isMaxCarsReached
+                              ? `Maximum ${numAdults} cars allowed`
+                              : "Add this car"
+                          }
                         >
                           <FaPlus size={12} />
                         </button>
@@ -816,36 +886,6 @@ const ItineraryDay = ({
                 </div>
               </div>
             )}
-
-            {/* ═══ Tour Guide ═══ */}
-            {/* {isGuideAvailable && (
-              <div className="day-section-bg">
-                <p className="section-title !text-[22px]">
-                  <FaUserTie /> Tour Guide
-                </p>
-                <div className="flex items-center justify-between bg-white border rounded-xl px-4 py-3">
-                  <div>
-                    <p className="mb-0 font-semibold">
-                      {isGuideSelected ? "Guide Selected" : "Guide Optional"}
-                    </p>
-                    <p className="mb-0 text-sm text-gray-500">
-                      Price: ${parseFloat(tourGuideData?.guidePrice || 0)}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTourGuideToggle}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isGuideSelected
-                        ? "bg-green-100 text-green-700 hover:bg-green-200"
-                        : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                    }`}
-                  >
-                    {isGuideSelected ? "Remove Guide" : "Add Guide"}
-                  </button>
-                </div>
-              </div>
-            )} */}
           </Panel>
         </Collapse>
       </div>

@@ -64,7 +64,7 @@ const RaftingTab = ({ setOpen }) => {
           </li>
         </ul>
         <div className="content-bottom-area">
-          <Link href="/activities/activities-details" className="primary-btn1">
+          <Link href="/activities" className="primary-btn1">
             Check Availability
           </Link>
           <a
