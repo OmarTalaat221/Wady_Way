@@ -30,7 +30,7 @@ const AccommodationCard = ({
   cancelRoomSelection,
   assignedCounts,
   perRoomMax,
-  maxRooms, // ✅ prop جديد من ItineraryDay
+  maxRooms,
 }) => {
   const locale = useLocale();
   const t = useTranslations("packageDetails");
@@ -42,9 +42,9 @@ const AccommodationCard = ({
     item?.price_per_night
   );
 
-  const totalAdults = people.adults;
-  const totalChildren = people.children;
-  const totalInfants = people.infants || 0;
+  const totalAdults = Number(people?.adults || 1);
+  const totalChildren = Number(people?.children || 0);
+  const totalInfants = Number(people?.infants || 0);
   const totalTravelers = totalAdults + totalChildren;
 
   const isSelected = activeAccommodations[index]?.id === item.id;
@@ -55,8 +55,19 @@ const AccommodationCard = ({
   const thisPerRoom =
     parseInt(item.originalData?.per_room || item.per_room) || perRoomMax || 6;
 
-  // ✅ max rooms = عدد البالغين (من الـ prop أو fallback للـ totalAdults)
   const effectiveMaxRooms = maxRooms ?? Math.max(totalAdults, 1);
+
+  const hasStaleChildrenInRooms = Array.isArray(rooms)
+    ? rooms.some((room) => Number(room?.children || 0) > 0)
+    : false;
+
+  const hasStaleInfantsInRooms = Array.isArray(rooms)
+    ? rooms.some((room) => Number(room?.babies || 0) > 0)
+    : false;
+
+  const shouldShowChildrenControls =
+    totalChildren > 0 || hasStaleChildrenInRooms;
+  const shouldShowInfantsControls = totalInfants > 0 || hasStaleInfantsInRooms;
 
   return (
     <div
@@ -210,24 +221,28 @@ const AccommodationCard = ({
               </span>
             </p>
 
-            {/* <div
-              style={{
-                fontSize: "11px",
-                color: "#295557",
-                marginBottom: "8px",
-                background: "#f0f7f7",
-                padding: "6px 10px",
-                borderRadius: "8px",
-                fontWeight: "600",
-              }}
-            >
-              Max {thisPerRoom} persons per room (adults + children) •{" "}
-              {rooms.length}/{effectiveMaxRooms} rooms
-            </div> */}
+            {(hasStaleChildrenInRooms || hasStaleInfantsInRooms) &&
+              totalChildren === 0 &&
+              totalInfants === 0 && (
+                <div
+                  style={{
+                    fontSize: "10px",
+                    color: "#856404",
+                    background: "#fff3cd",
+                    padding: "6px 8px",
+                    borderRadius: "6px",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Some room assignments are from previous traveler counts and
+                  can now be reduced automatically or removed manually.
+                </div>
+              )}
 
             <div className="rooms-container">
               {rooms.map((room, roomIdx) => {
-                const roomOccupancy = room.adults + room.children;
+                const roomOccupancy =
+                  Number(room.adults || 0) + Number(room.children || 0);
                 const isRoomFull = roomOccupancy >= thisPerRoom;
 
                 return (
@@ -319,7 +334,7 @@ const AccommodationCard = ({
                       </div>
 
                       {/* Children */}
-                      {totalChildren > 0 && (
+                      {shouldShowChildrenControls && (
                         <div className="occupant-type">
                           <span>{t("children")}</span>
                           <div className="counter">
@@ -347,6 +362,7 @@ const AccommodationCard = ({
                                 );
                               }}
                               disabled={
+                                totalChildren <= 0 ||
                                 assignedCounts.children >= totalChildren ||
                                 isRoomFull
                               }
@@ -358,7 +374,7 @@ const AccommodationCard = ({
                       )}
 
                       {/* Infants */}
-                      {totalInfants > 0 && (
+                      {shouldShowInfantsControls && (
                         <div className="occupant-type">
                           <span>
                             {t("infants")}{" "}
@@ -388,7 +404,10 @@ const AccommodationCard = ({
                                 e.stopPropagation();
                                 handleRoomChange("increase", room.id, "babies");
                               }}
-                              disabled={assignedCounts.babies >= totalInfants}
+                              disabled={
+                                totalInfants <= 0 ||
+                                assignedCounts.babies >= totalInfants
+                              }
                             >
                               <FaPlus />
                             </button>
@@ -401,7 +420,6 @@ const AccommodationCard = ({
               })}
             </div>
 
-            {/* ✅ Add Room مقيد بـ effectiveMaxRooms بدل 5 */}
             {rooms.length < effectiveMaxRooms && (
               <button
                 className="add-room-btn"

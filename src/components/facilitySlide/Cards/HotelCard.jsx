@@ -244,7 +244,7 @@ export default function HotelCard({ hotel }) {
 
         {/* Batch */}
         <div className="batch">
-          {!!duration && <span className="date">{duration}</span>}
+          {/* {!!duration && <span className="date">{duration}</span>} */}
 
           <div className="location">
             <svg

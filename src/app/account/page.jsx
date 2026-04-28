@@ -1,6 +1,7 @@
+// Account.jsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import BookingCard from "./../../components/cards/BookingCard";
 import axios from "axios";
@@ -21,6 +22,9 @@ import {
   FiRefreshCw,
   FiX,
 } from "react-icons/fi";
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const CAMP_SEPARATOR = "//CAMP//";
 
 const Account = () => {
   const router = useRouter();
@@ -63,36 +67,215 @@ const Account = () => {
     }
   };
 
+  // ─── Image helpers ─────────────────────────────────────────────────────────
+  const splitCampImages = (value) => {
+    if (Array.isArray(value)) {
+      return value.flatMap((item) => splitCampImages(item)).filter(Boolean);
+    }
+    if (!value || typeof value !== "string") return [];
+    return value
+      .split(CAMP_SEPARATOR)
+      .map((img) => img?.trim())
+      .filter(Boolean);
+  };
+
+  const getFirstImage = (value) => splitCampImages(value)[0] || "";
+
+  // ─── Normalize a single media entity (hotel / car / activity object) ───────
+  const normalizeMediaEntity = (entity) => {
+    if (!entity || typeof entity !== "object") return entity;
+
+    const imageCandidates = [
+      entity.image,
+      entity.background_image,
+      entity.cover_image,
+      entity.main_image,
+    ].filter(Boolean);
+
+    const allImages = imageCandidates.flatMap((img) => splitCampImages(img));
+    const firstImage = allImages[0] || "";
+
+    return {
+      ...entity,
+      image: firstImage || entity.image || "",
+      background_image:
+        getFirstImage(entity.background_image || entity.image) ||
+        entity.background_image ||
+        "",
+      cover_image:
+        getFirstImage(entity.cover_image || entity.image) ||
+        entity.cover_image ||
+        entity.image ||
+        "",
+      images:
+        Array.isArray(entity.images) && entity.images.length > 0
+          ? entity.images.flatMap((img) => splitCampImages(img)).filter(Boolean)
+          : allImages,
+    };
+  };
+
+  // ─── Normalize car_reserved — supports object OR array ────────────────────
+  const normalizeCarReserved = (value) => {
+    if (!value) return null;
+
+    // Array (new API shape)
+    if (Array.isArray(value)) {
+      if (value.length === 0) return [];
+      return value.map((car) => normalizeMediaEntity(car));
+    }
+
+    // Object (old API shape) → wrap into array for uniform access
+    if (typeof value === "object") {
+      return [normalizeMediaEntity(value)];
+    }
+
+    return null;
+  };
+
+  // ─── Normalize activity_reserved — supports object OR array ──────────────
+  const normalizeActivitiesCollection = (value) => {
+    if (!value) return [];
+
+    // Array (new API shape)
+    if (Array.isArray(value)) {
+      return value.map((activity) => normalizeMediaEntity(activity));
+    }
+
+    // JSON string
+    if (typeof value === "string") {
+      const parsed = parseMaybeJsonArray(value);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((activity) => normalizeMediaEntity(activity));
+      }
+      return [];
+    }
+
+    // Single object (old API shape)
+    if (typeof value === "object") {
+      return [normalizeMediaEntity(value)];
+    }
+
+    return [];
+  };
+
+  // ─── Normalize one itinerary day ──────────────────────────────────────────
+  const normalizeItineraryDay = (day) => {
+    if (!day || typeof day !== "object") return day;
+
+    const normalizedCars = normalizeCarReserved(day.car_reserved);
+    const normalizedActivities = normalizeActivitiesCollection(
+      day.activity_reserved
+    );
+
+    return {
+      ...day,
+      hotel_reserved: day.hotel_reserved
+        ? normalizeMediaEntity(day.hotel_reserved)
+        : day.hotel_reserved,
+      // Always stored as array (empty [] if none)
+      car_reserved: normalizedCars ?? [],
+      // Always stored as array (empty [] if none)
+      activity_reserved: normalizedActivities,
+      day_activities: normalizeActivitiesCollection(day.day_activities),
+    };
+  };
+
+  // ─── Date helpers ──────────────────────────────────────────────────────────
+  const normalizeDate = (date) => {
+    const normalized = new Date(date);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
+  const getInclusiveDaysCount = (startDate, endDate) => {
+    if (!startDate || !endDate) return 1;
+    const start = normalizeDate(startDate);
+    const end = normalizeDate(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1;
+    const diffInDays = Math.round((end - start) / MS_PER_DAY);
+    return diffInDays >= 0 ? diffInDays + 1 : 1;
+  };
+
+  const getCurrentRunningDayNumber = (startDate, endDate) => {
+    if (!startDate || !endDate) return 0;
+    const today = normalizeDate(new Date());
+    const start = normalizeDate(startDate);
+    const end = normalizeDate(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    if (today < start) return 0;
+    const totalDays = getInclusiveDaysCount(start, end);
+    if (today > end) return totalDays;
+    const diffFromStart = Math.round((today - start) / MS_PER_DAY);
+    return Math.min(diffFromStart + 1, totalDays);
+  };
+
+  const getCompletedDaysCount = (startDate, endDate, status) => {
+    const totalDays = getInclusiveDaysCount(startDate, endDate);
+    if (status === "completed") return totalDays;
+    if (
+      [
+        "upcoming",
+        "pending",
+        "rejected",
+        "cancelled_by_user",
+        "cancelled",
+      ].includes(status)
+    )
+      return 0;
+    if (status === "in_progress") {
+      const today = normalizeDate(new Date());
+      const start = normalizeDate(startDate);
+      const end = normalizeDate(endDate);
+      if (today <= start) return 0;
+      if (today > end) return totalDays;
+      return Math.min(Math.floor((today - start) / MS_PER_DAY), totalDays);
+    }
+    return 0;
+  };
+
+  const calculateProgress = (startDate, endDate, status) => {
+    if (status === "completed") return 100;
+    if (
+      [
+        "upcoming",
+        "pending",
+        "rejected",
+        "cancelled_by_user",
+        "cancelled",
+      ].includes(status)
+    )
+      return 0;
+    if (status === "in_progress") {
+      const totalDays = getInclusiveDaysCount(startDate, endDate);
+      const completedDays = getCompletedDaysCount(startDate, endDate, status);
+      if (totalDays <= 0) return 0;
+      return Math.min(
+        Math.max(Math.round((completedDays / totalDays) * 100), 0),
+        100
+      );
+    }
+    return 0;
+  };
+
+  // ─── URL params ────────────────────────────────────────────────────────────
   const updateURLParams = (updates = {}) => {
     const params = new URLSearchParams(searchParams.toString());
 
     const page = updates.page !== undefined ? updates.page : currentPage;
-    if (page && page !== 1) {
-      params.set("page", page.toString());
-    } else {
-      params.delete("page");
-    }
+    if (page && page !== 1) params.set("page", page.toString());
+    else params.delete("page");
 
     const limit = updates.limit !== undefined ? updates.limit : itemsPerPage;
-    if (limit && limit !== 6) {
-      params.set("limit", limit.toString());
-    } else {
-      params.delete("limit");
-    }
+    if (limit && limit !== 6) params.set("limit", limit.toString());
+    else params.delete("limit");
 
     const status = updates.status !== undefined ? updates.status : statusFilter;
-    if (status && status !== "all") {
-      params.set("status", status);
-    } else {
-      params.delete("status");
-    }
+    if (status && status !== "all") params.set("status", status);
+    else params.delete("status");
 
     const tab = updates.tab !== undefined ? updates.tab : activeTab;
-    if (tab && tab !== "all") {
-      params.set("tab", tab);
-    } else {
-      params.delete("tab");
-    }
+    if (tab && tab !== "all") params.set("tab", tab);
+    else params.delete("tab");
 
     const newURL = params.toString()
       ? `${pathname}?${params.toString()}`
@@ -129,40 +312,7 @@ const Account = () => {
     }
   }, []);
 
-  const calculateProgress = (startDate, endDate, status) => {
-    if (status === "completed") return 100;
-    if (
-      status === "upcoming" ||
-      status === "pending" ||
-      status === "rejected" ||
-      status === "cancelled_by_user" ||
-      status === "cancelled"
-    ) {
-      return 0;
-    }
-
-    if (status === "in_progress") {
-      const now = new Date();
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      now.setHours(0, 0, 0, 0);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(0, 0, 0, 0);
-
-      if (now < start) return 0;
-      if (now > end) return 100;
-
-      const totalDuration = end - start;
-      const elapsed = now - start;
-      const progress = Math.round((elapsed / totalDuration) * 100);
-
-      return Math.min(Math.max(progress, 0), 100);
-    }
-
-    return 0;
-  };
-
+  // ─── Status config ─────────────────────────────────────────────────────────
   const getStatusConfig = (bookingType, apiStatus) => {
     const statusConfigs = {
       pending: {
@@ -320,13 +470,13 @@ const Account = () => {
         },
       },
     };
-
     return (
       statusConfigs[apiStatus]?.[bookingType] || statusConfigs.pending.tour
     );
   };
 
-  const fetchAllBookings = async () => {
+  // ─── Fetch bookings ────────────────────────────────────────────────────────
+  const fetchAllBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -341,9 +491,7 @@ const Account = () => {
           }),
           axios.post(
             `${baseUrl}/my_account/select_my_transportation_list.php`,
-            {
-              user_id: userId,
-            }
+            { user_id: userId }
           ),
           axios.post(`${baseUrl}/my_account/select_my_hotels_list.php`, {
             user_id: userId,
@@ -352,6 +500,7 @@ const Account = () => {
 
       let allBookings = [];
 
+      // ── Tours ──────────────────────────────────────────────────────────────
       if (toursRes?.data?.status === "success") {
         const mappedTours = toursRes.data.message.map((item) => {
           const reservation = item.reservation;
@@ -360,19 +509,53 @@ const Account = () => {
             ? tour.route.split("-").map((loc) => loc.trim())
             : [];
 
+          const normalizedItinerary = Array.isArray(tour.itinerary)
+            ? tour.itinerary.map(normalizeItineraryDay)
+            : parseMaybeJsonArray(tour.itinerary).map(normalizeItineraryDay);
+
+          const galleryImages =
+            Array.isArray(tour.gallery) && tour.gallery.length > 0
+              ? tour.gallery
+                  .flatMap((g) => splitCampImages(g?.image))
+                  .filter(Boolean)
+              : [];
+
+          const fallbackTourImages = splitCampImages(
+            tour.image || tour.background_image
+          );
           const images =
-            tour.gallery && tour.gallery.length > 0
-              ? tour.gallery.map((g) => g.image)
-              : [tour.image];
+            galleryImages.length > 0 ? galleryImages : fallbackTourImages;
 
           const apiStatus = reservation.status || "pending";
+          const totalDays = getInclusiveDaysCount(
+            reservation.start_date,
+            reservation.end_date
+          );
+          const currentDayNumber = getCurrentRunningDayNumber(
+            reservation.start_date,
+            reservation.end_date
+          );
+          const completedDays = getCompletedDaysCount(
+            reservation.start_date,
+            reservation.end_date,
+            apiStatus
+          );
           const progress = calculateProgress(
             reservation.start_date,
             reservation.end_date,
             apiStatus
           );
-
           const statusConfig = getStatusConfig("tour", apiStatus);
+
+          const firstImage =
+            getFirstImage(
+              reservation.background_image ||
+                tour.background_image ||
+                tour.image
+            ) ||
+            reservation.background_image ||
+            tour.background_image ||
+            tour.image;
 
           return {
             id: reservation.reservation_id,
@@ -381,17 +564,18 @@ const Account = () => {
             tour_id: reservation.tour_id,
             tourId: reservation.tour_id,
             title: tour.title || reservation.tour_title,
-            duration: tour.duration,
+            duration:
+              tour.duration ||
+              `${totalDays} ${totalDays === 1 ? "Day" : "Days"}`,
+            totalDays,
+            currentDayNumber,
+            completedDays,
             status: apiStatus,
             apiStatus,
             statusConfig,
             images,
-            image:
-              reservation.background_image ||
-              tour.background_image ||
-              tour.image,
-            backgroundImage:
-              reservation.background_image || tour.background_image,
+            image: firstImage,
+            backgroundImage: firstImage,
             mainLocations: routeLocations.slice(0, 2),
             additionalLocations: routeLocations,
             price: parseFloat(reservation.total_amount),
@@ -403,7 +587,7 @@ const Account = () => {
             progress,
             category: tour.category,
             countryName: tour.country_name,
-            itinerary: tour.itinerary,
+            itinerary: normalizedItinerary,
             highlights: tour.highlights,
             includes: tour.includes,
             excludes: tour.excludes,
@@ -413,17 +597,54 @@ const Account = () => {
             day_car: reservation.day_car,
             day_activities: reservation.day_activities,
             day_tour_guide: reservation.day_tour_guide,
-            _rawApiItem: item,
+            _rawApiItem: {
+              ...item,
+              reservation: {
+                ...reservation,
+                background_image: firstImage,
+              },
+              tour_details: {
+                ...tour,
+                image:
+                  getFirstImage(tour.image || tour.background_image) ||
+                  tour.image,
+                background_image:
+                  getFirstImage(tour.background_image || tour.image) ||
+                  tour.background_image,
+                gallery: Array.isArray(tour.gallery)
+                  ? tour.gallery.map((g) => ({
+                      ...g,
+                      image: getFirstImage(g?.image) || g?.image,
+                    }))
+                  : tour.gallery,
+                itinerary: normalizedItinerary,
+              },
+            },
           };
         });
         allBookings = [...allBookings, ...mappedTours];
       }
 
+      // ── Activities ─────────────────────────────────────────────────────────
       if (activitiesRes?.data?.status === "success") {
         const mappedActivities = activitiesRes.data.message.map((item) => {
           const apiStatus = item.status || "pending";
+          const totalDays = getInclusiveDaysCount(item.date, item.date);
+          const currentDayNumber = getCurrentRunningDayNumber(
+            item.date,
+            item.date
+          );
+          const completedDays = getCompletedDaysCount(
+            item.date,
+            item.date,
+            apiStatus
+          );
           const progress = calculateProgress(item.date, item.date, apiStatus);
           const statusConfig = getStatusConfig("activity", apiStatus);
+          const normalizedItem = normalizeMediaEntity(item);
+          const activityImages = splitCampImages(
+            item.background_image || item.image
+          );
 
           return {
             id: item.reserving_id,
@@ -431,11 +652,21 @@ const Account = () => {
             activity_id: item.activity_id,
             title: item.title,
             duration: "1 Day",
+            totalDays,
+            currentDayNumber,
+            completedDays,
             status: apiStatus,
             apiStatus,
             statusConfig,
-            image: item.background_image,
-            backgroundImage: item.background_image,
+            image:
+              getFirstImage(item.background_image || item.image) ||
+              item.background_image ||
+              item.image,
+            images: activityImages,
+            backgroundImage:
+              getFirstImage(item.background_image || item.image) ||
+              item.background_image ||
+              item.image,
             price: parseFloat(item.total_amount),
             priceCurrency: "$",
             numAdults: parseInt(item.adults_num),
@@ -446,40 +677,62 @@ const Account = () => {
             features: item.activity_features,
             ratings: item.activity_ratings,
             countryId: item.country_id,
-            _rawApiItem: item,
+            _rawApiItem: normalizedItem,
           };
         });
         allBookings = [...allBookings, ...mappedActivities];
       }
 
+      // ── Transportation ─────────────────────────────────────────────────────
       if (transportationRes?.data?.status === "success") {
         const mappedTransportation = transportationRes.data.message.map(
           (item) => {
             const apiStatus = item.status || "pending";
+            const totalDays = getInclusiveDaysCount(
+              item.start_date,
+              item.end_date
+            );
+            const currentDayNumber = getCurrentRunningDayNumber(
+              item.start_date,
+              item.end_date
+            );
+            const completedDays = getCompletedDaysCount(
+              item.start_date,
+              item.end_date,
+              apiStatus
+            );
             const progress = calculateProgress(
               item.start_date,
               item.end_date,
               apiStatus
             );
-
             const statusConfig = getStatusConfig("transportation", apiStatus);
-
-            const daysDiff = Math.ceil(
-              (new Date(item.end_date) - new Date(item.start_date)) /
-                (1000 * 60 * 60 * 24)
+            const transportationImages = splitCampImages(
+              item.background_image || item.image
             );
+            const normalizedItem = normalizeMediaEntity(item);
 
             return {
               id: item.reserving_id,
               bookingType: "transportation",
               car_id: item.car_id,
               title: item.title,
-              duration: `${daysDiff} ${daysDiff === 1 ? "Day" : "Days"}`,
+              duration: `${totalDays} ${totalDays === 1 ? "Day" : "Days"}`,
+              totalDays,
+              currentDayNumber,
+              completedDays,
               status: apiStatus,
               apiStatus,
               statusConfig,
-              image: item.background_image,
-              backgroundImage: item.background_image,
+              image:
+                getFirstImage(item.background_image || item.image) ||
+                item.background_image ||
+                item.image,
+              images: transportationImages,
+              backgroundImage:
+                getFirstImage(item.background_image || item.image) ||
+                item.background_image ||
+                item.image,
               price: parseFloat(item.total_amount),
               priceCurrency: "$",
               type: item.type,
@@ -490,33 +743,40 @@ const Account = () => {
               features: item.car_features,
               ratings: item.car_ratings,
               countryId: item.country_id,
-              _rawApiItem: item,
+              _rawApiItem: normalizedItem,
             };
           }
         );
         allBookings = [...allBookings, ...mappedTransportation];
       }
 
+      // ── Hotels ─────────────────────────────────────────────────────────────
       if (hotelsRes?.data?.status === "success") {
         const mappedHotels = hotelsRes.data.message.map((item) => {
           const apiStatus = item.status || "pending";
+          const totalDays = getInclusiveDaysCount(
+            item.start_date,
+            item.end_date
+          );
+          const currentDayNumber = getCurrentRunningDayNumber(
+            item.start_date,
+            item.end_date
+          );
+          const completedDays = getCompletedDaysCount(
+            item.start_date,
+            item.end_date,
+            apiStatus
+          );
           const progress = calculateProgress(
             item.start_date,
             item.end_date,
             apiStatus
           );
-
           const statusConfig = getStatusConfig("hotel", apiStatus);
-
           const additionalServices = item.aditional_services
             ? item.aditional_services.split("**").filter(Boolean)
             : [];
-
-          const nights = Math.ceil(
-            (new Date(item.end_date) - new Date(item.start_date)) /
-              (1000 * 60 * 60 * 24)
-          );
-
+          const nights = Math.max(totalDays - 1, 1);
           const parsedRooms = [
             ...(Array.isArray(item.rooms) ? item.rooms : []),
             ...(Array.isArray(item.hotel_reserved?.rooms)
@@ -524,7 +784,6 @@ const Account = () => {
               : []),
             ...(parseMaybeJsonArray(item.rooms_json) || []),
           ];
-
           const uniqueRooms = parsedRooms.filter(
             (room, index, arr) =>
               arr.findIndex(
@@ -537,6 +796,10 @@ const Account = () => {
                     String(room.babies ?? room.infants ?? 0)
               ) === index
           );
+          const hotelImages = splitCampImages(
+            item.background_image || item.image
+          );
+          const normalizedItem = normalizeMediaEntity(item);
 
           return {
             id: item.reserving_id,
@@ -547,11 +810,21 @@ const Account = () => {
             description: item.description,
             duration:
               item.duration || `${nights} ${nights === 1 ? "Night" : "Nights"}`,
+            totalDays,
+            currentDayNumber,
+            completedDays,
             status: apiStatus,
             apiStatus,
             statusConfig,
-            image: item.background_image || item.image,
-            backgroundImage: item.background_image,
+            image:
+              getFirstImage(item.background_image || item.image) ||
+              item.background_image ||
+              item.image,
+            images: hotelImages,
+            backgroundImage:
+              getFirstImage(item.background_image || item.image) ||
+              item.background_image ||
+              item.image,
             mainLocations: item.location ? [item.location] : [],
             price: parseFloat(item.total_amount),
             priceCurrency: item.price_currency || "$",
@@ -570,14 +843,23 @@ const Account = () => {
             additionalServices,
             priceNote: item.price_note,
             rooms: uniqueRooms,
-            _rawApiItem: item,
+            _rawApiItem: {
+              ...normalizedItem,
+              hotel_reserved: item.hotel_reserved
+                ? {
+                    ...normalizeMediaEntity(item.hotel_reserved),
+                    rooms: Array.isArray(item.hotel_reserved?.rooms)
+                      ? item.hotel_reserved.rooms
+                      : [],
+                  }
+                : item.hotel_reserved,
+            },
           };
         });
         allBookings = [...allBookings, ...mappedHotels];
       }
 
       allBookings.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
-
       setBookings(allBookings);
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -586,13 +868,11 @@ const Account = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
-    if (userId) {
-      fetchAllBookings();
-    }
-  }, [userId]);
+    if (userId) fetchAllBookings();
+  }, [userId, fetchAllBookings]);
 
   const tabs = [
     {
@@ -602,7 +882,6 @@ const Account = () => {
       icon: <IoGridOutline className="w-4 h-4" />,
       color: "#295557",
     },
-
     {
       id: "schedule",
       label: "Schedule",
@@ -640,52 +919,50 @@ const Account = () => {
     },
   ];
 
-  const getStatusFilters = () => {
-    return [
-      {
-        value: "all",
-        label: "All",
-        fullLabel: "All Status",
-        icon: <FiFilter className="w-3.5 h-3.5" />,
-      },
-      {
-        value: "pending",
-        label: "Pending",
-        fullLabel: "Pending",
-        icon: <FiClock className="w-3.5 h-3.5" />,
-      },
-      {
-        value: "rejected",
-        label: "Rejected",
-        fullLabel: "Rejected",
-        icon: <FiX className="w-3.5 h-3.5" />,
-      },
-      {
-        value: "cancelled_by_user",
-        label: "Cancelled",
-        fullLabel: "Cancelled",
-        icon: <FiX className="w-3.5 h-3.5" />,
-      },
-      {
-        value: "upcoming",
-        label: "Upcoming",
-        fullLabel: "Upcoming",
-        icon: <FiCalendar className="w-3.5 h-3.5" />,
-      },
-      {
-        value: "in_progress",
-        label: "Active",
-        fullLabel: "In Progress",
-        icon: <FiPlay className="w-3.5 h-3.5" />,
-      },
-      {
-        value: "completed",
-        label: "Done",
-        fullLabel: "Completed",
-        icon: <FiCheck className="w-3.5 h-3.5" />,
-      },
-    ];
-  };
+  const getStatusFilters = () => [
+    {
+      value: "all",
+      label: "All",
+      fullLabel: "All Status",
+      icon: <FiFilter className="w-3.5 h-3.5" />,
+    },
+    {
+      value: "pending",
+      label: "Pending",
+      fullLabel: "Pending",
+      icon: <FiClock className="w-3.5 h-3.5" />,
+    },
+    {
+      value: "rejected",
+      label: "Rejected",
+      fullLabel: "Rejected",
+      icon: <FiX className="w-3.5 h-3.5" />,
+    },
+    {
+      value: "cancelled_by_user",
+      label: "Cancelled",
+      fullLabel: "Cancelled",
+      icon: <FiX className="w-3.5 h-3.5" />,
+    },
+    {
+      value: "upcoming",
+      label: "Upcoming",
+      fullLabel: "Upcoming",
+      icon: <FiCalendar className="w-3.5 h-3.5" />,
+    },
+    {
+      value: "in_progress",
+      label: "Active",
+      fullLabel: "In Progress",
+      icon: <FiPlay className="w-3.5 h-3.5" />,
+    },
+    {
+      value: "completed",
+      label: "Done",
+      fullLabel: "Completed",
+      icon: <FiCheck className="w-3.5 h-3.5" />,
+    },
+  ];
 
   const getTabCount = (tabId) => {
     if (tabId === "all") return bookings.length;
@@ -694,19 +971,20 @@ const Account = () => {
 
   const getStatusCount = (statusValue) => {
     let filtered = bookings;
-    if (activeTab !== "all") {
+    if (activeTab !== "all")
       filtered = filtered.filter((b) => b.bookingType === activeTab);
-    }
     if (statusValue === "all") return filtered.length;
     return filtered.filter((b) => b.status === statusValue).length;
   };
 
-  const filteredBookings = bookings.filter((booking) => {
-    const tabMatch = activeTab === "all" || booking.bookingType === activeTab;
-    const statusMatch =
-      statusFilter === "all" || booking.status === statusFilter;
-    return tabMatch && statusMatch;
-  });
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      const tabMatch = activeTab === "all" || booking.bookingType === activeTab;
+      const statusMatch =
+        statusFilter === "all" || booking.status === statusFilter;
+      return tabMatch && statusMatch;
+    });
+  }, [bookings, activeTab, statusFilter]);
 
   const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -738,36 +1016,19 @@ const Account = () => {
   const getPaginationNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
-
     if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       pages.push(1);
-
-      if (currentPage > 3) {
-        pages.push("...");
-      }
-
+      if (currentPage > 3) pages.push("...");
       const start = Math.max(2, currentPage - 1);
       const end = Math.min(totalPages - 1, currentPage + 1);
-
       for (let i = start; i <= end; i++) {
-        if (!pages.includes(i)) {
-          pages.push(i);
-        }
+        if (!pages.includes(i)) pages.push(i);
       }
-
-      if (currentPage < totalPages - 2) {
-        pages.push("...");
-      }
-
-      if (!pages.includes(totalPages)) {
-        pages.push(totalPages);
-      }
+      if (currentPage < totalPages - 2) pages.push("...");
+      if (!pages.includes(totalPages)) pages.push(totalPages);
     }
-
     return pages;
   };
 
@@ -800,7 +1061,6 @@ const Account = () => {
         icon: <IoCarSport className="w-16 h-16 text-gray-300" />,
       },
     };
-
     return messages[activeTab] || messages.all;
   };
 
@@ -825,7 +1085,7 @@ const Account = () => {
         </h4>
         <p className="text-gray-500 text-center mb-4">{error}</p>
         <button
-          onClick={() => fetchAllBookings()}
+          onClick={fetchAllBookings}
           className="inline-flex items-center gap-2 bg-[#295557] hover:bg-[#1e3d3f] text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
         >
           <FiRefreshCw className="w-4 h-4" />
@@ -842,34 +1102,17 @@ const Account = () => {
           {tabs.map((tab) => {
             const count = getTabCount(tab.id);
             const isActive = activeTab === tab.id;
-
             return (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`
-                  flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5
-                  rounded-lg sm:rounded-xl font-medium text-sm sm:text-base
-                  transition-all duration-300 whitespace-nowrap
-                  ${
-                    isActive
-                      ? "bg-[#295557] text-white shadow-lg"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }
-                `}
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-medium text-sm sm:text-base transition-all duration-300 whitespace-nowrap ${isActive ? "bg-[#295557] text-white shadow-lg" : "text-gray-600 hover:bg-gray-100"}`}
               >
                 <span className="hidden sm:inline-flex">{tab.icon}</span>
                 <span className="sm:hidden">{tab.label}</span>
                 <span className="hidden sm:inline">{tab.fullLabel}</span>
                 <span
-                  className={`
-                    px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold
-                    ${
-                      isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-[#295557]/10 text-[#295557]"
-                    }
-                  `}
+                  className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-white/20 text-white" : "bg-[#295557]/10 text-[#295557]"}`}
                 >
                   {count}
                 </span>
@@ -887,28 +1130,16 @@ const Account = () => {
         {statusFilters.map((filter) => {
           const count = getStatusCount(filter.value);
           const isActive = statusFilter === filter.value;
-
           return (
             <button
               key={filter.value}
               onClick={() => handleStatusFilterChange(filter.value)}
-              className={`
-                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                text-sm font-medium border transition-all duration-200
-                ${
-                  isActive
-                    ? "bg-[#295557] border-[#295557] text-white"
-                    : "bg-white border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"
-                }
-              `}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 ${isActive ? "bg-[#295557] border-[#295557] text-white" : "bg-white border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"}`}
             >
               {filter.icon}
               {filter.fullLabel}
               <span
-                className={`
-                  px-1.5 py-0.5 rounded-full text-xs font-semibold
-                  ${isActive ? "bg-white/20" : "bg-gray-100"}
-                `}
+                className={`px-1.5 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-white/20" : "bg-gray-100"}`}
               >
                 {count}
               </span>
@@ -928,9 +1159,7 @@ const Account = () => {
             {statusFilters.find((f) => f.value === statusFilter)?.fullLabel}
           </span>
           <FiChevronRight
-            className={`w-4 h-4 transition-transform ${
-              showMobileFilters ? "rotate-90" : ""
-            }`}
+            className={`w-4 h-4 transition-transform ${showMobileFilters ? "rotate-90" : ""}`}
           />
         </button>
 
@@ -939,30 +1168,18 @@ const Account = () => {
             {statusFilters.map((filter) => {
               const count = getStatusCount(filter.value);
               const isActive = statusFilter === filter.value;
-
               return (
                 <button
                   key={filter.value}
                   onClick={() => handleStatusFilterChange(filter.value)}
-                  className={`
-                    w-full flex items-center justify-between px-4 py-3 text-sm
-                    border-b border-gray-100 last:border-b-0 transition-colors
-                    ${
-                      isActive
-                        ? "bg-[#295557]/5 text-[#295557] font-medium"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }
-                  `}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm border-b border-gray-100 last:border-b-0 transition-colors ${isActive ? "bg-[#295557]/5 text-[#295557] font-medium" : "text-gray-600 hover:bg-gray-50"}`}
                 >
                   <span className="flex items-center gap-2">
                     {filter.icon}
                     {filter.fullLabel}
                   </span>
                   <span
-                    className={`
-                      px-2 py-0.5 rounded-full text-xs font-semibold
-                      ${isActive ? "bg-[#295557] text-white" : "bg-gray-100"}
-                    `}
+                    className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isActive ? "bg-[#295557] text-white" : "bg-gray-100"}`}
                   >
                     {count}
                   </span>
@@ -1010,9 +1227,7 @@ const Account = () => {
           </h4>
           <p className="mt-2 text-gray-500 text-center max-w-md">
             {statusFilter !== "all"
-              ? `No ${
-                  statusFilters.find((f) => f.value === statusFilter)?.fullLabel
-                } bookings found.`
+              ? `No ${statusFilters.find((f) => f.value === statusFilter)?.fullLabel} bookings found.`
               : emptyState.description}
           </p>
           {statusFilter !== "all" && (
@@ -1035,14 +1250,7 @@ const Account = () => {
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className={`
-                p-2 sm:p-2.5 rounded-lg border transition-colors
-                ${
-                  currentPage === 1
-                    ? "border-gray-200 text-gray-300 cursor-not-allowed"
-                    : "border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"
-                }
-              `}
+              className={`p-2 sm:p-2.5 rounded-lg border transition-colors ${currentPage === 1 ? "border-gray-200 text-gray-300 cursor-not-allowed" : "border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"}`}
             >
               <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -1060,14 +1268,7 @@ const Account = () => {
                   <button
                     key={index}
                     onClick={() => handlePageChange(page)}
-                    className={`
-                      w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-sm font-medium transition-colors
-                      ${
-                        page === currentPage
-                          ? "bg-[#295557] text-white"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }
-                    `}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-sm font-medium transition-colors ${page === currentPage ? "bg-[#295557] text-white" : "text-gray-600 hover:bg-gray-100"}`}
                   >
                     {page}
                   </button>
@@ -1078,14 +1279,7 @@ const Account = () => {
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className={`
-                p-2 sm:p-2.5 rounded-lg border transition-colors
-                ${
-                  currentPage === totalPages
-                    ? "border-gray-200 text-gray-300 cursor-not-allowed"
-                    : "border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"
-                }
-              `}
+              className={`p-2 sm:p-2.5 rounded-lg border transition-colors ${currentPage === totalPages ? "border-gray-200 text-gray-300 cursor-not-allowed" : "border-gray-200 text-gray-600 hover:border-[#295557] hover:text-[#295557]"}`}
             >
               <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>

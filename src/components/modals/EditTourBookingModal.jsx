@@ -15,7 +15,6 @@ import {
   FiMapPin,
   FiUser,
   FiUsers,
-  FiX,
   FiAlertCircle,
   FiChevronDown,
   FiCheck,
@@ -99,9 +98,7 @@ const parseHotelsPerDay = (str) => {
   const result = {};
   str.split("**day**").forEach((entry) => {
     const parts = entry.split("**");
-    if (parts.length >= 2) {
-      result[String(parts[0])] = parts[1];
-    }
+    if (parts.length >= 2) result[String(parts[0])] = parts[1];
   });
   return result;
 };
@@ -116,9 +113,7 @@ const parseCarsPerDay = (str) => {
       const carId = parts[1];
       const withDriver = parts[2] === "1";
       if (!result[dayNum]) result[dayNum] = [];
-      if (carId && carId !== "0") {
-        result[dayNum].push({ carId, withDriver });
-      }
+      if (carId && carId !== "0") result[dayNum].push({ carId, withDriver });
     }
   });
   return result;
@@ -146,9 +141,7 @@ const parseGuidesPerDay = (str) => {
   const result = {};
   str.split("**day**").forEach((entry) => {
     const parts = entry.split("**");
-    if (parts.length >= 2) {
-      result[String(parts[0])] = parts[1] === "1";
-    }
+    if (parts.length >= 2) result[String(parts[0])] = parts[1] === "1";
   });
   return result;
 };
@@ -204,13 +197,11 @@ const mapActivityFromAPI = (act) => ({
 
 const normalizeTourOptions = (tour) => {
   if (!tour) return null;
-  return {
-    ...tour,
-    attachments: parseMaybeJsonArray(tour.attachments),
-  };
+  return { ...tour, attachments: parseMaybeJsonArray(tour.attachments) };
 };
 
 // ─── Rooms normalizer ─────────────────────────────────────────────────────────
+
 const normalizeRoomsFromBackend = (backendRooms) => {
   if (!Array.isArray(backendRooms) || backendRooms.length === 0) return [];
   return backendRooms.map((room, idx) => ({
@@ -219,6 +210,63 @@ const normalizeRoomsFromBackend = (backendRooms) => {
     children: Number(room.kids ?? room.children ?? 0),
     babies: Number(room.babies ?? room.infants ?? 0),
   }));
+};
+
+// ─── ✅ NEW: clampRoomsToCurrentPeople ────────────────────────────────────────
+// يعمل clamp على localRooms بناءً على الـ totals الحالية
+// يضمن إن القيم مش أكبر من المسموح
+// يشيل الغرف اللي adults=0 بعد الـ clamp (إلا لو في غرفة واحدة بس)
+const clampRoomsToCurrentPeople = (
+  rooms,
+  maxAdults,
+  maxChildren,
+  maxBabies
+) => {
+  if (!Array.isArray(rooms) || rooms.length === 0) return rooms;
+
+  // أولاً: clamp كل قيمة على مستوى الغرفة الواحدة
+  // بس محتاجين نعمل cumulative clamp عشان مجموع الكل ميتعداش الـ max
+  let remainingAdults = maxAdults;
+  let remainingChildren = maxChildren;
+  let remainingBabies = maxBabies;
+
+  const clamped = rooms.map((room) => {
+    const clampedAdults = Math.min(Number(room.adults || 0), remainingAdults);
+    remainingAdults -= clampedAdults;
+
+    const clampedChildren = Math.min(
+      Number(room.children || 0),
+      remainingChildren
+    );
+    remainingChildren -= clampedChildren;
+
+    const clampedBabies = Math.min(Number(room.babies || 0), remainingBabies);
+    remainingBabies -= clampedBabies;
+
+    return {
+      ...room,
+      adults: clampedAdults,
+      children: clampedChildren,
+      babies: clampedBabies,
+    };
+  });
+
+  // ثانياً: شيل الغرف اللي بقت adults=0 (بعد الـ clamp)
+  // بس لازم يفضل غرفة واحدة على الأقل
+  const validRooms = clamped.filter((r) => r.adults > 0);
+  if (validRooms.length === 0) {
+    // خليها غرفة واحدة بـ adults=1 (أو maxAdults لو 0)
+    return [
+      {
+        id: clamped[0]?.id || 1,
+        adults: Math.max(maxAdults, 1),
+        children: 0,
+        babies: 0,
+      },
+    ];
+  }
+
+  return validRooms;
 };
 
 // ─── UI helper ────────────────────────────────────────────────────────────────
@@ -264,7 +312,7 @@ const EditDayCard = ({
   const [isFlipped, setIsFlipped] = useState(false);
   const [selectedAccommodation, setSelectedAccommodation] = useState(null);
 
-  // ✅ initialRooms من snapshot أولاً، ثم Redux، ثم default
+  // ✅ initialRooms من snapshot أولاً، ثم default
   const [localRooms, setLocalRooms] = useState(() => {
     if (initialRooms && initialRooms.length > 0) return initialRooms;
     return [{ id: 1, adults: 1, children: 0, babies: 0 }];
@@ -273,6 +321,12 @@ const EditDayCard = ({
   const roomsHydratedRef = useRef(false);
   const prevHotelIdRef = useRef(null);
   const lastSyncedCarsRef = useRef("");
+  // ✅ track previous people لمقارنة التغييرات
+  const prevPeopleRef = useRef({
+    adults: people.adults,
+    children: people.children,
+    infants: people.infants || 0,
+  });
 
   const selectedHotel = activeAccommodations[index];
   const selectedCars = selectedCarsPerDay[dayKey] || [];
@@ -309,15 +363,12 @@ const EditDayCard = ({
   useEffect(() => {
     if (roomsHydratedRef.current) return;
     if (initialRooms && initialRooms.length > 0) {
-      // خليناها من initialRooms في useState
       roomsHydratedRef.current = true;
       return;
     }
-
     const savedRooms = Array.isArray(savedDayData?.rooms)
       ? savedDayData.rooms
       : [];
-
     if (savedRooms.length > 0) {
       roomsHydratedRef.current = true;
       setLocalRooms(
@@ -331,7 +382,64 @@ const EditDayCard = ({
     }
   }, [savedDayData?.rooms, initialRooms]);
 
-  // ✅ Reset rooms عند تغيير الفندق فقط (مش عند أول render)
+  // ✅ THE MAIN FIX: Auto-clamp localRooms عند تغيير people
+  // ده بيحل مشكلة إن الـ input بيختفي ومقدرش تشيل الـ children
+  useEffect(() => {
+    const prev = prevPeopleRef.current;
+    const adultsChanged = prev.adults !== totalAdults;
+    const childrenChanged = prev.children !== totalChildren;
+    const infantsChanged = prev.infants !== totalInfants;
+
+    // لو مفيش تغيير → skip
+    if (!adultsChanged && !childrenChanged && !infantsChanged) return;
+
+    // update ref
+    prevPeopleRef.current = {
+      adults: totalAdults,
+      children: totalChildren,
+      infants: totalInfants,
+    };
+
+    setLocalRooms((prevRooms) => {
+      const clamped = clampRoomsToCurrentPeople(
+        prevRooms,
+        totalAdults,
+        totalChildren,
+        totalInfants
+      );
+
+      // ✅ Trim rooms لو عددها أكبر من maxRooms الجديد (= totalAdults)
+      const trimmed =
+        clamped.length > Math.max(totalAdults, 1)
+          ? clamped.slice(0, Math.max(totalAdults, 1))
+          : clamped;
+
+      return trimmed;
+    });
+  }, [totalAdults, totalChildren, totalInfants]);
+
+  // ✅ Sync localRooms → Redux بعد كل تغيير في localRooms
+  // (شامل بعد الـ clamp)
+  const lastSyncedRoomsRef = useRef("");
+  useEffect(() => {
+    const key = JSON.stringify(localRooms);
+    if (key === lastSyncedRoomsRef.current) return;
+    lastSyncedRoomsRef.current = key;
+
+    // sync to Redux
+    dispatch(
+      setDayRooms({
+        day: dayNumber,
+        rooms: localRooms.map((r) => ({
+          adults: r.adults,
+          kids: r.children,
+          babies: r.babies,
+        })),
+      })
+    );
+  }, [localRooms, dayNumber, dispatch]);
+
+  // ✅ Reset rooms عند تغيير الفندق فقط
   useEffect(() => {
     const currentHotelId = selectedHotel?.id || selectedHotel?.hotel_id || null;
 
@@ -340,7 +448,9 @@ const EditDayCard = ({
       currentHotelId !== null &&
       String(prevHotelIdRef.current) !== String(currentHotelId)
     ) {
-      setLocalRooms([{ id: 1, adults: 1, children: 0, babies: 0 }]);
+      setLocalRooms([
+        { id: 1, adults: Math.max(totalAdults, 1), children: 0, babies: 0 },
+      ]);
       dispatch(setDayRooms({ day: dayNumber, rooms: [] }));
 
       if (isFlipped) {
@@ -350,7 +460,7 @@ const EditDayCard = ({
     }
 
     prevHotelIdRef.current = currentHotelId;
-  }, [selectedHotel, dayNumber, dispatch, isFlipped]);
+  }, [selectedHotel, dayNumber, dispatch, isFlipped, totalAdults]);
 
   // Sync cars to Redux
   useEffect(() => {
@@ -560,8 +670,11 @@ const EditDayCard = ({
   const cancelRoomSelection = useCallback(() => {
     setIsFlipped(false);
     setSelectedAccommodation(null);
-    setLocalRooms([{ id: 1, adults: 1, children: 0, babies: 0 }]);
-  }, []);
+    // ✅ reset to valid default based on current people
+    setLocalRooms([
+      { id: 1, adults: Math.max(totalAdults, 1), children: 0, babies: 0 },
+    ]);
+  }, [totalAdults]);
 
   const addCar = useCallback(
     (carItem) => {
@@ -801,7 +914,7 @@ const EditDayCard = ({
                 {act.title?.en || act.title?.ar || act.name || "Activity"}
                 {parseFloat(act.price_current || act.price || 0) > 0 && (
                   <span className="text-[#295557]/60">
-                    · ${parseFloat(act.price_current || act.price).toFixed(0)}
+                    ·${parseFloat(act.price_current || act.price).toFixed(0)}
                   </span>
                 )}
               </span>
@@ -1143,9 +1256,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
   const rootState = useSelector((state) => state);
   const reservationState = useSelector((state) => state.tourReservation);
   const priceDetails = useSelector(selectPriceDetails);
-  const selectedByDay = useSelector(
-    (state) => state.tourReservation?.selectedByDay || {}
-  );
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1161,14 +1271,11 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
   const [activeAccommodations, setActiveAccommodations] = useState({});
   const [selectedCarsPerDay, setSelectedCarsPerDay] = useState({});
-
-  // ✅ initialRoomsPerDay: { "1": [{id,adults,children,babies}], "2": [...], ... }
-  // يتبنى من snapshot.itinerary[].hotel_reserved.rooms مرة واحدة
   const [initialRoomsPerDay, setInitialRoomsPerDay] = useState({});
 
   const hasHydratedRef = useRef(false);
 
-  // ─── Fetch tour details (options only — بدون rooms) ───────────────────────
+  // ─── Fetch tour details ───────────────────────────────────────────────────
   const fetchTourDetails = useCallback(async (id) => {
     try {
       setLoading(true);
@@ -1201,17 +1308,12 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
   }, []);
 
   // ─── Hydrate ──────────────────────────────────────────────────────────────
-  // fullTour = من tour_details.php (فيه hotel_options/cars_options/activities_options)
-  // reservationData = reservation object (فيه day_hotel/day_car/etc)
-  // reservedTourSnapshot = tour_details من الـ API response الأصلي (فيه hotel_reserved.rooms)
   const hydrateReservationIntoNewSystem = useCallback(
     (fullTour, reservationData, reservedTourSnapshot = null) => {
       if (!fullTour?.itinerary?.length) return;
 
       const reservation = reservationData || {};
 
-      // ✅ Build snapshot lookup: dayNum → snapshot day object
-      // الـ snapshot ده فيه hotel_reserved.rooms الحقيقية
       const snapshotByDay = Object.fromEntries(
         (reservedTourSnapshot?.itinerary || []).map((day) => [
           String(day.day),
@@ -1219,7 +1321,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
         ])
       );
 
-      // ── People & Dates ──
       const numAdults = parseInt(
         reservation.num_adults || reservation.numAdults || 1
       );
@@ -1237,7 +1338,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
       const computedEnd = buildEndDate(parsedStart, fullTour.itinerary.length);
 
-      // ── Parse reservation strings ──
       const reservedHotels = parseHotelsPerDay(reservation.day_hotel || "");
       const reservedCars = parseCarsPerDay(reservation.day_car || "");
       const reservedActivities = parseActivitiesPerDay(
@@ -1247,15 +1347,10 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
         reservation.day_tour_guide || reservation.dayTourGuide || ""
       );
 
-      // ── Redux setup ──
       dispatch(clearCurrentTourData());
       dispatch(setTourData(fullTour));
       dispatch(
-        setPeopleCount({
-          adults: numAdults,
-          children: numChildren,
-          infants: 0,
-        })
+        setPeopleCount({ adults: numAdults, children: numChildren, infants: 0 })
       );
       dispatch(
         setTourInfo({
@@ -1272,7 +1367,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
       setStartDate(parsedStart);
       setEndDate(computedEnd);
 
-      // ── Tour Guide ──
       dispatch(initializeTourGuide(fullTour.itinerary));
 
       fullTour.itinerary.forEach((day) => {
@@ -1280,7 +1374,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
         const isGuideAvailable =
           day.isTourguide === "1" || day.isTourguide === 1;
         if (!isGuideAvailable) return;
-
         if (reservedGuides[dayNum] === false) {
           dispatch(toggleTourGuide(Number(dayNum)));
         }
@@ -1292,8 +1385,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
       fullTour.itinerary.forEach((day, index) => {
         const dayNum = String(day.day);
-
-        // ✅ الـ snapshot لهذا اليوم (فيه hotel_reserved.rooms الحقيقية)
         const snapshotDay = snapshotByDay[dayNum] || {};
 
         // ── HOTEL ──
@@ -1305,13 +1396,11 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
         if (hotelOptions.length > 0) {
           let hotelRaw = null;
-
           if (reservedHotelId) {
             hotelRaw = hotelOptions.find(
               (h) => String(h.hotel_id) === String(reservedHotelId)
             );
           }
-
           if (!hotelRaw) hotelRaw = hotelOptions[0];
 
           if (hotelRaw) {
@@ -1319,9 +1408,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
             nextActiveHotels[index] = mappedHotel;
             dispatch(selectHotel({ day: Number(dayNum), hotel: mappedHotel }));
 
-            // ✅ THE KEY FIX:
-            // الـ rooms تيجي من الـ snapshot (data.tour_details.itinerary[].hotel_reserved.rooms)
-            // مش من fullTour (اللي مش فيه rooms)
             const snapshotRooms = Array.isArray(
               snapshotDay?.hotel_reserved?.rooms
             )
@@ -1331,10 +1417,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
             const normalizedRooms = normalizeRoomsFromBackend(snapshotRooms);
 
             if (normalizedRooms.length > 0) {
-              // ✅ احفظ في initialRoomsPerDay عشان EditDayCard يبدأ بيهم
               nextInitialRoomsPerDay[dayNum] = normalizedRooms;
-
-              // ✅ sync Redux كمان
               dispatch(
                 setDayRooms({
                   day: Number(dayNum),
@@ -1360,10 +1443,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
         if (!reservedDayCars.length && snapshotDay?.car_reserved?.id) {
           reservedDayCars = [
-            {
-              carId: String(snapshotDay.car_reserved.id),
-              withDriver: false,
-            },
+            { carId: String(snapshotDay.car_reserved.id), withDriver: false },
           ];
         }
 
@@ -1443,22 +1523,18 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
         if (activityOptions.length > 0 && reservedDayActivities.length > 0) {
           const seen = new Set();
-
           reservedDayActivities.forEach(
             ({ actId, numAdults: na, numChildren: nc }) => {
               const matchedAct = activityOptions.find(
                 (act) => String(act.activity_id) === String(actId)
               );
               if (!matchedAct) return;
-
               const dedupeKey = String(matchedAct.activity_id);
               if (seen.has(dedupeKey)) return;
               seen.add(dedupeKey);
-
               const forChildren =
                 matchedAct.for_children === "1" ||
                 matchedAct.for_children === 1;
-
               dispatch(
                 selectActivity({
                   day: Number(dayNum),
@@ -1466,10 +1542,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                     id: parseInt(matchedAct.activity_id),
                     activity_id: parseInt(matchedAct.activity_id),
                     tour_activity_id: matchedAct.tour_activity_id,
-                    title: {
-                      en: matchedAct.title,
-                      ar: matchedAct.title,
-                    },
+                    title: { en: matchedAct.title, ar: matchedAct.title },
                     name: matchedAct.title,
                     image: matchedAct.image?.split("//CAMP//")[0],
                     price: parseFloat(matchedAct.price_current || 0),
@@ -1488,7 +1561,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
       setActiveAccommodations(nextActiveHotels);
       setSelectedCarsPerDay(nextCarsPerDay);
-      // ✅ set initialRoomsPerDay من الـ snapshot
       setInitialRoomsPerDay(nextInitialRoomsPerDay);
 
       setTimeout(() => dispatch(calculateTotal()), 150);
@@ -1524,7 +1596,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
       hydrateReservationIntoNewSystem(
         fullTour,
         reservationSource,
-        reservedTourSnapshot // ✅ هنا بتيجي data.tour_details اللي فيها rooms
+        reservedTourSnapshot
       );
     });
   }, [
@@ -1538,7 +1610,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
   // Sync people + dates to Redux
   useEffect(() => {
     if (!open || !tourDetails) return;
-
     dispatch(setPeopleCount({ adults, children: childrenCount, infants: 0 }));
     dispatch(
       setTourInfo({
@@ -1549,7 +1620,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
         numInfants: 0,
       })
     );
-
     const timer = setTimeout(() => dispatch(calculateTotal()), 50);
     return () => clearTimeout(timer);
   }, [open, tourDetails, adults, childrenCount, startDate, endDate, dispatch]);
@@ -1570,7 +1640,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
       setChildrenCount(0);
       setStartDate(null);
       setEndDate(null);
-
       dispatch(clearCurrentTourData());
       dispatch(
         setTourInfo({
@@ -1589,7 +1658,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
   useEffect(() => {
     if (adults < 1) return;
     let wasTrimmed = false;
-
     setSelectedCarsPerDay((prev) => {
       const next = { ...prev };
       Object.keys(next).forEach((dayKey) => {
@@ -1601,10 +1669,8 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
       });
       return next;
     });
-
-    if (wasTrimmed) {
+    if (wasTrimmed)
       toast.error("Cars were trimmed to match the new adults count");
-    }
   }, [adults]);
 
   // ─── Date change ──────────────────────────────────────────────────────────
@@ -1616,12 +1682,10 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
         isNaN(selectedDate.getTime())
       )
         return;
-
       const duration = tourDetails?.itinerary?.length || 1;
       const nextStart = new Date(selectedDate);
       nextStart.setHours(0, 0, 0, 0);
       const nextEnd = buildEndDate(nextStart, duration);
-
       setStartDate(nextStart);
       setEndDate(nextEnd);
       setCalendarOpen(false);
@@ -1660,7 +1724,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
   const totalCountable = adults + childrenCount;
   const canAddMore = totalCountable < maxPersons;
 
-  // ─── Validate ─────────────────────────────────────────────────────────────
   const validateBeforeSave = useCallback(() => {
     if (!startDate) {
       toast.error("Please select a start date");
@@ -1697,12 +1760,12 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
       return false;
     }
 
-    if (adults + childrenCount >= 3) {
+    if (adults + childrenCount > 2) {
       const roomsValidation = validateRoomsForAllDays(rootState);
       if (!roomsValidation.isValid) {
         const firstError = roomsValidation.errors[0];
         toast.error(
-          `Day ${firstError.day}: ${firstError.assigned}/${firstError.required} travelers assigned to rooms`
+          `Day ${firstError.day}: ${firstError.assigned}/${firstError.required} travelers assigned to rooms. Please open Hotel options and distribute rooms.`
         );
         return false;
       }
@@ -1737,20 +1800,16 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
     try {
       setSaving(true);
-
       const formattedPayload = formatReservationForAPI(reservationState);
-
       const payload = {
         reservation_id: String(reservationId),
         ...formattedPayload,
       };
-
       const response = await axios.post(
         `${base_url}/user/tours/update_tour.php`,
         payload,
         { headers: { "Content-Type": "application/json" } }
       );
-
       if (response.data.status === "success" || response.data.success) {
         toast.success("Booking updated successfully! 🎉");
         onClose();
@@ -1798,14 +1857,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
-
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="absolute top-3 right-3 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white rounded-full p-2 transition-all z-10 disabled:opacity-50"
-          >
-            <FiX size={16} />
-          </button>
 
           <div className="absolute bottom-4 left-5 right-5">
             <h3 className="text-lg font-bold text-white mb-1 line-clamp-1">
@@ -1888,7 +1939,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                     <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                       Travel Dates
                     </label>
-
                     <div className="relative">
                       <button
                         type="button"
@@ -1902,9 +1952,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                         </span>
                         <FiChevronDown
                           size={14}
-                          className={`transition-transform ${
-                            calendarOpen ? "rotate-180" : ""
-                          }`}
+                          className={`transition-transform ${calendarOpen ? "rotate-180" : ""}`}
                         />
                       </button>
 
@@ -1919,8 +1967,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                           </div>
                           <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500">
                             End date synced with itinerary ({mappedDays.length}{" "}
-                            day
-                            {mappedDays.length !== 1 ? "s" : ""})
+                            day{mappedDays.length !== 1 ? "s" : ""})
                           </div>
                         </div>
                       )}
@@ -2034,7 +2081,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                         {mappedDays.length} days
                       </span>
                     </div>
-
                     {totalPrice > 0 && (
                       <span className="text-[#295557] text-xs font-semibold bg-[#295557]/5 px-3 py-1 rounded-full">
                         ${totalPrice.toFixed(0)}
@@ -2059,7 +2105,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                           setActiveAccommodations={setActiveAccommodations}
                           selectedCarsPerDay={selectedCarsPerDay}
                           setSelectedCarsPerDay={setSelectedCarsPerDay}
-                          // ✅ initialRooms من snapshot مباشرة لكل يوم
                           initialRooms={initialRoomsPerDay[dayNum] || []}
                         />
                       );

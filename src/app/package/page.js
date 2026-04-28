@@ -461,7 +461,7 @@ const Page = () => {
               ? tour.gallery
               : [tour.image],
           duration: tour.duration,
-          mainLocations: tour.route
+          mainLocations: tour.mainLocations
             ? tour.route
                 .split("-")
                 .slice(0, 2)
@@ -882,16 +882,16 @@ const Page = () => {
                 </div>
               </div>
 
-              <div className="list-grid-product-wrap mb-[70px]">
+              <div className="flex items-center justify-center mb-[70px]">
                 {loading ? (
-                  <div className="loading-spinner text-center py-5">
+                  <div className=" !w-full text-center py-5">
                     <div
                       className="spinner-border text-[#295557]"
                       role="status"
                     >
                       <span className="visually-hidden">Loading...</span>
                     </div>
-                    <p className="mt-2">Loading tours...</p>
+                    <p className="mt-2 !w-full">Loading tours...</p>
                   </div>
                 ) : (
                   <div className="sm:grid-cols-2 grid-cols-1 grid gap-3 ">
@@ -1010,18 +1010,10 @@ const Page = () => {
                                 {tour?.duration && (
                                   <span className="date">{tour?.duration}</span>
                                 )}
-                                {tour?.mainLocations?.length > 0 && (
+                                {tour?.country && (
                                   <div className="location">
                                     <ul className="location-list">
-                                      {tour?.mainLocations?.map(
-                                        (mainLocat, index) => (
-                                          <li key={index}>
-                                            <Link href="/package">
-                                              {mainLocat}
-                                            </Link>
-                                          </li>
-                                        )
-                                      )}
+                                      <li>{tour?.country}</li>
                                     </ul>
                                   </div>
                                 )}

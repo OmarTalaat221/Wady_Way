@@ -36,7 +36,7 @@ const BookingCard = ({ data, refetchTours }) => {
 
   const formatPrice = (price, currency = "$") => {
     if (!price) return "N/A";
-    return `${currency}${parseFloat(price).toLocaleString()}`;
+    return `$${parseFloat(price).toLocaleString()}`;
   };
 
   const formatDate = (dateString, includeYear = false) => {

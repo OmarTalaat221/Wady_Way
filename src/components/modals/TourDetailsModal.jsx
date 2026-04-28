@@ -1,3 +1,4 @@
+// TourDetailsModal.jsx
 "use client";
 
 import React, { useState } from "react";
@@ -25,12 +26,18 @@ import {
 } from "@ant-design/icons";
 import "./modals.css";
 import { FiMapPin, FiClock, FiCheck, FiX } from "react-icons/fi";
-import { FaBed, FaChild, FaBaby } from "react-icons/fa";
 import axios from "axios";
 import { baseUrl } from "../../Constants/Const";
 import toast from "react-hot-toast";
 
 const { Panel } = Collapse;
+
+const CAMP_SEPARATOR = "//CAMP//";
+
+const getFirstCampImage = (value) => {
+  if (!value || typeof value !== "string") return value || "";
+  return value.split(CAMP_SEPARATOR)[0]?.trim() || "";
+};
 
 const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
   const [activeDay, setActiveDay] = useState(["0"]);
@@ -40,7 +47,6 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
   if (!data) return null;
 
   const isPending = data.apiStatus === "pending" || data.status === "pending";
-
   const isCancelledByUser =
     data.apiStatus === "cancelled_by_user" ||
     data.status === "cancelled_by_user";
@@ -103,7 +109,6 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
         label: "Completed",
       },
     };
-
     const config = statusMap[status] || statusMap.pending;
     return (
       <Tag
@@ -152,7 +157,6 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
     if (data.dayTourGuide || data.day_tour_guide) {
       const raw = data.dayTourGuide || data.day_tour_guide;
       const entries = raw.split("**day**");
-
       entries.forEach((entry) => {
         const trimmedEntry = entry.trim();
         if (trimmedEntry) {
@@ -177,33 +181,10 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
     return tourGuideData;
   };
 
-  // ─── Parse activities per day from reservation string ─────────────────────
-  const parseActivitiesPerDay = () => {
-    const result = {};
-    const raw = data.day_activities;
-    if (!raw) return result;
-
-    raw.split("**day**").forEach((entry) => {
-      const parts = entry.split("**");
-      if (parts.length >= 4) {
-        const dayNum = String(parts[0]);
-        const actId = parts[1];
-        const numAdults = parseInt(parts[2] || "1");
-        const numChildren = parseInt(parts[3] || "0");
-        if (!result[dayNum]) result[dayNum] = [];
-        result[dayNum].push({ actId, numAdults, numChildren });
-      }
-    });
-
-    return result;
-  };
-
   const tourGuideInfo = parseTourGuideData();
-  const activitiesPerDay = parseActivitiesPerDay();
 
   const handleCancelReservation = async () => {
     const userId = getUserId();
-
     if (!userId) {
       toast.error("User not found. Please log in again.");
       return;
@@ -213,7 +194,6 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
 
     try {
       setCancelLoading(true);
-
       const response = await axios.post(
         `${baseUrl}/tours/cancel_reservation.php`,
         {
@@ -248,7 +228,23 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
     onClose();
   };
 
-  // ─── Render rooms for a day ───────────────────────────────────────────────
+  // ─── Normalize car_reserved to always be an array ─────────────────────────
+  const normalizeCarsArray = (carReserved) => {
+    if (!carReserved) return [];
+    if (Array.isArray(carReserved)) return carReserved;
+    if (typeof carReserved === "object") return [carReserved];
+    return [];
+  };
+
+  // ─── Normalize activity_reserved to always be an array ───────────────────
+  const normalizeActivitiesArray = (actReserved) => {
+    if (!actReserved) return [];
+    if (Array.isArray(actReserved)) return actReserved;
+    if (typeof actReserved === "object") return [actReserved];
+    return [];
+  };
+
+  // ─── Render rooms ─────────────────────────────────────────────────────────
   const renderRooms = (rooms) => {
     if (!Array.isArray(rooms) || rooms.length === 0) return null;
 
@@ -273,19 +269,16 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
                 <Tag color="blue" className="!m-0 !text-xs">
-                  {adultsCount} Adult
-                  {adultsCount !== 1 ? "s" : ""}
+                  {adultsCount} Adult{adultsCount !== 1 ? "s" : ""}
                 </Tag>
                 {childrenCount > 0 && (
                   <Tag color="orange" className="!m-0 !text-xs">
-                    {childrenCount} Child
-                    {childrenCount !== 1 ? "ren" : ""}
+                    {childrenCount} Child{childrenCount !== 1 ? "ren" : ""}
                   </Tag>
                 )}
                 {babiesCount > 0 && (
                   <Tag color="magenta" className="!m-0 !text-xs">
-                    {babiesCount} Infant
-                    {babiesCount !== 1 ? "s" : ""}
+                    {babiesCount} Infant{babiesCount !== 1 ? "s" : ""}
                   </Tag>
                 )}
               </div>
@@ -296,124 +289,127 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
     );
   };
 
-  // ─── Render all activities for a day ──────────────────────────────────────
-  const renderDayActivities = (dayData) => {
-    const dayNum = String(dayData.day);
-    const dayActivities = activitiesPerDay[dayNum] || [];
-
-    // الـ activity_reserved الأصلية
-    const reservedAct = dayData.activity_reserved;
-
-    // لو مفيش activities محجوزة ومفيش activity_reserved
-    if (dayActivities.length === 0 && !reservedAct) return null;
-
-    // الـ activities_options من الـ snapshot
-    const activityOptions = Array.isArray(dayData.activities_options)
-      ? dayData.activities_options
-      : [];
-
-    // ابني list بالـ activities المحجوزة
-    const activitiesToShow = [];
-
-    if (dayActivities.length > 0) {
-      const seen = new Set();
-      dayActivities.forEach(({ actId, numAdults, numChildren }) => {
-        if (seen.has(actId)) return;
-        seen.add(actId);
-
-        // حاول تلاقي الـ activity في الـ options
-        const matchedOption = activityOptions.find(
-          (opt) => String(opt.activity_id) === String(actId)
-        );
-
-        if (matchedOption) {
-          activitiesToShow.push({
-            id: matchedOption.activity_id,
-            title: matchedOption.title,
-            image: matchedOption.image?.split("//CAMP//")[0],
-            price_current: matchedOption.price_current,
-            numAdults,
-            numChildren,
-          });
-        } else if (reservedAct && String(reservedAct.id) === String(actId)) {
-          activitiesToShow.push({
-            id: reservedAct.id,
-            title: reservedAct.title,
-            image: reservedAct.image?.split("//CAMP//")[0],
-            price_current: reservedAct.price_current,
-            numAdults,
-            numChildren,
-          });
-        }
-      });
-    } else if (reservedAct) {
-      // Fallback: اعرض الـ activity_reserved بس
-      activitiesToShow.push({
-        id: reservedAct.id,
-        title: reservedAct.title,
-        image: reservedAct.image?.split("//CAMP//")[0],
-        price_current: reservedAct.price_current,
-        numAdults: data.numAdults || 1,
-        numChildren: data.numChildren || 0,
-      });
-    }
-
-    if (activitiesToShow.length === 0) return null;
+  // ─── Render cars for a day (supports array) ───────────────────────────────
+  const renderDayCars = (dayData) => {
+    const cars = normalizeCarsArray(dayData.car_reserved);
+    if (cars.length === 0) return null;
 
     return (
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
-          Activities ({activitiesToShow.length})
-        </p>
-        {activitiesToShow.map((act, idx) => (
-          <div
-            key={`${act.id}-${idx}`}
-            className="bg-white border border-orange-200 rounded-lg p-3"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden">
-                <img
-                  src={act.image}
-                  alt={act.title}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src =
-                      "https://via.placeholder.com/80?text=Activity";
-                  }}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h5 className="font-semibold text-sm text-gray-800 truncate mb-1">
-                  {act.title}
-                </h5>
-                <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                  <span>{formatPrice(act.price_current)}</span>
-                  <Tag color="blue" className="!m-0 !text-[10px]">
-                    {act.numAdults} Adult{act.numAdults !== 1 ? "s" : ""}
-                  </Tag>
-                  {act.numChildren > 0 && (
-                    <Tag color="orange" className="!m-0 !text-[10px]">
-                      {act.numChildren} Child
-                      {act.numChildren !== 1 ? "ren" : ""}
-                    </Tag>
-                  )}
+        {cars.length > 1 && (
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Cars ({cars.length})
+          </p>
+        )}
+        {cars.map((car, idx) => {
+          const carImage = getFirstCampImage(car.image) || car.image;
+          const withDriver =
+            car.driver === "1" || car.driver === 1 || car.driver === true;
+
+          return (
+            <div
+              key={`${car.id}-${idx}`}
+              className="bg-white border border-blue-200 rounded-lg p-3"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden">
+                  <img
+                    src={carImage}
+                    alt={car.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = "https://via.placeholder.com/80?text=Car";
+                    }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h5 className="font-semibold text-sm text-gray-800 truncate mb-1">
+                    {car.title}
+                  </h5>
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                    <span>{formatPrice(car.price_current)} / day</span>
+                    {withDriver && (
+                      <Tag color="geekblue" className="!m-0 !text-[10px]">
+                        With Driver
+                      </Tag>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
 
-  // ─── Render day details ───────────────────────────────────────────────────
+  // ─── Render activities for a day (supports array) ─────────────────────────
+  const renderDayActivities = (dayData) => {
+    const activities = normalizeActivitiesArray(dayData.activity_reserved);
+    if (activities.length === 0) return null;
+
+    return (
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+          Activities ({activities.length})
+        </p>
+        {activities.map((act, idx) => {
+          const actImage = getFirstCampImage(act.image) || act.image;
+          const numAdults = parseInt(
+            act.adults || act.numAdults || data.numAdults || 1
+          );
+          const numChildren = parseInt(
+            act.children || act.numChildren || data.numChildren || 0
+          );
+
+          return (
+            <div
+              key={`${act.id}-${idx}`}
+              className="bg-white border border-orange-200 rounded-lg p-3"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden">
+                  <img
+                    src={actImage}
+                    alt={act.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://via.placeholder.com/80?text=Activity";
+                    }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h5 className="font-semibold text-sm text-gray-800 truncate mb-1">
+                    {act.title}
+                  </h5>
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                    <span>{formatPrice(act.price_current)}</span>
+                    <Tag color="blue" className="!m-0 !text-[10px]">
+                      {numAdults} Adult{numAdults !== 1 ? "s" : ""}
+                    </Tag>
+                    {numChildren > 0 && (
+                      <Tag color="orange" className="!m-0 !text-[10px]">
+                        {numChildren} Child{numChildren !== 1 ? "ren" : ""}
+                      </Tag>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ─── Render full day details ───────────────────────────────────────────────
   const renderDayDetails = (dayData) => {
     const hasTourGuide = tourGuideInfo[dayData.day] || false;
     const rooms = dayData.hotel_reserved?.rooms || [];
 
     return (
       <div className="space-y-3">
-        {/* Description */}
         {dayData.description && (
           <div className="bg-gray-50 rounded-lg p-3">
             <div
@@ -430,7 +426,10 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
               <div className="flex items-start gap-3">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden">
                   <img
-                    src={dayData.hotel_reserved.image}
+                    src={
+                      getFirstCampImage(dayData.hotel_reserved.image) ||
+                      dayData.hotel_reserved.image
+                    }
                     alt={dayData.hotel_reserved.title}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -440,11 +439,9 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h5 className="font-semibold text-sm text-gray-800 truncate mb-0">
-                      {dayData.hotel_reserved.title}
-                    </h5>
-                  </div>
+                  <h5 className="font-semibold text-sm text-gray-800 truncate mb-1">
+                    {dayData.hotel_reserved.title}
+                  </h5>
                   <div className="flex flex-wrap gap-2 text-xs text-gray-600">
                     <span>
                       Adult: {formatPrice(dayData.hotel_reserved.adult_price)}
@@ -462,41 +459,14 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
                   </div>
                 </div>
               </div>
-
-              {/* Rooms */}
               {renderRooms(rooms)}
             </div>
           )}
 
-          {/* Car */}
-          {dayData.car_reserved && (
-            <div className="bg-white border border-blue-200 rounded-lg p-3">
-              <div className="flex items-start gap-3">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden">
-                  <img
-                    src={dayData.car_reserved.image}
-                    alt={dayData.car_reserved.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = "https://via.placeholder.com/80?text=Car";
-                    }}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h5 className="font-semibold text-sm text-gray-800 truncate mb-1">
-                    {dayData.car_reserved.title}
-                  </h5>
-                  <div className="text-xs text-gray-600">
-                    <span>
-                      {formatPrice(dayData.car_reserved.price_current)} / day
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Cars — supports array ✅ */}
+          {renderDayCars(dayData)}
 
-          {/* Activities — multi-activity support */}
+          {/* Activities — supports array ✅ */}
           {renderDayActivities(dayData)}
 
           {/* Tour Guide */}
@@ -563,7 +533,11 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
           {/* Header Image */}
           <div className="relative h-48 rounded-lg overflow-hidden">
             <img
-              src={data.backgroundImage || data.image}
+              src={
+                getFirstCampImage(data.backgroundImage || data.image) ||
+                data.backgroundImage ||
+                data.image
+              }
               alt={data.title}
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -632,8 +606,7 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
               <Space>
                 <UserOutlined className="text-[#295557]" />
                 <span>
-                  {data.numAdults || 0} Adult
-                  {data.numAdults !== 1 ? "s" : ""}
+                  {data.numAdults || 0} Adult{data.numAdults !== 1 ? "s" : ""}
                 </span>
               </Space>
             </Descriptions.Item>
@@ -702,71 +675,76 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
                 )}
                 className="tour-itinerary-collapse"
               >
-                {data.itinerary.map((dayData, index) => (
-                  <Panel
-                    header={
-                      <div className="flex items-center justify-between w-full pr-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#295557] text-white flex items-center justify-center font-bold text-sm">
-                            {dayData.day}
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-base text-gray-800 !mb-0">
-                              {dayData.title}
-                            </h4>
-                            <p className="text-xs text-gray-500 mt-0.5 !mb-0">
-                              Day {dayData.day} of the trip
-                            </p>
-                          </div>
-                        </div>
+                {data.itinerary.map((dayData, index) => {
+                  const dayCars = normalizeCarsArray(dayData.car_reserved);
+                  const dayActivities = normalizeActivitiesArray(
+                    dayData.activity_reserved
+                  );
 
-                        {/* Day summary pills */}
-                        <div className="hidden sm:flex items-center gap-1.5">
-                          {dayData.hotel_reserved && (
-                            <Tag
-                              color="purple"
-                              className="!m-0 !text-[10px] !px-1.5"
-                            >
-                              Hotel
-                            </Tag>
-                          )}
-                          {dayData.car_reserved && (
-                            <Tag
-                              color="blue"
-                              className="!m-0 !text-[10px] !px-1.5"
-                            >
-                              Car
-                            </Tag>
-                          )}
-                          {(activitiesPerDay[String(dayData.day)]?.length > 0 ||
-                            dayData.activity_reserved) && (
-                            <Tag
-                              color="orange"
-                              className="!m-0 !text-[10px] !px-1.5"
-                            >
-                              {" "}
-                              {activitiesPerDay[String(dayData.day)]?.length ||
-                                1}{" "}
-                              Act
-                            </Tag>
-                          )}
-                          {tourGuideInfo[dayData.day] && (
-                            <Tag
-                              color="cyan"
-                              className="!m-0 !text-[10px] !px-1.5"
-                            >
-                              <TeamOutlined /> Guide
-                            </Tag>
-                          )}
+                  return (
+                    <Panel
+                      header={
+                        <div className="flex items-center justify-between w-full pr-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[#295557] text-white flex items-center justify-center font-bold text-sm">
+                              {dayData.day}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-base text-gray-800 !mb-0">
+                                {dayData.title}
+                              </h4>
+                              <p className="text-xs text-gray-500 mt-0.5 !mb-0">
+                                Day {dayData.day} of the trip
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Day summary pills */}
+                          <div className="hidden sm:flex items-center gap-1.5">
+                            {dayData.hotel_reserved && (
+                              <Tag
+                                color="purple"
+                                className="!m-0 !text-[10px] !px-1.5"
+                              >
+                                Hotel
+                              </Tag>
+                            )}
+                            {dayCars.length > 0 && (
+                              <Tag
+                                color="blue"
+                                className="!m-0 !text-[10px] !px-1.5"
+                              >
+                                {dayCars.length > 1
+                                  ? `${dayCars.length} Cars`
+                                  : "Car"}
+                              </Tag>
+                            )}
+                            {dayActivities.length > 0 && (
+                              <Tag
+                                color="orange"
+                                className="!m-0 !text-[10px] !px-1.5"
+                              >
+                                {dayActivities.length} Act
+                              </Tag>
+                            )}
+                            {tourGuideInfo[dayData.day] && (
+                              <Tag
+                                color="cyan"
+                                className="!m-0 !text-[10px] !px-1.5"
+                              >
+                                <TeamOutlined /> Guide
+                              </Tag>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    }
-                    key={index.toString()}
-                    className="mb-2"
-                  >
-                    {renderDayDetails(dayData)}
-                  </Panel>
-                ))}
+                      }
+                      key={index.toString()}
+                      className="mb-2"
+                    >
+                      {renderDayDetails(dayData)}
+                    </Panel>
+                  );
+                })}
               </Collapse>
             </>
           )}
@@ -790,7 +768,6 @@ const TourDetailsModal = ({ open, onClose, data, refetchBookings }) => {
           <p className="text-sm text-gray-600 mb-0">
             Are you sure you want to cancel this tour reservation?
           </p>
-
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
             <p className="text-sm font-semibold text-red-700 mb-1">
               {data.title}

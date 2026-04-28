@@ -300,7 +300,6 @@ const tourReservationSlice = createSlice({
       );
 
       sanitizeDaysToItinerary(state);
-      // ✅ لو فيه startDate محفوظ، endDate لازم يتظبط على عدد أيام الرحلة الحقيقي
       syncDatesWithItinerary(state);
       saveSelectionsToStorage(state);
     },
@@ -602,6 +601,24 @@ const tourReservationSlice = createSlice({
       const { userId, startDate, endDate, numAdults, numChildren, numInfants } =
         action.payload;
 
+      // ✅ لو عدد البالغين أو الأطفال اتغير، نُصفّر توزيع الغرف لكل الأيام عشان نمنع إرسال بيانات قديمة
+      if (numAdults !== undefined || numChildren !== undefined) {
+        const newAdults = numAdults !== undefined ? numAdults : state.numAdults;
+        const newChildren =
+          numChildren !== undefined ? numChildren : state.numChildren;
+
+        if (
+          newAdults !== state.numAdults ||
+          newChildren !== state.numChildren
+        ) {
+          Object.keys(state.selectedByDay).forEach((dayKey) => {
+            if (state.selectedByDay[dayKey]) {
+              state.selectedByDay[dayKey].rooms = [];
+            }
+          });
+        }
+      }
+
       if (userId !== undefined) state.userId = userId;
       if (startDate !== undefined) state.startDate = startDate;
       if (endDate !== undefined) state.endDate = endDate;
@@ -609,15 +626,26 @@ const tourReservationSlice = createSlice({
       if (numChildren !== undefined) state.numChildren = numChildren;
       if (numInfants !== undefined) state.numInfants = numInfants;
 
-      // ✅ لو startDate اتغير، endDate لازم يبقى متوافق مع itinerary
       syncDatesWithItinerary(state);
       saveSelectionsToStorage(state);
     },
 
     setPeopleCount: (state, action) => {
       const { adults, children, infants } = action.payload;
-      state.numAdults = adults || 1;
-      state.numChildren = children || 0;
+      const newAdults = adults || 1;
+      const newChildren = children || 0;
+
+      // ✅ لو عدد البالغين أو الأطفال اتغير، نُصفّر توزيع الغرف لكل الأيام
+      if (newAdults !== state.numAdults || newChildren !== state.numChildren) {
+        Object.keys(state.selectedByDay).forEach((dayKey) => {
+          if (state.selectedByDay[dayKey]) {
+            state.selectedByDay[dayKey].rooms = [];
+          }
+        });
+      }
+
+      state.numAdults = newAdults;
+      state.numChildren = newChildren;
       state.numInfants = infants || 0;
       saveSelectionsToStorage(state);
     },
@@ -766,7 +794,10 @@ export const validateRoomsForAllDays = (state) => {
 
     const rooms = Array.isArray(dayData.rooms) ? dayData.rooms : [];
 
-    if (rooms.length === 0 && totalTravelers >= 3) {
+    // ✅ لو أقل من أو يساوي 2 مسافر → no room validation required (auto fallback)
+    if (totalTravelers <= 2) return;
+
+    if (rooms.length === 0) {
       errors.push({
         day: dayNum,
         message: `Day ${dayNum}: Room distribution not set`,
@@ -775,8 +806,6 @@ export const validateRoomsForAllDays = (state) => {
       });
       return;
     }
-
-    if (rooms.length === 0) return;
 
     const assignedTravelers = rooms.reduce(
       (sum, room) =>
@@ -932,13 +961,50 @@ export const formatReservationForAPI = (state, inviteCode = "") => {
 
   const formatRooms = () =>
     validDays.flatMap((day) => {
-      const rooms = state.selectedByDay?.[String(day)]?.rooms || [];
-      return rooms.map((room) => ({
-        day: Number(day),
-        adults: Number(room.adults || 0),
-        kids: Number(room.kids ?? room.children ?? 0),
-        babies: Number(room.babies ?? room.infants ?? 0),
-      }));
+      const dayKey = String(day);
+      const dayData = state.selectedByDay?.[dayKey];
+
+      // لو مفيش فندق في اليوم ده، منبعتش غرف ليه
+      if (!dayData?.hotel) return [];
+
+      const savedRooms = Array.isArray(dayData.rooms) ? dayData.rooms : [];
+      const adults = Number(state.numAdults || 1);
+      const kids = Number(state.numChildren || 0);
+      const babies = Number(state.numInfants || 0);
+      const totalTravelers = adults + kids;
+
+      // نحسب عدد المسافرين المتوزعين فعلياً في الغرف المحفوظة
+      const assignedSum = savedRooms.reduce(
+        (sum, r) =>
+          sum + Number(r.adults || 0) + Number(r.kids ?? r.children ?? 0),
+        0
+      );
+
+      // لو التوزيع اللي متسيف بيساوي بالضبط عدد المسافرين الحاليين، نبعته
+      if (savedRooms.length > 0 && assignedSum === totalTravelers) {
+        return savedRooms.map((room) => ({
+          day: Number(day),
+          adults: Number(room.adults || 0),
+          kids: Number(room.kids ?? room.children ?? 0),
+          babies: Number(room.babies ?? room.infants ?? 0),
+        }));
+      }
+
+      // لو التوزيع مش متوافق أو فاضي، والعدد <= 2، نعمل Auto-Fallback لروم واحدة
+      if (totalTravelers <= 2 && totalTravelers > 0) {
+        return [
+          {
+            day: Number(day),
+            adults,
+            kids,
+            babies,
+          },
+        ];
+      }
+
+      // لو العدد > 2 والتوزيع مش صح أو مش موجود، نرجع مصفوفة فاضية
+      // (عشان الـ Validation في الكومبوننت يمسكها ويمنع الإرسال)
+      return [];
     });
 
   return {

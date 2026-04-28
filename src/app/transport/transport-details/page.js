@@ -16,7 +16,7 @@ import "../style.css";
 import Accordion from "../../../components/accordion/accordion";
 import { useLocale, useTranslations } from "next-intl";
 import SlickCarousel from "@/components/SlickCarousel";
-import { FaCarSide, FaTicket } from "react-icons/fa6";
+import { FaCarSide } from "react-icons/fa6";
 import { FreeCancellation, PayAtPickup } from "../../../uitils/icnos";
 import axios from "axios";
 import { base_url } from "../../../uitils/base_url";
@@ -107,6 +107,109 @@ const Page = () => {
       },
     };
   }, []);
+
+  const uiText = useMemo(() => {
+    const isAr = locale === "ar";
+
+    return {
+      loginRequired: isAr
+        ? "يرجى تسجيل الدخول للحجز"
+        : "Please login to make a booking",
+      selectDates: isAr
+        ? "يرجى اختيار تواريخ الحجز"
+        : "Please select booking dates",
+      validDateRange: isAr
+        ? "يرجى اختيار نطاق تاريخ صالح"
+        : "Please select valid date range",
+      loadingCar: isAr
+        ? "جاري تحميل تفاصيل السيارة..."
+        : "Loading car details...",
+      notFoundTitle: isAr ? "السيارة غير موجودة" : "Car Not Found",
+      notFoundFallback: isAr
+        ? "تعذر العثور على السيارة المطلوبة."
+        : "The requested car could not be found.",
+      featuresTitle: isAr ? "مميزات السيارة" : "Car Features",
+      customerReview: isAr ? "تقييمات العملاء" : "Customer Review",
+      noReviews: isAr ? "لا توجد تقييمات بعد" : "No reviews yet",
+      addReview: isAr ? "أضف تقييمك" : "GIVE A RATING",
+      reserveTitle: isAr ? "احجز وسيلة النقل" : "Reserve Your Transport",
+      reserveDesc: isAr
+        ? "احجز السيارات في ثوانٍ. توفر فوري، جدولة مرنة، تسعير شفاف، ودعم على مدار الساعة."
+        : "Book cars in seconds. Real-time availability, flexible scheduling, transparent pricing, and 24/7 support.",
+      selectReserveDate: isAr
+        ? "اختر تاريخ الحجز:"
+        : "Select Your Reserve Date:",
+      selectDateRange: isAr ? "اختر نطاق التاريخ" : "Select Date Range",
+      selectDrivingType: isAr ? "اختر نوع القيادة:" : "Select Driving Type:",
+      selfDriving: isAr ? "قيادة ذاتية" : "Self Driving",
+      withDriver: isAr ? "مع سائق" : "With Driver",
+      day: isAr ? "يوم" : "day",
+      daysLabel: isAr ? "عدد الأيام:" : "Number of Days:",
+      totalPrice: isAr ? "السعر الإجمالي:" : "Total Price:",
+      bookNow: isAr ? "احجز الآن" : "Book Now",
+      confirmTitle: isAr ? "تأكيد الحجز" : "Confirm Your Booking",
+      reviewBeforeConfirm: isAr
+        ? "يرجى مراجعة تفاصيل الحجز بعناية قبل التأكيد."
+        : "Please review your booking details carefully before confirming.",
+      bookingSummary: isAr ? "ملخص الحجز" : "Booking Summary",
+      backToEdit: isAr ? "رجوع للتعديل" : "Back to Edit",
+      confirmBooking: isAr ? "تأكيد الحجز" : "Confirm Booking",
+      walletHoldImportantTitle: isAr ? "مهم:" : "Important:",
+      walletHoldConfirmNote: isAr
+        ? "بمجرد تأكيد الحجز، سيتم عمل حجز مؤقت للمبلغ من محفظتك فورًا، وسيظل الرصيد معلّقًا لحين قبول أو رفض الطلب."
+        : "Once you confirm the booking, the total amount will be placed on hold from your wallet immediately and will remain held until the reservation is accepted or rejected.",
+      walletHoldConfirmSubNote: isAr
+        ? "في حالة رفض الحجز، سيتم فك الحجز المؤقت وإعادة الرصيد إلى محفظتك تلقائيًا."
+        : "If the reservation is rejected, the held amount will be released back to your wallet automatically.",
+      processingBooking: isAr
+        ? "جاري معالجة الحجز..."
+        : "Processing Booking...",
+      bookingErrorTitle: isAr ? "خطأ في الحجز" : "Booking Error",
+      waitProcessing: isAr
+        ? "يرجى الانتظار أثناء معالجة حجزك..."
+        : "Please wait while we process your booking...",
+      bookingFailed: isAr ? "فشل الحجز" : "Booking Failed",
+      close: isAr ? "إغلاق" : "Close",
+      tryAgain: isAr ? "حاول مرة أخرى" : "Try Again",
+      successTitle: isAr ? "تم الحجز بنجاح!" : "Booking Successful!",
+      successDescription: isAr
+        ? "تم إرسال طلب الحجز بنجاح، وتم عمل حجز مؤقت للمبلغ من محفظتك لحين مراجعة الطلب."
+        : "Your booking request has been submitted successfully, and the amount has been placed on hold in your wallet while your reservation is under review.",
+      holdStatusTitle: isAr ? "حالة الدفع" : "Payment Status",
+      holdStatusValue: isAr
+        ? "المبلغ محجوز مؤقتًا من المحفظة"
+        : "Amount is on hold in wallet",
+      holdInfoBox: isAr
+        ? "إذا تم قبول الحجز، سيتم اعتماد المبلغ المحجوز. وإذا تم رفضه، سيتم إعادة الرصيد إلى محفظتك تلقائيًا."
+        : "If the reservation is accepted, the held amount will be applied to the booking. If it is rejected, the amount will be returned to your wallet automatically.",
+      done: isAr ? "تم" : "Done",
+      bookingFailedFallback: isAr
+        ? "فشل الحجز. يرجى المحاولة مرة أخرى."
+        : "Booking failed. Please try again.",
+      networkError: isAr
+        ? "خطأ في الشبكة. يرجى التحقق من الاتصال والمحاولة مرة أخرى."
+        : "Network error. Please check your connection and try again.",
+      car: isAr ? "السيارة" : "Car",
+      location: isAr ? "الموقع" : "Location",
+      drivingType: isAr ? "نوع القيادة" : "Driving Type",
+      startDate: isAr ? "تاريخ البداية" : "Start Date",
+      endDate: isAr ? "تاريخ النهاية" : "End Date",
+      duration: isAr ? "المدة" : "Duration",
+      dailyRate: isAr ? "السعر اليومي" : "Daily Rate",
+      dailyRateWithDriver: isAr
+        ? "السعر اليومي (العربية + السائق)"
+        : "Daily Rate (Car + Driver)",
+      totalAmount: isAr ? "المبلغ الإجمالي" : "Total Amount",
+      from: isAr ? "من" : "From",
+      to: isAr ? "إلى" : "To",
+      total: isAr ? "الإجمالي" : "Total",
+      reviews: isAr ? "تقييم" : "Reviews",
+      noImages: isAr ? "لا توجد صور متاحة" : "No images available",
+      reviewPendingMessage: isAr
+        ? "طلب الحجز قيد المراجعة مع حجز المبلغ من المحفظة"
+        : "Reservation under review with wallet amount on hold",
+    };
+  }, [locale]);
 
   const cleanIcon = useCallback((icon) => {
     if (!icon) return "";
@@ -249,30 +352,18 @@ const Page = () => {
 
     const userData = localStorage.getItem("user");
     if (!userData) {
-      toast.error(
-        locale === "ar"
-          ? "يرجى تسجيل الدخول للحجز"
-          : "Please login to make a booking"
-      );
+      toast.error(uiText.loginRequired);
       setTimeout(() => (window.location.href = `/${locale}/login`), 1500);
       return;
     }
 
     if (!dateRange[0] || !dateRange[1]) {
-      toast.error(
-        locale === "ar"
-          ? "يرجى اختيار تواريخ الحجز"
-          : "Please select booking dates"
-      );
+      toast.error(uiText.selectDates);
       return;
     }
 
     if (nightCount <= 0) {
-      toast.error(
-        locale === "ar"
-          ? "يرجى اختيار نطاق تاريخ صالح"
-          : "Please select valid date range"
-      );
+      toast.error(uiText.validDateRange);
       return;
     }
 
@@ -318,31 +409,18 @@ const Page = () => {
           totalPrice: totalPrice.toFixed(2),
           drivingType:
             drivingType === "self_riding"
-              ? locale === "ar"
-                ? "قيادة ذاتية"
-                : "Self Driving"
-              : locale === "ar"
-                ? "مع سائق"
-                : "With Driver",
+              ? uiText.selfDriving
+              : uiText.withDriver,
           invitationCode: inviteCode,
+          paymentStatus: uiText.holdStatusValue,
         });
         setIsSuccessModalOpen(true);
       } else {
-        setBookingError(
-          response.data.message ||
-            (locale === "ar"
-              ? "فشل الحجز. يرجى المحاولة مرة أخرى."
-              : "Booking failed. Please try again.")
-        );
+        setBookingError(response.data.message || uiText.bookingFailedFallback);
       }
     } catch (err) {
       console.error("Booking error:", err);
-      setBookingError(
-        err.response?.data?.message ||
-          (locale === "ar"
-            ? "خطأ في الشبكة. يرجى التحقق من الاتصال والمحاولة مرة أخرى."
-            : "Network error. Please check your connection and try again.")
-      );
+      setBookingError(err.response?.data?.message || uiText.networkError);
     } finally {
       setBookingLoading(false);
     }
@@ -359,70 +437,60 @@ const Page = () => {
     setBookingDetails(null);
   };
 
-  // Confirm modal summary rows
   const confirmSummaryRows = useMemo(() => {
     if (!carData) return [];
     return [
       {
         icon: "bi-tag",
-        label: locale === "ar" ? "السيارة" : "Car",
+        label: uiText.car,
         value: carData.title,
       },
       {
         icon: "bi-geo-alt",
-        label: locale === "ar" ? "الموقع" : "Location",
+        label: uiText.location,
         value: carData.location || "N/A",
       },
       {
         icon: "bi-gear",
-        label: locale === "ar" ? "نوع القيادة" : "Driving Type",
+        label: uiText.drivingType,
         value:
           drivingType === "self_riding"
-            ? locale === "ar"
-              ? "قيادة ذاتية"
-              : "Self Driving"
-            : locale === "ar"
-              ? "مع سائق"
-              : "With Driver",
+            ? uiText.selfDriving
+            : uiText.withDriver,
       },
       {
         icon: "bi-calendar-check",
-        label: locale === "ar" ? "تاريخ البداية" : "Start Date",
+        label: uiText.startDate,
         value: formatDate(dateRange[0], locale),
       },
       {
         icon: "bi-calendar-x",
-        label: locale === "ar" ? "تاريخ النهاية" : "End Date",
+        label: uiText.endDate,
         value: formatDate(dateRange[1], locale),
       },
       {
         icon: "bi-clock",
-        label: locale === "ar" ? "المدة" : "Duration",
+        label: uiText.duration,
         value: `${nightCount} ${
-          nightCount === 1
-            ? locale === "ar"
-              ? "يوم"
-              : "Day"
-            : locale === "ar"
-              ? "أيام"
-              : "Days"
+          nightCount === 1 ? uiText.day : locale === "ar" ? "أيام" : "Days"
         }`,
       },
       {
         icon: "bi-currency-exchange",
         label:
-          locale === "ar"
-            ? drivingType === "with_driver"
-              ? "السعر اليومي (العربية + السائق)"
-              : "السعر اليومي"
-            : drivingType === "with_driver"
-              ? "Daily Rate (Car + Driver)"
-              : "Daily Rate",
+          drivingType === "with_driver"
+            ? uiText.dailyRateWithDriver
+            : uiText.dailyRate,
         value: `$${currentPrice.toFixed(2)}`,
       },
       {
+        icon: "bi-wallet2",
+        label: uiText.holdStatusTitle,
+        value: uiText.holdStatusValue,
+      },
+      {
         icon: "bi-calculator",
-        label: locale === "ar" ? "المبلغ الإجمالي" : "Total Amount",
+        label: uiText.totalAmount,
         value: `$${totalPrice.toFixed(2)}`,
         isTotal: true,
       },
@@ -435,6 +503,7 @@ const Page = () => {
     currentPrice,
     totalPrice,
     locale,
+    uiText,
   ]);
 
   if (loading || inviteCodeLoading) {
@@ -452,11 +521,7 @@ const Page = () => {
                   style={{ borderBottom: "2px solid #e8a355" }}
                   className="animate-spin rounded-full h-16 w-16 mx-auto"
                 />
-                <p className="mt-4 text-lg">
-                  {locale === "ar"
-                    ? "جاري تحميل تفاصيل السيارة..."
-                    : "Loading car details..."}
-                </p>
+                <p className="mt-4 text-lg">{uiText.loadingCar}</p>
               </div>
             </div>
           </div>
@@ -480,13 +545,10 @@ const Page = () => {
                   <i className="bi bi-exclamation-triangle"></i>
                 </div>
                 <h2 className="text-2xl font-bold mb-2">
-                  {locale === "ar" ? "السيارة غير موجودة" : "Car Not Found"}
+                  {uiText.notFoundTitle}
                 </h2>
                 <p className="text-gray-600">
-                  {error ||
-                    (locale === "ar"
-                      ? "تعذر العثور على السيارة المطلوبة."
-                      : "The requested car could not be found.")}
+                  {error || uiText.notFoundFallback}
                 </p>
               </div>
             </div>
@@ -513,11 +575,7 @@ const Page = () => {
                     <SlickCarousel images={carImages} />
                   ) : (
                     <div className="bg-gray-200 h-64 flex items-center justify-center rounded-lg">
-                      <p className="text-gray-500">
-                        {locale === "ar"
-                          ? "لا توجد صور متاحة"
-                          : "No images available"}
-                      </p>
+                      <p className="text-gray-500">{uiText.noImages}</p>
                     </div>
                   )}
                 </div>
@@ -545,7 +603,7 @@ const Page = () => {
               {carData.features && carData.features.length > 0 && (
                 <>
                   <h4 className="text-xl font-semibold mt-5 mb-3">
-                    {locale === "ar" ? "مميزات السيارة" : "Car Features"}
+                    {uiText.featuresTitle}
                   </h4>
                   <div className="features-area mb-[20px]">
                     <div className="bg-[#f8f8f8] p-4 rounded-lg mb-4">
@@ -584,9 +642,7 @@ const Page = () => {
               </div>
 
               <div className="review-wrapper">
-                <h4>
-                  {locale === "ar" ? "تقييمات العملاء" : "Customer Review"}
-                </h4>
+                <h4>{uiText.customerReview}</h4>
                 <div className="review-box">
                   <div className="total-review">
                     {displayRating !== null ? (
@@ -609,8 +665,7 @@ const Page = () => {
                             ))}
                           </ul>
                           <span>
-                            {carData?.reviews_count || ""}{" "}
-                            {locale === "ar" ? "تقييم" : "Reviews"}
+                            {carData?.reviews_count || ""} {uiText.reviews}
                           </span>
                         </div>
                       </>
@@ -625,11 +680,7 @@ const Page = () => {
                               </li>
                             ))}
                           </ul>
-                          <span>
-                            {locale === "ar"
-                              ? "لا توجد تقييمات بعد"
-                              : "No reviews yet"}
-                          </span>
+                          <span>{uiText.noReviews}</span>
                         </div>
                       </>
                     )}
@@ -638,7 +689,7 @@ const Page = () => {
                     className="primary-btn1"
                     onClick={() => setIsReviewModalOpen(true)}
                   >
-                    {locale === "ar" ? "أضف تقييمك" : "GIVE A RATING"}
+                    {uiText.addReview}
                   </button>
                 </div>
               </div>
@@ -647,16 +698,8 @@ const Page = () => {
             <div className="col-lg-4">
               <div className="transport-sidebar">
                 <div className="booking-form-wrap">
-                  <h4>
-                    {locale === "ar"
-                      ? "احجز وسيلة النقل"
-                      : "Reserve Your Transport"}
-                  </h4>
-                  <p>
-                    {locale === "ar"
-                      ? "احجز السيارات في ثوانٍ. توفر فوري، جدولة مرنة، تسعير شفاف، ودعم على مدار الساعة."
-                      : "Book cars in seconds. Real-time availability, flexible scheduling, transparent pricing, and 24/7 support."}
-                  </p>
+                  <h4>{uiText.reserveTitle}</h4>
+                  <p>{uiText.reserveDesc}</p>
 
                   <div className="tab-content" id="v-pills-tabContent2">
                     <div
@@ -667,9 +710,7 @@ const Page = () => {
                       <div className="sidebar-booking-form">
                         <form onSubmit={handleFormSubmit}>
                           <h6 className="text-lg font-semibold mb-3">
-                            {locale === "ar"
-                              ? "اختر تاريخ الحجز:"
-                              : "Select Your Reserve Date:"}
+                            {uiText.selectReserveDate}
                           </h6>
                           <div className="mb-4">
                             <div className="form-group">
@@ -681,11 +722,7 @@ const Page = () => {
                                     setIsCalendarOpen(!isCalendarOpen)
                                   }
                                   value={`${formatDate(dateRange[0], locale)} - ${formatDate(dateRange[1], locale)}`}
-                                  placeholder={
-                                    locale === "ar"
-                                      ? "اختر نطاق التاريخ"
-                                      : "Select Date Range"
-                                  }
+                                  placeholder={uiText.selectDateRange}
                                   className="w-full h-14 rounded-lg border border-gray-300 px-4 focus:outline-none focus:border-orange-500 cursor-pointer"
                                 />
                                 {isCalendarOpen && (
@@ -731,9 +768,7 @@ const Page = () => {
                           </div>
 
                           <h6 className="text-lg font-semibold mb-3">
-                            {locale === "ar"
-                              ? "اختر نوع القيادة:"
-                              : "Select Driving Type:"}
+                            {uiText.selectDrivingType}
                           </h6>
                           <div className="flex gap-2.5 mb-5">
                             <div
@@ -744,14 +779,9 @@ const Page = () => {
                               }`}
                               onClick={() => setDrivingType("self_riding")}
                             >
-                              <div>
-                                {locale === "ar"
-                                  ? "قيادة ذاتية"
-                                  : "Self Driving"}
-                              </div>
+                              <div>{uiText.selfDriving}</div>
                               <small className="text-gray-500">
-                                ${selfRidingPrice.toFixed(2)} /{" "}
-                                {locale === "ar" ? "يوم" : "day"}
+                                ${selfRidingPrice.toFixed(2)} / {uiText.day}
                               </small>
                             </div>
 
@@ -763,12 +793,9 @@ const Page = () => {
                               }`}
                               onClick={() => setDrivingType("with_driver")}
                             >
-                              <div>
-                                {locale === "ar" ? "مع سائق" : "With Driver"}
-                              </div>
+                              <div>{uiText.withDriver}</div>
                               <small className="text-gray-500">
-                                ${withDriverPrice.toFixed(2)} /{" "}
-                                {locale === "ar" ? "يوم" : "day"}
+                                ${withDriverPrice.toFixed(2)} / {uiText.day}
                               </small>
                             </div>
                           </div>
@@ -781,7 +808,7 @@ const Page = () => {
                               <span className="text-base font-medium">
                                 ${currentPrice.toFixed(2)} /{" "}
                                 {carData.price_note?.toLowerCase() ||
-                                  (locale === "ar" ? "يوم" : "day")}
+                                  uiText.day}
                               </span>
                             </div>
                           </div>
@@ -789,9 +816,7 @@ const Page = () => {
                           <div className="bg-gray-50 p-4 rounded-lg mb-4">
                             <div className="flex items-center justify-between">
                               <span className="text-base font-medium">
-                                {locale === "ar"
-                                  ? "عدد الأيام:"
-                                  : "Number of Days:"}
+                                {uiText.daysLabel}
                               </span>
                               <div className="flex items-center justify-center w-10 h-10 bg-white rounded-lg shadow-sm text-[#e8a355] font-bold">
                                 {nightCount}
@@ -801,9 +826,7 @@ const Page = () => {
 
                           <div className="flex items-center justify-between p-4 mb-6 bg-orange-50 rounded-lg">
                             <span className="text-lg font-semibold">
-                              {locale === "ar"
-                                ? "السعر الإجمالي:"
-                                : "Total Price:"}
+                              {uiText.totalPrice}
                             </span>
                             <span className="text-xl font-bold text-[#e8a355]">
                               ${totalPrice.toFixed(2)}
@@ -814,7 +837,7 @@ const Page = () => {
                             type="submit"
                             className="w-full py-4 px-6 text-white font-semibold primary-btn1 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-opacity-50"
                           >
-                            {locale === "ar" ? "احجز الآن" : "Book Now"}
+                            {uiText.bookNow}
                           </button>
                         </form>
                       </div>
@@ -827,7 +850,6 @@ const Page = () => {
         </div>
       </div>
 
-      {/* ✅ Confirmation Modal — Ant Design */}
       <Modal
         open={isConfirmModalOpen}
         onCancel={closeConfirmModal}
@@ -838,13 +860,13 @@ const Page = () => {
               className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors border-none cursor-pointer"
             >
               <i className="bi bi-arrow-left mr-2"></i>
-              {locale === "ar" ? "رجوع للتعديل" : "Back to Edit"}
+              {uiText.backToEdit}
             </button>
             <button
               onClick={handleConfirmBooking}
               className="px-5 py-2.5 bg-gradient-to-br from-[#e8a355] to-[#d4903e] text-white rounded-lg font-bold text-sm hover:shadow-lg transition-all border-none cursor-pointer"
             >
-              {locale === "ar" ? "تأكيد الحجز" : "Confirm Booking"}
+              {uiText.confirmBooking}
             </button>
           </div>
         }
@@ -861,23 +883,19 @@ const Page = () => {
         title={
           <div className="flex items-center gap-2">
             <i className="bi bi-check-circle text-blue-500"></i>
-            <span className="text-lg font-bold">
-              {locale === "ar" ? "تأكيد الحجز" : "Confirm Your Booking"}
-            </span>
+            <span className="text-lg font-bold">{uiText.confirmTitle}</span>
           </div>
         }
       >
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800">
           <i className="bi bi-info-circle mr-2"></i>
-          {locale === "ar"
-            ? "يرجى مراجعة تفاصيل الحجز بعناية قبل التأكيد."
-            : "Please review your booking details carefully before confirming."}
+          {uiText.reviewBeforeConfirm}
         </div>
 
         <div className="bg-gray-50 rounded-xl p-4 mb-4">
           <h6 className="text-[#295557] font-bold mb-3 text-sm flex items-center gap-2">
             <i className="bi bi-car-front"></i>
-            {locale === "ar" ? "ملخص الحجز" : "Booking Summary"}
+            {uiText.bookingSummary}
           </h6>
 
           {confirmSummaryRows.map((row, i) => (
@@ -897,9 +915,9 @@ const Page = () => {
                 {row.label}:
               </span>
               <span
-                className={`font-semibold ${
+                className={`font-semibold text-sm text-right ${
                   row.isTotal ? "text-[#e8a355]" : "text-gray-800"
-                } text-sm`}
+                }`}
               >
                 {row.value}
               </span>
@@ -908,15 +926,13 @@ const Page = () => {
         </div>
 
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800 mb-4">
-          <i className="bi bi-exclamation-triangle mr-2"></i>
-          <strong>{locale === "ar" ? "مهم:" : "Important:"}</strong>{" "}
-          {locale === "ar"
-            ? "سيتم مراجعة حجزك. بمجرد الموافقة، سنرسل رابط الدفع لإكمال الحجز."
-            : "Your booking will be under review. Once approved, we will send a payment link to complete your reservation."}
+          <i className="bi bi-wallet2 mr-2"></i>
+          <strong>{uiText.walletHoldImportantTitle}</strong>{" "}
+          {uiText.walletHoldConfirmNote}
+          <div className="mt-2">{uiText.walletHoldConfirmSubNote}</div>
         </div>
       </Modal>
 
-      {/* ✅ Booking Loading/Error Modal — Ant Design */}
       <Modal
         open={isBookingModalOpen}
         onCancel={bookingLoading ? undefined : closeBookingModal}
@@ -936,12 +952,8 @@ const Page = () => {
         title={
           <span className="text-lg font-bold">
             {bookingLoading
-              ? locale === "ar"
-                ? "جاري معالجة الحجز..."
-                : "Processing Booking..."
-              : locale === "ar"
-                ? "خطأ في الحجز"
-                : "Booking Error"}
+              ? uiText.processingBooking
+              : uiText.bookingErrorTitle}
           </span>
         }
       >
@@ -949,11 +961,7 @@ const Page = () => {
           {bookingLoading && (
             <>
               <div className="w-12 h-12 border-4 border-gray-200 border-t-[#e8a355] rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">
-                {locale === "ar"
-                  ? "يرجى الانتظار أثناء معالجة حجزك..."
-                  : "Please wait while we process your booking..."}
-              </p>
+              <p className="text-gray-600">{uiText.waitProcessing}</p>
             </>
           )}
 
@@ -966,7 +974,7 @@ const Page = () => {
                 ></i>
               </div>
               <h4 className="text-red-500 font-bold mb-3">
-                {locale === "ar" ? "فشل الحجز" : "Booking Failed"}
+                {uiText.bookingFailed}
               </h4>
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mb-4">
                 {bookingError}
@@ -977,7 +985,7 @@ const Page = () => {
                   onClick={closeBookingModal}
                   className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors border-none cursor-pointer"
                 >
-                  {locale === "ar" ? "إغلاق" : "Close"}
+                  {uiText.close}
                 </button>
                 <button
                   onClick={() => {
@@ -986,7 +994,7 @@ const Page = () => {
                   }}
                   className="px-5 py-2.5 bg-gradient-to-br from-[#e8a355] to-[#d4903e] text-white rounded-lg font-bold text-sm hover:shadow-lg transition-all border-none cursor-pointer"
                 >
-                  {locale === "ar" ? "حاول مرة أخرى" : "Try Again"}
+                  {uiText.tryAgain}
                 </button>
               </div>
             </>
@@ -994,7 +1002,6 @@ const Page = () => {
         </div>
       </Modal>
 
-      {/* ✅ Success Modal — Ant Design */}
       <Modal
         open={isSuccessModalOpen}
         onCancel={closeSuccessModal}
@@ -1020,94 +1027,104 @@ const Page = () => {
           </div>
 
           <h3 className="text-2xl font-bold text-gray-800 mb-2">
-            {locale === "ar" ? "تم الحجز بنجاح!" : "Booking Successful!"}
+            {uiText.successTitle}
           </h3>
-          <p className="text-gray-500 mb-6">
-            {locale === "ar"
-              ? "سيتم مراجعة حجزك وإرسال رابط الدفع قريبًا."
-              : "Your booking is under review. A payment link will be sent soon."}
-          </p>
+          <p className="text-gray-500 mb-6">{uiText.successDescription}</p>
 
           {bookingDetails && (
-            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-              {[
-                {
-                  icon: "bi-car-front",
-                  label: locale === "ar" ? "السيارة" : "Car",
-                  value: bookingDetails.carName,
-                },
-                {
-                  icon: "bi-gear",
-                  label: locale === "ar" ? "نوع القيادة" : "Type",
-                  value: bookingDetails.drivingType,
-                },
-                {
-                  icon: "bi-calendar-check",
-                  label: locale === "ar" ? "من" : "From",
-                  value: bookingDetails.startDate,
-                },
-                {
-                  icon: "bi-calendar-x",
-                  label: locale === "ar" ? "إلى" : "To",
-                  value: bookingDetails.endDate,
-                },
-                {
-                  icon: "bi-clock",
-                  label: locale === "ar" ? "المدة" : "Duration",
-                  value: `${bookingDetails.days} ${
-                    bookingDetails.days === 1
-                      ? locale === "ar"
-                        ? "يوم"
-                        : "Day"
-                      : locale === "ar"
-                        ? "أيام"
-                        : "Days"
-                  }`,
-                },
-                {
-                  icon: "bi-cash-stack",
-                  label: locale === "ar" ? "الإجمالي" : "Total",
-                  value: `$${bookingDetails.totalPrice}`,
-                  isTotal: true,
-                },
-              ].map((row, i) => (
-                <div
-                  key={i}
-                  className={`flex justify-between items-center py-2 ${
-                    row.isTotal
-                      ? "border-t-2 border-gray-200 mt-2 pt-3 font-bold text-[#e8a355] text-base"
-                      : "border-b border-gray-100"
-                  }`}
-                >
-                  <span
-                    className={`text-sm flex items-center gap-1.5 ${
-                      row.isTotal ? "text-[#e8a355] font-bold" : "text-gray-500"
+            <>
+              <div className="bg-gray-50 rounded-xl p-4 mb-4 text-left">
+                {[
+                  {
+                    icon: "bi-car-front",
+                    label: uiText.car,
+                    value: bookingDetails.carName,
+                  },
+                  {
+                    icon: "bi-gear",
+                    label: uiText.drivingType,
+                    value: bookingDetails.drivingType,
+                  },
+                  {
+                    icon: "bi-calendar-check",
+                    label: uiText.from,
+                    value: bookingDetails.startDate,
+                  },
+                  {
+                    icon: "bi-calendar-x",
+                    label: uiText.to,
+                    value: bookingDetails.endDate,
+                  },
+                  {
+                    icon: "bi-clock",
+                    label: uiText.duration,
+                    value: `${bookingDetails.days} ${
+                      bookingDetails.days === 1
+                        ? uiText.day
+                        : locale === "ar"
+                          ? "أيام"
+                          : "Days"
+                    }`,
+                  },
+                  {
+                    icon: "bi-wallet2",
+                    label: uiText.holdStatusTitle,
+                    value: bookingDetails.paymentStatus,
+                  },
+                  {
+                    icon: "bi-cash-stack",
+                    label: uiText.total,
+                    value: `$${bookingDetails.totalPrice}`,
+                    isTotal: true,
+                  },
+                ].map((row, i) => (
+                  <div
+                    key={i}
+                    className={`flex justify-between items-center py-2 ${
+                      row.isTotal
+                        ? "border-t-2 border-gray-200 mt-2 pt-3 font-bold text-[#e8a355] text-base"
+                        : "border-b border-gray-100"
                     }`}
                   >
-                    {row.label}:
-                  </span>
-                  <span
-                    className={`text-sm font-semibold ${
-                      row.isTotal ? "text-[#e8a355]" : "text-gray-800"
-                    }`}
-                  >
-                    {row.value}
-                  </span>
+                    <span
+                      className={`text-sm flex items-center gap-1.5 ${
+                        row.isTotal
+                          ? "text-[#e8a355] font-bold"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {row.label}:
+                    </span>
+                    <span
+                      className={`text-sm font-semibold text-right ${
+                        row.isTotal ? "text-[#e8a355]" : "text-gray-800"
+                      }`}
+                    >
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 mb-6 text-left">
+                <div className="font-semibold mb-1">
+                  <i className="bi bi-info-circle mr-2"></i>
+                  {uiText.reviewPendingMessage}
                 </div>
-              ))}
-            </div>
+                <div>{uiText.holdInfoBox}</div>
+              </div>
+            </>
           )}
 
           <button
             onClick={closeSuccessModal}
             className="px-8 py-3 bg-gradient-to-br from-[#295557] to-[#1e3f40] text-white rounded-lg font-bold text-sm hover:shadow-lg transition-all border-none cursor-pointer"
           >
-            {locale === "ar" ? "تم" : "Done"}
+            {uiText.done}
           </button>
         </div>
       </Modal>
 
-      {/* Review Modal */}
       <ReviewModal
         open={isReviewModalOpen}
         onClose={() => setIsReviewModalOpen(false)}

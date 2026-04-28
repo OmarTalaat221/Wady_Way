@@ -655,7 +655,7 @@ const ScheduleTimelineItem = ({ booking, isLast, onOpen }) => {
             )}
 
             {/* Expand itinerary */}
-            {booking.bookingType === "tour" &&
+            {/* {booking.bookingType === "tour" &&
               booking.itinerary?.length > 0 && (
                 <div className="mb-4">
                   <button
@@ -676,7 +676,7 @@ const ScheduleTimelineItem = ({ booking, isLast, onOpen }) => {
                     )}
                   </button>
                 </div>
-              )}
+              )} */}
 
             {/* Itinerary expanded */}
             {expanded &&
