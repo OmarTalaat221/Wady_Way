@@ -331,7 +331,7 @@ const page = () => {
             <div className="block lg:hidden space-y-4">
               <div className="text-center">
                 <Link
-                  href="/blog/add-blog"
+                  href="/community/add-community"
                   className="inline-flex items-center px-6 py-3 bg-[#295557] text-white font-medium rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   <PlusOutlined className="mr-2" />
@@ -427,7 +427,7 @@ const page = () => {
                   {" "}
                   {/* Add margin to align with labels */}
                   <Link
-                    href="/blog/add-blog"
+                    href="/community/add-community"
                     className="inline-flex items-center px-6 py-3 bg-[#295557] text-white font-medium rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                   >
                     <PlusOutlined className="mr-2" />
