@@ -4,6 +4,7 @@
 import React, { useState, useCallback, memo } from "react";
 import Image from "next/image";
 import axios from "axios";
+import { baseUrl } from "../../Constants/Const";
 
 // Try to import useLocale, fallback if not available
 let useLocale;
@@ -96,7 +97,7 @@ const Newsletter = () => {
 
       try {
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_BASE_URL || ""}/newsletter/join_newsletter.php`,
+          `${baseUrl}/newsletter/join_newsletter.php`,
           { email },
           { headers: { "Content-Type": "application/json" } }
         );
