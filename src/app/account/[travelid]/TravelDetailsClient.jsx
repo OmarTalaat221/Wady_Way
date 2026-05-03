@@ -549,7 +549,7 @@ const ProfileTravelDetailsClient = ({ lang }) => {
                             <div key={index} className="itinerary-text">
                               <h3>{days[index]?.date}</h3>
                               <p className="feat_tour">
-                                <span className="icon">🏨</span>{" "}
+                                <span className="icon"></span>{" "}
                                 {
                                   selectedTours?.hotels?.find(
                                     (e) => e.day == hotel?.day

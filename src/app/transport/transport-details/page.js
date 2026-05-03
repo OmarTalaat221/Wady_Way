@@ -25,6 +25,52 @@ import { Modal } from "antd";
 import toast from "react-hot-toast";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 
+/* ─── localStorage helpers ─────────────────────────────────────────────── */
+const STORAGE_KEY = "transportReservations";
+const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function loadTransportStorage(carId) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const all = JSON.parse(raw);
+    const entry = all[carId];
+    if (!entry) return null;
+    if (Date.now() - entry._savedAt > TTL_MS) {
+      delete all[carId];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+      return null;
+    }
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+function saveTransportStorage(carId, data) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[carId] = { ...data, _savedAt: Date.now() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // silent
+  }
+}
+
+function removeTransportFromStorage(carId) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const all = JSON.parse(raw);
+    delete all[carId];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // silent
+  }
+}
+/* ───────────────────────────────────────────────────────────────────────── */
+
 const faqData = [
   {
     question: {
@@ -64,18 +110,24 @@ const Page = () => {
   const locale = useLocale();
   const t = useTranslations("transportDetails");
 
+  /* ─── core state ──────────────────────────────────────────────────────── */
   const [dateRange, setDateRange] = useState([
     new Date(),
     moment().add(1, "day").toDate(),
   ]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [nightCount, setNightCount] = useState(1);
+  const [drivingType, setDrivingType] = useState("self_riding");
 
+  /* ─── data state ──────────────────────────────────────────────────────── */
   const [carData, setCarData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [drivingType, setDrivingType] = useState("self_riding");
 
+  /* ─── restore tracking ────────────────────────────────────────────────── */
+  const hasRestoredRef = useRef(false);
+
+  /* ─── invite code ─────────────────────────────────────────────────────── */
   const {
     inviteCode,
     hasStoredCode,
@@ -84,6 +136,7 @@ const Page = () => {
     clearCurrentInviteCode,
   } = useInviteCode(INVITE_CODE_TYPES.TRANSPORT, carId);
 
+  /* ─── modal / booking state ───────────────────────────────────────────── */
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -94,6 +147,7 @@ const Page = () => {
 
   const calendarRef = useRef(null);
 
+  /* ─── carousel settings ───────────────────────────────────────────────── */
   const settings = useMemo(() => {
     return {
       slidesPerView: "auto",
@@ -108,6 +162,7 @@ const Page = () => {
     };
   }, []);
 
+  /* ─── UI text (i18n) ──────────────────────────────────────────────────── */
   const uiText = useMemo(() => {
     const isAr = locale === "ar";
 
@@ -211,6 +266,7 @@ const Page = () => {
     };
   }, [locale]);
 
+  /* ─── helpers ─────────────────────────────────────────────────────────── */
   const cleanIcon = useCallback((icon) => {
     if (!icon) return "";
     let result = icon;
@@ -229,6 +285,13 @@ const Page = () => {
     return result.trim();
   }, []);
 
+  const formatDate = (date, loc) => {
+    if (!date) return "";
+    if (loc === "ar") return moment(date).format("DD/MM/YYYY");
+    return moment(date).format("MMM DD, YYYY");
+  };
+
+  /* ─── fetch car data ──────────────────────────────────────────────────── */
   useEffect(() => {
     const fetchCarData = async () => {
       try {
@@ -275,6 +338,51 @@ const Page = () => {
     fetchCarData();
   }, [carId, cleanIcon]);
 
+  /* ─── restore from localStorage AFTER carData is loaded ───────────── */
+  useEffect(() => {
+    if (!carId || !carData?.title || hasRestoredRef.current) return;
+
+    const saved = loadTransportStorage(carId);
+    if (!saved) {
+      hasRestoredRef.current = true;
+      return;
+    }
+
+    // restore dates
+    if (saved.startDate && saved.endDate) {
+      const restoredStart = new Date(saved.startDate);
+      const restoredEnd = new Date(saved.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (restoredStart >= today) {
+        setDateRange([restoredStart, restoredEnd]);
+      }
+    }
+
+    // restore driving type
+    if (
+      saved.drivingType === "self_riding" ||
+      saved.drivingType === "with_driver"
+    ) {
+      setDrivingType(saved.drivingType);
+    }
+
+    hasRestoredRef.current = true;
+  }, [carId, carData?.title]);
+
+  /* ─── persist to localStorage on every meaningful change ──────────── */
+  useEffect(() => {
+    if (!carId || !hasRestoredRef.current) return;
+
+    saveTransportStorage(carId, {
+      startDate: dateRange[0]?.toISOString() || null,
+      endDate: dateRange[1]?.toISOString() || null,
+      drivingType,
+    });
+  }, [carId, dateRange, drivingType]);
+
+  /* ─── night count calc ────────────────────────────────────────────────── */
   useEffect(() => {
     if (dateRange[0] && dateRange[1]) {
       const days = moment(dateRange[1]).diff(moment(dateRange[0]), "days");
@@ -282,6 +390,7 @@ const Page = () => {
     }
   }, [dateRange]);
 
+  /* ─── click outside calendar ──────────────────────────────────────────── */
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (calendarRef.current && !calendarRef.current.contains(event.target)) {
@@ -293,12 +402,7 @@ const Page = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const formatDate = (date, loc) => {
-    if (!date) return "";
-    if (loc === "ar") return moment(date).format("DD/MM/YYYY");
-    return moment(date).format("MMM DD, YYYY");
-  };
-
+  /* ─── date change ─────────────────────────────────────────────────────── */
   const handleDateChange = (value) => {
     setDateRange(value);
     setIsCalendarOpen(false);
@@ -308,6 +412,7 @@ const Page = () => {
     console.log("Review submitted:", reviewData);
   };
 
+  /* ─── derived values ──────────────────────────────────────────────────── */
   const carImages = useMemo(() => {
     if (!carData?.image) return [];
     return carData.image.split("//CAMP//").map((url, i) => ({
@@ -347,6 +452,7 @@ const Page = () => {
     return raw > 5 ? raw / 2 : raw;
   }, [carData]);
 
+  /* ─── booking handlers ────────────────────────────────────────────────── */
   const handleFormSubmit = (e) => {
     e.preventDefault();
 
@@ -400,6 +506,9 @@ const Page = () => {
       if (response.data.status === "success") {
         clearCurrentInviteCode();
 
+        // ✅ remove only THIS car from localStorage
+        removeTransportFromStorage(carId);
+
         setIsBookingModalOpen(false);
         setBookingDetails({
           carName: carData.title,
@@ -415,6 +524,12 @@ const Page = () => {
           paymentStatus: uiText.holdStatusValue,
         });
         setIsSuccessModalOpen(true);
+
+        // Reset form after success
+        setTimeout(() => {
+          setDateRange([new Date(), moment().add(1, "day").toDate()]);
+          setDrivingType("self_riding");
+        }, 500);
       } else {
         setBookingError(response.data.message || uiText.bookingFailedFallback);
       }
@@ -437,6 +552,7 @@ const Page = () => {
     setBookingDetails(null);
   };
 
+  /* ─── confirm summary rows ───────────────────────────────────────────── */
   const confirmSummaryRows = useMemo(() => {
     if (!carData) return [];
     return [
@@ -506,6 +622,7 @@ const Page = () => {
     uiText,
   ]);
 
+  /* ─── loading / error / not found ─────────────────────────────────────── */
   if (loading || inviteCodeLoading) {
     return (
       <>
@@ -558,6 +675,7 @@ const Page = () => {
     );
   }
 
+  /* ─── render ──────────────────────────────────────────────────────────── */
   return (
     <>
       <Breadcrumb
@@ -850,6 +968,7 @@ const Page = () => {
         </div>
       </div>
 
+      {/* Confirmation Modal */}
       <Modal
         open={isConfirmModalOpen}
         onCancel={closeConfirmModal}
@@ -933,6 +1052,7 @@ const Page = () => {
         </div>
       </Modal>
 
+      {/* Booking Status Modal */}
       <Modal
         open={isBookingModalOpen}
         onCancel={bookingLoading ? undefined : closeBookingModal}
@@ -1002,6 +1122,7 @@ const Page = () => {
         </div>
       </Modal>
 
+      {/* Success Modal */}
       <Modal
         open={isSuccessModalOpen}
         onCancel={closeSuccessModal}

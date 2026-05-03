@@ -758,7 +758,7 @@ const ScheduleTimelineItem = ({ booking, isLast, onOpen }) => {
                             <div className="flex flex-wrap gap-1.5">
                               {dayData.hotel_reserved && (
                                 <span className="px-2 py-1 rounded-md text-[10px] font-semibold bg-[#295557]/10 text-[#295557]">
-                                  🏨 Hotel
+                                  Hotel
                                 </span>
                               )}
                               {dayData.car_reserved && (

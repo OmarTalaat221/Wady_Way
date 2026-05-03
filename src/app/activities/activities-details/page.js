@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Modal } from "antd";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
@@ -13,6 +13,52 @@ import ReviewModal from "@/components/reviews/ReviewModal";
 import toast from "react-hot-toast";
 import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 import GallerySection from "../../package/package-details/[packageId]/_components/GallerySection";
+
+/* ─── localStorage helpers ─────────────────────────────────────────────── */
+const STORAGE_KEY = "activityReservations";
+const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function loadActivityStorage(activityId) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const all = JSON.parse(raw);
+    const entry = all[activityId];
+    if (!entry) return null;
+    if (Date.now() - entry._savedAt > TTL_MS) {
+      delete all[activityId];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+      return null;
+    }
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+function saveActivityStorage(activityId, data) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[activityId] = { ...data, _savedAt: Date.now() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // silent
+  }
+}
+
+function removeActivityFromStorage(activityId) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const all = JSON.parse(raw);
+    delete all[activityId];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // silent
+  }
+}
+/* ───────────────────────────────────────────────────────────────────────── */
 
 const Page = () => {
   const [isOpen, setOpen] = useState(false);
@@ -42,6 +88,9 @@ const Page = () => {
 
   const searchParams = useSearchParams();
   const activityId = searchParams.get("id");
+
+  /* ─── restore tracking ────────────────────────────────────────────────── */
+  const hasRestoredRef = useRef(false);
 
   const {
     inviteCode,
@@ -249,7 +298,19 @@ const Page = () => {
 
       if (result.status === "success") {
         clearCurrentInviteCode();
+
+        // ✅ remove only THIS activity from localStorage
+        removeActivityFromStorage(activityId);
+
         setBookingSuccess(true);
+
+        // Reset form after success
+        setTimeout(() => {
+          setAdultQuantity(1);
+          setChildQuantity(0);
+          setSelectedDate("");
+          setCalendarDate(null);
+        }, 500);
       } else {
         setBookingError(result.message || "Booking failed. Please try again.");
       }
@@ -277,6 +338,50 @@ const Page = () => {
       fetchActivityData();
     }
   }, [activityId]);
+
+  /* ─── restore from localStorage AFTER activityData is loaded ────────── */
+  useEffect(() => {
+    if (!activityId || !activityData?.title || hasRestoredRef.current) return;
+
+    const saved = loadActivityStorage(activityId);
+    if (!saved) {
+      hasRestoredRef.current = true;
+      return;
+    }
+
+    // restore date
+    if (saved.selectedDate) {
+      const restoredDate = new Date(saved.selectedDate + "T00:00:00");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (restoredDate >= today) {
+        setSelectedDate(saved.selectedDate);
+        setCalendarDate(restoredDate);
+      }
+    }
+
+    // restore quantities
+    if (typeof saved.adultQuantity === "number" && saved.adultQuantity >= 1) {
+      setAdultQuantity(saved.adultQuantity);
+    }
+    if (typeof saved.childQuantity === "number" && saved.childQuantity >= 0) {
+      setChildQuantity(saved.childQuantity);
+    }
+
+    hasRestoredRef.current = true;
+  }, [activityId, activityData?.title]);
+
+  /* ─── persist to localStorage on every meaningful change ──────────── */
+  useEffect(() => {
+    if (!activityId || !hasRestoredRef.current) return;
+
+    saveActivityStorage(activityId, {
+      selectedDate,
+      adultQuantity,
+      childQuantity,
+    });
+  }, [activityId, selectedDate, adultQuantity, childQuantity]);
 
   // --- Ratings ---
   const validRatings = useMemo(() => {

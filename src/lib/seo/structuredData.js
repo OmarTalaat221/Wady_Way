@@ -88,7 +88,7 @@ export function travelPackageSchema({
   };
 }
 
-// 🏨 Hotel Schema
+//  Hotel Schema
 export function hotelSchema({
   name,
   description,

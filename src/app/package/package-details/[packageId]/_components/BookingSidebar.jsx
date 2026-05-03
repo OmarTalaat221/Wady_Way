@@ -1,4 +1,3 @@
-// BookingSidebar.jsx
 "use client";
 import React, { useEffect, useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -67,6 +66,15 @@ const BookingSidebar = ({
   const tourGuideByDay = useSelector(
     (state) => state.tourReservation.tourGuideByDay || {}
   );
+
+  /**
+   * ✅ نقرأ roomDraftsByDay بدل roomsByHotel
+   * { [dayNumber]: { [hotelId]: Room[] } }
+   */
+  const roomDraftsByDay = useSelector(
+    (state) => state.tourReservation.roomDraftsByDay || {}
+  );
+
   const priceDetails = useSelector(selectPriceDetails);
   const fullState = useSelector((state) => state);
 
@@ -82,10 +90,26 @@ const BookingSidebar = ({
     boxShadow: "0 3px 6px rgba(0, 0, 0, 0.1)",
     border: "1px solid #295557",
   };
-
   const menuStyle = { boxShadow: "none" };
 
-  // ─── People handlers ────────────────────────────────────────────────────
+  /**
+   * ✅ getRoomsForActiveHotelInDay
+   * بيجيب الغرف المؤكدة للـ active hotel في يوم معين
+   * من roomDraftsByDay[dayKey][activeHotelId]
+   */
+  const getRoomsForActiveHotelInDay = useCallback(
+    (dayKey) => {
+      const dayData = selectedByDay?.[dayKey];
+      if (!dayData?.hotel) return [];
+      const activeHotelId = String(
+        dayData.hotel.id || dayData.hotel.hotel_id || ""
+      );
+      if (!activeHotelId) return [];
+      return roomDraftsByDay?.[dayKey]?.[activeHotelId] || [];
+    },
+    [selectedByDay, roomDraftsByDay]
+  );
+
   const handleAddPerson = (type) => {
     if (type !== "infants" && !canAddMore) {
       toast.error(
@@ -101,7 +125,6 @@ const BookingSidebar = ({
     setPeople((prev) => ({ ...prev, [type]: prev[type] - 1 }));
   };
 
-  // ─── Derived selections ──────────────────────────────────────────────────
   const getSelectedHotels = useCallback(
     () =>
       Object.values(selectedByDay)
@@ -173,12 +196,6 @@ const BookingSidebar = ({
     [tourGuideByDay]
   );
 
-  // ─── Validation helpers ──────────────────────────────────────────────────
-
-  /**
-   * Check if the user has made ANY manual selection across all days.
-   * If no manual selection exists → first-visit → skip car validation warning.
-   */
   const hasAnyUserSelection = useCallback(() => {
     return Object.values(selectedByDay).some((day) => {
       const hasCars = Array.isArray(day?.cars)
@@ -193,40 +210,27 @@ const BookingSidebar = ({
   }, [selectedByDay]);
 
   /**
-   * Check if all days with data have cars selected.
-   * Returns { allGood, missingDays[] }
+   * ✅ getRoomIssues
+   * بتشيك على الـ active hotel بس في كل يوم
+   * من roomDraftsByDay[dayKey][activeHotelId]
    */
-  const checkCarsStatus = useCallback(() => {
-    const itinerary = tourData?.itinerary || tourData?.days || [];
-    const validDayNumbers = itinerary.map((d) => Number(d.day)).filter(Boolean);
-
-    const missingDays = [];
-
-    validDayNumbers.forEach((dayNum) => {
-      const dayKey = String(dayNum);
-      const dayData = selectedByDay?.[dayKey];
-      const cars = Array.isArray(dayData?.cars)
-        ? dayData.cars
-        : dayData?.car
-          ? [dayData.car]
-          : [];
-
-      if (cars.length === 0) {
-        missingDays.push(dayNum);
-      }
-    });
-
-    return { allGood: missingDays.length === 0, missingDays };
-  }, [selectedByDay, tourData]);
-
   const getRoomIssues = useCallback(() => {
     const totalTravelers = people.adults + people.children;
-    if (totalTravelers < 3 && (people.infants || 0) === 0) return [];
+    if (totalTravelers <= 2) return [];
 
     const issues = [];
+
     Object.entries(selectedByDay).forEach(([dayKey, dayData]) => {
       if (!dayData?.hotel) return;
-      const rooms = Array.isArray(dayData.rooms) ? dayData.rooms : [];
+
+      const activeHotelId = String(
+        dayData.hotel?.id || dayData.hotel?.hotel_id || ""
+      );
+      if (!activeHotelId) return;
+
+      // ✅ نجيب من الـ structure الجديد
+      const rooms = roomDraftsByDay?.[dayKey]?.[activeHotelId] || [];
+
       const assigned = rooms.reduce(
         (sum, room) =>
           sum +
@@ -234,52 +238,47 @@ const BookingSidebar = ({
           Number(room.kids ?? room.children ?? 0),
         0
       );
-      if (rooms.length === 0 && totalTravelers >= 3) {
+
+      if (rooms.length === 0) {
         issues.push({
           day: parseInt(dayKey),
+          hotelId: activeHotelId,
           assigned: 0,
           required: totalTravelers,
         });
-      } else if (rooms.length > 0 && assigned !== totalTravelers) {
+      } else if (assigned !== totalTravelers) {
         issues.push({
           day: parseInt(dayKey),
+          hotelId: activeHotelId,
           assigned,
           required: totalTravelers,
         });
       }
     });
+
     return issues;
-  }, [people, selectedByDay]);
+  }, [people, selectedByDay, roomDraftsByDay]);
 
   const getCarIssues = useCallback(() => {
     const carValidation = validateCarsForAllDays(fullState);
     return carValidation.errors;
   }, [fullState]);
 
-  // ─── Memoized issues ─────────────────────────────────────────────────────
   const roomIssues = useMemo(() => getRoomIssues(), [getRoomIssues]);
 
-  // Only show car issues if user has made selections (not on first visit)
   const carIssues = useMemo(() => {
     if (!hasAnyUserSelection()) return [];
     return getCarIssues();
   }, [getCarIssues, hasAnyUserSelection]);
 
-  // ─── Book Now click ──────────────────────────────────────────────────────
   const handleBookNowClick = useCallback(
     (e) => {
       const totalTravelers = people.adults + people.children;
-
-      // ✅ Only validate cars if user has made at least one selection
-      // On first visit with no localStorage data, default cars are auto-selected
-      // but we still want to validate capacity issues
       const carValidation = validateCarsForAllDays(fullState);
 
       if (!carValidation.isValid) {
-        // Check if this is a "no cars" error or capacity error
         const firstError = carValidation.errors[0];
 
-        // If it's a capacity issue → always block
         if (firstError?.type === "insufficient_capacity") {
           e.preventDefault();
           toast.error(
@@ -292,8 +291,6 @@ const BookingSidebar = ({
           return;
         }
 
-        // If it's "no_cars" → only block if user has made some selection
-        // (meaning they removed a car manually, not first visit with no data)
         if (firstError?.type === "no_cars" && hasAnyUserSelection()) {
           e.preventDefault();
           toast.error(
@@ -307,15 +304,14 @@ const BookingSidebar = ({
         }
       }
 
-      // ─── Room validation ───────────────────────────────────────────────
       if (totalTravelers >= 3 || people.infants > 0) {
         const validation = validateRoomsForAllDays(fullState);
         if (!validation.isValid) {
           e.preventDefault();
           const firstError = validation.errors[0];
           toast.error(
-            `Please assign all ${firstError.required} travelers to rooms for Day ${firstError.day} (currently ${firstError.assigned} assigned)`,
-            { duration: 5000, icon: "🏨" }
+            `Please assign all ${firstError.required} travelers to rooms (currently ${firstError.assigned} assigned)`,
+            { duration: 5000, icon: "" }
           );
           setTimeout(() => {
             scrollAndHighlight(`[data-accommodation="day-${firstError.day}"]`);
@@ -327,7 +323,6 @@ const BookingSidebar = ({
     [people, fullState, hasAnyUserSelection]
   );
 
-  // ─── Sync effects ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (tourData) dispatch(setTourData(tourData));
   }, [tourData, dispatch]);
@@ -347,7 +342,8 @@ const BookingSidebar = ({
     dispatch(calculateTotal());
   }, [selectedByDay, tourGuideByDay, people, dispatch]);
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="booking-form-wrap mb-10" style={{ overflow: "hidden" }}>
       <h4>{t("travelDetails")}</h4>
@@ -362,7 +358,7 @@ const BookingSidebar = ({
             <div>
               <div className="collapse_cont">
                 <div className="travel-grid">
-                  {/* ─── Date Picker ─── */}
+                  {/* ─── Calendar ─── */}
                   <Dropdown
                     menu={{ items: [] }}
                     trigger={["click"]}
@@ -397,7 +393,7 @@ const BookingSidebar = ({
                     </div>
                   </Dropdown>
 
-                  {/* ─── Travelers Picker ─── */}
+                  {/* ─── Travelers ─── */}
                   <Dropdown
                     menu={{ items: [] }}
                     trigger={["click"]}
@@ -568,7 +564,7 @@ const BookingSidebar = ({
                   </Dropdown>
                 </div>
 
-                {/* ─── Collapse Panels ─── */}
+                {/* ─── Collapse panels ─── */}
                 <Collapse
                   expandIcon={customExpandIcon("12px")}
                   ghost
@@ -646,7 +642,7 @@ const BookingSidebar = ({
                   ))}
                 </Collapse>
 
-                {/* ─── Price Breakdown ─── */}
+                {/* ─── Price breakdown ─── */}
                 {tourData && (
                   <div className="price-breakdown mb-3">
                     {parseFloat(tourData.per_adult || 0) > 0 && (
@@ -787,7 +783,7 @@ const BookingSidebar = ({
                   </div>
                 )}
 
-                {/* ─── Room Issues Warning ─── */}
+                {/* ─── Room issues ─── */}
                 {roomIssues.length > 0 && (
                   <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     <div className="flex items-center gap-2 mb-2">
@@ -797,7 +793,7 @@ const BookingSidebar = ({
                     </div>
                     {roomIssues.map((issue) => (
                       <div
-                        key={issue.day}
+                        key={`${issue.day}-${issue.hotelId}`}
                         className="flex items-center justify-between text-xs mb-1"
                       >
                         <span className="text-amber-700">
@@ -823,8 +819,7 @@ const BookingSidebar = ({
                   </div>
                 )}
 
-                {/* ─── Car Issues Warning ─── 
-                    Only shown if user has made manual selections (not first visit) */}
+                {/* ─── Car issues ─── */}
                 {carIssues.length > 0 && (
                   <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl">
                     <div className="flex items-center gap-2 mb-2">
@@ -861,7 +856,7 @@ const BookingSidebar = ({
                 )}
               </div>
 
-              {/* ─── Total + Book Now ─── */}
+              {/* ─── Book now ─── */}
               <div className="book_butt_cont">
                 <div className="total-price">
                   <span>{t("totalPrice")}</span>

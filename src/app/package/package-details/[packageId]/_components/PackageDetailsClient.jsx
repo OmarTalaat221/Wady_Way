@@ -83,260 +83,6 @@ const isSameDate = (a, b) => {
   return formatDateLocal(a) === formatDateLocal(b);
 };
 
-// ─── Trip Documents Section ───────────────────────────────────────────────────
-
-const TripDocuments = ({ attachments }) => {
-  if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
-    return null;
-  }
-
-  const getFileName = (url) => {
-    try {
-      const parts = url.split("/");
-      const raw = parts[parts.length - 1];
-      const decoded = decodeURIComponent(raw);
-      return decoded.replace(/^\d+_\d+\.?/, "") || decoded;
-    } catch {
-      return "Document";
-    }
-  };
-
-  const getDisplayName = (url, index) => {
-    const name = getFileName(url);
-    if (!name || name === ".pdf") return `Trip Document ${index + 1}`;
-    return (
-      name
-        .replace(/\.pdf$/i, "")
-        .replace(/_/g, " ")
-        .trim() || `Trip Document ${index + 1}`
-    );
-  };
-
-  const handleDownload = async (url, index) => {
-    try {
-      const response = await fetch(url, { mode: "cors" });
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = getFileName(url) || `trip-document-${index + 1}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = getFileName(url) || `trip-document-${index + 1}.pdf`;
-      link.target = "_blank";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  return (
-    <div className="trip-docs-section">
-      <h4 className="trip-docs-title">
-        <span className="trip-docs-title-icon">
-          <FaFilePdf />
-        </span>
-        Trip Documents
-      </h4>
-
-      <div className="trip-docs-list">
-        {attachments.map((url, index) => (
-          <div key={index} className="trip-docs-item">
-            <span className="trip-docs-item-left">
-              <span className="trip-docs-pdf-icon">
-                <FaFilePdf />
-              </span>
-              <span className="trip-docs-item-info">
-                <span className="trip-docs-item-name">
-                  {getDisplayName(url, index)}
-                </span>
-                <span className="trip-docs-item-type">PDF Document</span>
-              </span>
-            </span>
-
-            <span className="trip-docs-actions">
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="trip-docs-btn trip-docs-btn--open"
-                title="Open document"
-              >
-                <FaRegEye />
-                <span>Open</span>
-              </a>
-
-              <button
-                type="button"
-                onClick={() => handleDownload(url, index)}
-                className="trip-docs-btn trip-docs-btn--download"
-                title="Download to device"
-              >
-                <FaDownload />
-                <span>Download</span>
-              </button>
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <style jsx>{`
-        .trip-docs-section {
-          margin-top: 40px;
-          margin-bottom: 40px;
-        }
-        .trip-docs-title {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 20px;
-          font-weight: 700;
-          color: #1a1a2e;
-          margin-bottom: 18px;
-        }
-        .trip-docs-title-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          background: rgba(41, 85, 87, 0.1);
-          border-radius: 8px;
-          color: #295557;
-          font-size: 16px;
-          flex-shrink: 0;
-        }
-        .trip-docs-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .trip-docs-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 18px;
-          border: 1.5px solid #e5e7eb;
-          border-radius: 12px;
-          background: #fafafa;
-          transition:
-            border-color 0.2s ease,
-            background 0.2s ease,
-            box-shadow 0.2s ease;
-          gap: 12px;
-        }
-        .trip-docs-item:hover {
-          border-color: #295557;
-          background: rgba(41, 85, 87, 0.04);
-          box-shadow: 0 2px 12px rgba(41, 85, 87, 0.1);
-        }
-        .trip-docs-item-left {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          min-width: 0;
-          flex: 1;
-        }
-        .trip-docs-pdf-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 42px;
-          height: 42px;
-          background: rgba(220, 53, 69, 0.08);
-          border-radius: 10px;
-          color: #dc3545;
-          font-size: 20px;
-          flex-shrink: 0;
-        }
-        .trip-docs-item:hover .trip-docs-pdf-icon {
-          background: rgba(220, 53, 69, 0.14);
-        }
-        .trip-docs-item-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          min-width: 0;
-        }
-        .trip-docs-item-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: #1a1a2e;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          text-transform: capitalize;
-        }
-        .trip-docs-item-type {
-          font-size: 11px;
-          color: #9ca3af;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        .trip-docs-actions {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-shrink: 0;
-        }
-        .trip-docs-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 14px;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          white-space: nowrap;
-          cursor: pointer;
-          text-decoration: none !important;
-          border: none;
-          transition:
-            background 0.2s ease,
-            color 0.2s ease;
-        }
-        .trip-docs-btn--open {
-          background: transparent;
-          color: #295557;
-          border: 1.5px solid #295557;
-        }
-        .trip-docs-btn--open:hover {
-          background: rgba(41, 85, 87, 0.08);
-          color: #295557;
-          text-decoration: none !important;
-        }
-        .trip-docs-btn--download {
-          background: #295557;
-          color: #fff;
-        }
-        .trip-docs-btn--download:hover {
-          background: #1e3e40;
-          color: #fff;
-        }
-        @media (max-width: 560px) {
-          .trip-docs-item {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .trip-docs-actions {
-            width: 100%;
-          }
-          .trip-docs-btn {
-            flex: 1;
-            justify-content: center;
-          }
-        }
-      `}</style>
-    </div>
-  );
-};
-
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
 
 const GallerySection = dynamic(() => import("./GallerySection"), {
@@ -648,14 +394,24 @@ const PackageDetailsClient = () => {
     defaultPrice - (selectedPrice || defaultPrice);
 
   const handleAccommodationClick = (accommodation, dayIndex) => {
-    if (activeAccommodations[dayIndex]?.id === accommodation.id) return;
     const dayNumber = dayIndex + 1;
-    setActiveAccommodations((prev) => ({ ...prev, [dayIndex]: accommodation }));
-    dispatch(
-      selectHotel({ day: dayNumber, hotel: mapHotelForRedux(accommodation) })
-    );
-    dispatch(calculateTotal());
-    if (people.adults + people.children >= 3 || people.infants > 0) {
+
+    if (activeAccommodations[dayIndex]?.id !== accommodation.id) {
+      setActiveAccommodations((prev) => ({
+        ...prev,
+        [dayIndex]: accommodation,
+      }));
+      dispatch(
+        selectHotel({ day: dayNumber, hotel: mapHotelForRedux(accommodation) })
+      );
+      dispatch(calculateTotal());
+    }
+
+    // ✅ لو إجمالي المسافرين > 2 → يلف الكارت عشان يوزع الغرف
+    // ✅ لو ≤ 2 → مش محتاج يلف (أوضة واحدة تلقائي)
+    const totalTravelers = people.adults + people.children;
+
+    if (totalTravelers > 2) {
       setSelectedAccommodation({ ...accommodation, dayIndex });
       setIsFlipped(true);
     } else {
@@ -689,13 +445,30 @@ const PackageDetailsClient = () => {
   const scrollToDiv = (id) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
+  const localPeopleCaughtUpRef = useRef(false);
+
   // 5. Sync People to Redux
   useEffect(() => {
     if (!hasRestored) return;
+
+    // ✅ Wait for local state to match restored state before enabling sync
+    if (!localPeopleCaughtUpRef.current) {
+      if (
+        people.adults === (restoredAdults || 1) &&
+        people.children === (restoredChildren || 0) &&
+        people.infants === (restoredInfants || 0)
+      ) {
+        localPeopleCaughtUpRef.current = true;
+      } else {
+        return; // Skip syncing to Redux until local state has caught up
+      }
+    }
+
     const reduxMatchesLocal =
       people.adults === restoredAdults &&
       people.children === restoredChildren &&
       people.infants === restoredInfants;
+
     if (!reduxMatchesLocal) {
       dispatch(
         setPeopleCount({
@@ -704,10 +477,10 @@ const PackageDetailsClient = () => {
           infants: people.infants,
         })
       );
+      dispatch(calculateTotal());
+      setIsFlipped(false);
+      setSelectedAccommodation(null);
     }
-    dispatch(calculateTotal());
-    setIsFlipped(false);
-    setSelectedAccommodation(null);
   }, [
     people,
     dispatch,
@@ -900,7 +673,6 @@ const PackageDetailsClient = () => {
                 excludes={transformedData.excludes}
               />
               <TourHighlights highlights={transformedData.highlights} />
-              <TripDocuments attachments={transformedData.attachments} />
 
               <div className="itinerary-container">
                 {transformedData.days.map((dayData, index) => (

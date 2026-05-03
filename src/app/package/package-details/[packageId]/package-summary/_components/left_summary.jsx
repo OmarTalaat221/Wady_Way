@@ -1,10 +1,10 @@
 import { Collapse, Tooltip } from "antd";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { customExpandIcon } from "./customExpandIcon";
 import { IoStarSharp } from "react-icons/io5";
 import { IoIosInformationCircleOutline } from "react-icons/io";
-import { FaUserTie, FaBed, FaCarSide, FaUsers } from "react-icons/fa";
+import { FaUserTie, FaBed, FaUsers } from "react-icons/fa";
 import { Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import { useTranslations } from "next-intl";
 import {
@@ -27,6 +27,10 @@ const LeftSummary = ({ days, lang }) => {
     (state) => state.tourReservation.selectedByDay || {}
   );
 
+  const roomDraftsByDay = useSelector(
+    (state) => state.tourReservation.roomDraftsByDay || {}
+  );
+
   const [modal, setModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
@@ -42,6 +46,14 @@ const LeftSummary = ({ days, lang }) => {
     if (typeof value === "object") return value[lang] || value.en || "-";
     return value;
   };
+
+  const getRoomsForHotelInDay = useCallback(
+    (hotelId, dayNumber) => {
+      if (!hotelId || !dayNumber) return [];
+      return roomDraftsByDay?.[String(dayNumber)]?.[String(hotelId)] || [];
+    },
+    [roomDraftsByDay]
+  );
 
   const getSelectedHotelForDay = (day) => {
     const dayKey = String(day.day);
@@ -112,18 +124,25 @@ const LeftSummary = ({ days, lang }) => {
     });
   };
 
-  const getSelectedRoomsForDay = (dayNumber) => {
-    const dayKey = String(dayNumber);
-    return Array.isArray(selectedByDay?.[dayKey]?.rooms)
-      ? selectedByDay[dayKey].rooms
-      : [];
-  };
+  const getSelectedRoomsForDay = useCallback(
+    (day) => {
+      const dayKey = String(day.day ?? day);
+      const dayData = selectedByDay?.[dayKey];
+      if (!dayData?.hotel) return [];
+
+      const hotelId = String(
+        dayData.hotel?.id || dayData.hotel?.hotel_id || ""
+      );
+      if (!hotelId) return [];
+
+      return getRoomsForHotelInDay(hotelId, Number(day.day ?? day));
+    },
+    [selectedByDay, getRoomsForHotelInDay]
+  );
 
   const handleCheckboxChange = (dayNumber) => {
     const tourGuide = tourGuideByDay?.[String(dayNumber)];
-
     if (!tourGuide?.isAvailable) return;
-
     setSelectedDay(dayNumber);
     setPendingAction(tourGuide.isSelected ? "disable" : "enable");
     setModal(true);
@@ -165,11 +184,8 @@ const LeftSummary = ({ days, lang }) => {
       date: day.date,
       hotel: selectedHotel,
       rooms,
-      totals: {
-        adults: totalAdults,
-        kids: totalKids,
-        babies: totalBabies,
-      },
+      totals: { adults: totalAdults, kids: totalKids, babies: totalBabies },
+      sharedDays: [],
     });
 
     setRoomsModal(true);
@@ -179,7 +195,7 @@ const LeftSummary = ({ days, lang }) => {
     return (days || []).map((day) => {
       const selectedHotel = getSelectedHotelForDay(day);
       const selectedCars = getSelectedCarsForDay(day);
-      const selectedRooms = getSelectedRoomsForDay(day.day);
+      const selectedRooms = getSelectedRoomsForDay(day);
 
       return {
         ...day,
@@ -188,7 +204,7 @@ const LeftSummary = ({ days, lang }) => {
         selectedRooms,
       };
     });
-  }, [days, selectedByDay, lang]);
+  }, [days, selectedByDay, roomDraftsByDay, lang, getSelectedRoomsForDay]);
 
   const { Panel } = Collapse;
 
@@ -245,7 +261,6 @@ const LeftSummary = ({ days, lang }) => {
                 style={{ padding: "0px" }}
               >
                 <div className="px-4 pb-4">
-                  {/* Accommodation */}
                   <div className="mb-4">
                     <h3 className="text-lg font-medium text-gray-800 mb-2">
                       {t("accommodation")}
@@ -322,7 +337,6 @@ const LeftSummary = ({ days, lang }) => {
                     )}
                   </div>
 
-                  {/* Transportation */}
                   <div className="mb-4">
                     <h3 className="text-lg font-medium text-gray-800 mb-2">
                       {t("transportation")}
@@ -391,7 +405,6 @@ const LeftSummary = ({ days, lang }) => {
                     )}
                   </div>
 
-                  {/* Tour Guide */}
                   {isAvailable ? (
                     <div className="border-t border-gray-200 pt-3">
                       <div
@@ -469,6 +482,7 @@ const LeftSummary = ({ days, lang }) => {
                         <div className="p-2 rounded-full bg-gray-300 text-gray-500">
                           <FaUserTie size={18} />
                         </div>
+
                         <div>
                           <span className="font-medium text-gray-500 block">
                             Tour Guide
@@ -487,7 +501,6 @@ const LeftSummary = ({ days, lang }) => {
         );
       })}
 
-      {/* Tour Guide Modal */}
       <Modal
         centered
         className="rounded-lg overflow-hidden"
@@ -559,7 +572,6 @@ const LeftSummary = ({ days, lang }) => {
         </ModalFooter>
       </Modal>
 
-      {/* Rooms Modal */}
       <Modal
         centered
         className="rounded-lg overflow-hidden"
@@ -599,6 +611,14 @@ const LeftSummary = ({ days, lang }) => {
                   <p className="text-sm text-gray-500 mb-0">
                     {roomsModalData?.date}
                   </p>
+
+                  {roomsModalData?.sharedDays?.length > 0 && (
+                    <p className="text-[10px] text-gray-400 mb-0">
+                      Same rooms apply to Day
+                      {roomsModalData.sharedDays.length > 1 ? "s" : ""}{" "}
+                      {roomsModalData.sharedDays.join(", ")}
+                    </p>
+                  )}
                 </div>
               </div>
 

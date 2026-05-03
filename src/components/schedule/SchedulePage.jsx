@@ -541,7 +541,7 @@ const TimelineItem = ({ booking, isLast, isFirst }) => {
                       <div className="flex flex-wrap gap-1">
                         {dayData.hotel_reserved && (
                           <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-medium">
-                            🏨 {dayData.hotel_reserved.title}
+                            {dayData.hotel_reserved.title}
                           </span>
                         )}
                         {dayData.car_reserved && (

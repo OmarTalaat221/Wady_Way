@@ -38,6 +38,7 @@ import {
   formatReservationForAPI,
   validateRoomsForAllDays,
   validateCarsForAllDays,
+  setDisableLocalStorageSync,
 } from "@/lib/redux/slices/tourReservationSlice";
 import { base_url } from "@/uitils/base_url";
 import AccommodationCard from "../../app/package/package-details/[packageId]/_components/AccommodationCard";
@@ -152,7 +153,7 @@ const mapHotelFromAPI = (hotel) => ({
   id: parseInt(hotel.hotel_id || hotel.id),
   tour_hotel_id: hotel.tour_hotel_id,
   hotel_id: String(hotel.hotel_id || hotel.id),
-  image: hotel.image?.split("//CAMP//")[0],
+  image: hotel.image?.split("//CAMP//")[0] || hotel.image,
   name: { en: hotel.title, ar: hotel.title },
   title: hotel.title,
   category: { en: "Hotel", ar: "فندق" },
@@ -169,7 +170,7 @@ const mapCarFromAPI = (car) => ({
   id: parseInt(car.car_id || car.id),
   tour_car_id: car.tour_car_id,
   car_id: String(car.car_id || car.id),
-  image: car.image?.split("//CAMP//")[0],
+  image: car.image?.split("//CAMP//")[0] || car.image,
   name: { en: car.title, ar: car.title },
   title: car.title,
   category: { en: "Car", ar: "سيارة" },
@@ -187,7 +188,7 @@ const mapActivityFromAPI = (act) => ({
   activity_id: parseInt(act.activity_id || act.id),
   title: { en: act.title, ar: act.title },
   name: act.title,
-  image: act.image?.split("//CAMP//")[0],
+  image: act.image?.split("//CAMP//")[0] || act.image,
   price: parseFloat(act.price_current || 0),
   price_current: parseFloat(act.price_current || 0),
   for_children: act.for_children === "1" || act.for_children === 1,
@@ -212,10 +213,8 @@ const normalizeRoomsFromBackend = (backendRooms) => {
   }));
 };
 
-// ─── ✅ NEW: clampRoomsToCurrentPeople ────────────────────────────────────────
-// يعمل clamp على localRooms بناءً على الـ totals الحالية
-// يضمن إن القيم مش أكبر من المسموح
-// يشيل الغرف اللي adults=0 بعد الـ clamp (إلا لو في غرفة واحدة بس)
+// ─── clamp rooms to current people ────────────────────────────────────────────
+
 const clampRoomsToCurrentPeople = (
   rooms,
   maxAdults,
@@ -224,8 +223,6 @@ const clampRoomsToCurrentPeople = (
 ) => {
   if (!Array.isArray(rooms) || rooms.length === 0) return rooms;
 
-  // أولاً: clamp كل قيمة على مستوى الغرفة الواحدة
-  // بس محتاجين نعمل cumulative clamp عشان مجموع الكل ميتعداش الـ max
   let remainingAdults = maxAdults;
   let remainingChildren = maxChildren;
   let remainingBabies = maxBabies;
@@ -251,11 +248,9 @@ const clampRoomsToCurrentPeople = (
     };
   });
 
-  // ثانياً: شيل الغرف اللي بقت adults=0 (بعد الـ clamp)
-  // بس لازم يفضل غرفة واحدة على الأقل
   const validRooms = clamped.filter((r) => r.adults > 0);
+
   if (validRooms.length === 0) {
-    // خليها غرفة واحدة بـ adults=1 (أو maxAdults لو 0)
     return [
       {
         id: clamped[0]?.id || 1,
@@ -312,7 +307,6 @@ const EditDayCard = ({
   const [isFlipped, setIsFlipped] = useState(false);
   const [selectedAccommodation, setSelectedAccommodation] = useState(null);
 
-  // ✅ initialRooms من snapshot أولاً، ثم default
   const [localRooms, setLocalRooms] = useState(() => {
     if (initialRooms && initialRooms.length > 0) return initialRooms;
     return [{ id: 1, adults: 1, children: 0, babies: 0 }];
@@ -321,7 +315,8 @@ const EditDayCard = ({
   const roomsHydratedRef = useRef(false);
   const prevHotelIdRef = useRef(null);
   const lastSyncedCarsRef = useRef("");
-  // ✅ track previous people لمقارنة التغييرات
+  const lastSyncedRoomsRef = useRef("");
+  const draftsRef = useRef({});
   const prevPeopleRef = useRef({
     adults: people.adults,
     children: people.children,
@@ -359,16 +354,23 @@ const EditDayCard = ({
     );
   }, [localRooms]);
 
-  // ✅ Hydrate من Redux بس لو initialRooms مش موجودة
+  const confirmedRoomsCount = useMemo(() => {
+    const rooms = Array.isArray(savedDayData?.rooms) ? savedDayData.rooms : [];
+    return rooms.length;
+  }, [savedDayData?.rooms]);
+
   useEffect(() => {
     if (roomsHydratedRef.current) return;
+
     if (initialRooms && initialRooms.length > 0) {
       roomsHydratedRef.current = true;
       return;
     }
+
     const savedRooms = Array.isArray(savedDayData?.rooms)
       ? savedDayData.rooms
       : [];
+
     if (savedRooms.length > 0) {
       roomsHydratedRef.current = true;
       setLocalRooms(
@@ -382,18 +384,14 @@ const EditDayCard = ({
     }
   }, [savedDayData?.rooms, initialRooms]);
 
-  // ✅ THE MAIN FIX: Auto-clamp localRooms عند تغيير people
-  // ده بيحل مشكلة إن الـ input بيختفي ومقدرش تشيل الـ children
   useEffect(() => {
     const prev = prevPeopleRef.current;
     const adultsChanged = prev.adults !== totalAdults;
     const childrenChanged = prev.children !== totalChildren;
     const infantsChanged = prev.infants !== totalInfants;
 
-    // لو مفيش تغيير → skip
     if (!adultsChanged && !childrenChanged && !infantsChanged) return;
 
-    // update ref
     prevPeopleRef.current = {
       adults: totalAdults,
       children: totalChildren,
@@ -408,7 +406,6 @@ const EditDayCard = ({
         totalInfants
       );
 
-      // ✅ Trim rooms لو عددها أكبر من maxRooms الجديد (= totalAdults)
       const trimmed =
         clamped.length > Math.max(totalAdults, 1)
           ? clamped.slice(0, Math.max(totalAdults, 1))
@@ -418,18 +415,20 @@ const EditDayCard = ({
     });
   }, [totalAdults, totalChildren, totalInfants]);
 
-  // ✅ Sync localRooms → Redux بعد كل تغيير في localRooms
-  // (شامل بعد الـ clamp)
-  const lastSyncedRoomsRef = useRef("");
   useEffect(() => {
     const key = JSON.stringify(localRooms);
     if (key === lastSyncedRoomsRef.current) return;
     lastSyncedRoomsRef.current = key;
 
-    // sync to Redux
+    const currentHotelId = selectedHotel?.id || selectedHotel?.hotel_id || null;
+    if (currentHotelId) {
+      draftsRef.current[currentHotelId] = localRooms;
+    }
+
     dispatch(
       setDayRooms({
         day: dayNumber,
+        hotelId: currentHotelId,
         rooms: localRooms.map((r) => ({
           adults: r.adults,
           kids: r.children,
@@ -437,9 +436,8 @@ const EditDayCard = ({
         })),
       })
     );
-  }, [localRooms, dayNumber, dispatch]);
+  }, [localRooms, dayNumber, selectedHotel, dispatch]);
 
-  // ✅ Reset rooms عند تغيير الفندق فقط
   useEffect(() => {
     const currentHotelId = selectedHotel?.id || selectedHotel?.hotel_id || null;
 
@@ -448,21 +446,30 @@ const EditDayCard = ({
       currentHotelId !== null &&
       String(prevHotelIdRef.current) !== String(currentHotelId)
     ) {
-      setLocalRooms([
-        { id: 1, adults: Math.max(totalAdults, 1), children: 0, babies: 0 },
-      ]);
-      dispatch(setDayRooms({ day: dayNumber, rooms: [] }));
+      const savedDraft = draftsRef.current[currentHotelId];
 
-      if (isFlipped) {
-        setIsFlipped(false);
-        setSelectedAccommodation(null);
+      if (savedDraft && savedDraft.length > 0) {
+        setLocalRooms(savedDraft);
+      } else {
+        const defaultRooms =
+          totalTravelers <= 2
+            ? [
+                {
+                  id: 1,
+                  adults: Math.max(totalAdults, 1),
+                  children: totalChildren,
+                  babies: totalInfants,
+                },
+              ]
+            : [{ id: 1, adults: 1, children: 0, babies: 0 }];
+
+        setLocalRooms(defaultRooms);
       }
     }
 
     prevHotelIdRef.current = currentHotelId;
-  }, [selectedHotel, dayNumber, dispatch, isFlipped, totalAdults]);
+  }, [selectedHotel, totalAdults, totalChildren, totalInfants, totalTravelers]);
 
-  // Sync cars to Redux
   useEffect(() => {
     const carsPayload = selectedCars.map((car) => ({
       id: car.carData?.id || car.carData?.car_id,
@@ -499,19 +506,19 @@ const EditDayCard = ({
   };
 
   const handleAccommodationClick = useCallback(
-    (accommodation, dayIdx) => {
-      if (activeAccommodations[dayIdx]?.id === accommodation.id) return;
+    (accommodation) => {
+      if (activeAccommodations[index]?.id === accommodation.id) return;
 
       setActiveAccommodations((prev) => ({
         ...prev,
-        [dayIdx]: accommodation,
+        [index]: accommodation,
       }));
 
       dispatch(selectHotel({ day: dayNumber, hotel: accommodation }));
       dispatch(calculateTotal());
 
-      if (totalTravelers >= 3 || totalInfants > 0) {
-        setSelectedAccommodation({ ...accommodation, dayIndex: dayIdx });
+      if (totalTravelers > 2) {
+        setSelectedAccommodation({ ...accommodation, dayIndex: index });
         setIsFlipped(true);
       } else {
         setSelectedAccommodation(null);
@@ -520,26 +527,23 @@ const EditDayCard = ({
     },
     [
       activeAccommodations,
+      index,
       dayNumber,
       dispatch,
       setActiveAccommodations,
-      totalInfants,
       totalTravelers,
     ]
   );
 
-  const handleFlip = useCallback(
-    (dayIdx) => {
-      if (activeAccommodations[dayIdx]) {
-        setSelectedAccommodation({
-          ...activeAccommodations[dayIdx],
-          dayIndex: dayIdx,
-        });
-        setIsFlipped(true);
-      }
-    },
-    [activeAccommodations]
-  );
+  const handleFlip = useCallback(() => {
+    if (activeAccommodations[index]) {
+      setSelectedAccommodation({
+        ...activeAccommodations[index],
+        dayIndex: index,
+      });
+      setIsFlipped(true);
+    }
+  }, [activeAccommodations, index]);
 
   const handleRoomChange = useCallback(
     (action, roomId, type) => {
@@ -604,11 +608,13 @@ const EditDayCard = ({
       toast.error(`Maximum ${maxRooms} rooms allowed (1 per adult)`);
       return;
     }
+
     const assignedAdults = localRooms.reduce((s, r) => s + r.adults, 0);
     if (totalAdults - assignedAdults <= 0) {
       toast.error("No remaining adults to assign");
       return;
     }
+
     setLocalRooms((prev) => [
       ...prev,
       {
@@ -632,6 +638,11 @@ const EditDayCard = ({
   );
 
   const confirmRoomSelection = useCallback(() => {
+    if (!selectedHotel?.id && !selectedHotel?.hotel_id) {
+      toast.error("Please select a hotel first");
+      return;
+    }
+
     const assignedTravelers = localRooms.reduce(
       (s, r) => s + r.adults + r.children,
       0
@@ -640,6 +651,20 @@ const EditDayCard = ({
     if (assignedTravelers !== totalTravelers) {
       toast.error(
         `Please assign all ${totalTravelers} travelers. Currently: ${assignedTravelers}`
+      );
+      return;
+    }
+
+    if (assignedCounts.adults !== totalAdults) {
+      toast.error(
+        `${totalAdults - assignedCounts.adults} adult(s) not assigned`
+      );
+      return;
+    }
+
+    if (totalChildren > 0 && assignedCounts.children !== totalChildren) {
+      toast.error(
+        `${totalChildren - assignedCounts.children} child(ren) not assigned`
       );
       return;
     }
@@ -653,6 +678,7 @@ const EditDayCard = ({
     dispatch(
       setDayRooms({
         day: dayNumber,
+        hotelId: selectedHotel?.id || selectedHotel?.hotel_id || null,
         rooms: localRooms.map((r) => ({
           adults: r.adults,
           kids: r.children,
@@ -665,16 +691,67 @@ const EditDayCard = ({
     setIsFlipped(false);
     setSelectedAccommodation(null);
     toast.success("Room selection confirmed!");
-  }, [localRooms, totalTravelers, dayNumber, dispatch]);
+  }, [
+    localRooms,
+    totalTravelers,
+    dayNumber,
+    dispatch,
+    selectedHotel,
+    assignedCounts,
+    totalAdults,
+    totalChildren,
+  ]);
 
   const cancelRoomSelection = useCallback(() => {
     setIsFlipped(false);
     setSelectedAccommodation(null);
-    // ✅ reset to valid default based on current people
-    setLocalRooms([
-      { id: 1, adults: Math.max(totalAdults, 1), children: 0, babies: 0 },
-    ]);
-  }, [totalAdults]);
+
+    const currentHotelId = selectedHotel?.id || selectedHotel?.hotel_id || null;
+    const savedDraft = currentHotelId
+      ? draftsRef.current[currentHotelId]
+      : null;
+
+    if (savedDraft && savedDraft.length > 0) {
+      setLocalRooms(savedDraft);
+      return;
+    }
+
+    const savedRooms = Array.isArray(savedDayData?.rooms)
+      ? savedDayData.rooms
+      : [];
+
+    if (savedRooms.length > 0) {
+      setLocalRooms(
+        savedRooms.map((room, idx) => ({
+          id: idx + 1,
+          adults: Number(room.adults || 0),
+          children: Number(room.kids ?? room.children ?? 0),
+          babies: Number(room.babies ?? room.infants ?? 0),
+        }))
+      );
+      return;
+    }
+
+    if (totalTravelers <= 2) {
+      setLocalRooms([
+        {
+          id: 1,
+          adults: Math.max(totalAdults, 1),
+          children: totalChildren,
+          babies: totalInfants,
+        },
+      ]);
+    } else {
+      setLocalRooms([{ id: 1, adults: 1, children: 0, babies: 0 }]);
+    }
+  }, [
+    selectedHotel,
+    savedDayData?.rooms,
+    totalAdults,
+    totalChildren,
+    totalInfants,
+    totalTravelers,
+  ]);
 
   const addCar = useCallback(
     (carItem) => {
@@ -811,7 +888,6 @@ const EditDayCard = ({
 
   return (
     <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
-      {/* Day Header */}
       <div className="bg-gradient-to-r from-[#295557] via-[#2f6163] to-[#3a7274] px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -870,7 +946,6 @@ const EditDayCard = ({
         </div>
       </div>
 
-      {/* Tour Guide */}
       {isGuideAvailable && (
         <div className="px-4 py-2.5 bg-gradient-to-r from-[#295557]/5 to-transparent border-b border-gray-100">
           <div className="flex items-center justify-between">
@@ -898,7 +973,6 @@ const EditDayCard = ({
         </div>
       )}
 
-      {/* Selected Activities Preview */}
       {selectedActivities.length > 0 && (
         <div className="px-4 py-2.5 bg-green-50/50 border-b border-gray-100">
           <p className="text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
@@ -923,7 +997,6 @@ const EditDayCard = ({
         </div>
       )}
 
-      {/* Sections */}
       <div className="divide-y divide-gray-50">
         {sections.map((section) => {
           const isOpen = openSections.has(section.key);
@@ -978,7 +1051,6 @@ const EditDayCard = ({
                 }`}
               >
                 <div className="px-4 pb-4 pt-2">
-                  {/* Accommodation */}
                   {section.key === "accommodation" && (
                     <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar cards-container-parent">
                       {dayData.accommodation?.length > 0 ? (
@@ -1015,6 +1087,24 @@ const EditDayCard = ({
                               assignedCounts={assignedCounts}
                               perRoomMax={perRoomMax}
                               maxRooms={maxRooms}
+                              hasRoomsConfigured={
+                                String(item.id || item.hotel_id || "") ===
+                                  String(
+                                    selectedHotel?.id ||
+                                      selectedHotel?.hotel_id ||
+                                      ""
+                                  ) && confirmedRoomsCount > 0
+                              }
+                              savedRoomsCount={
+                                String(item.id || item.hotel_id || "") ===
+                                String(
+                                  selectedHotel?.id ||
+                                    selectedHotel?.hotel_id ||
+                                    ""
+                                )
+                                  ? confirmedRoomsCount
+                                  : 0
+                              }
                             />
                           </div>
                         ))
@@ -1026,7 +1116,6 @@ const EditDayCard = ({
                     </div>
                   )}
 
-                  {/* Transfer */}
                   {section.key === "transfer" && (
                     <div>
                       <div className="flex items-center gap-2 px-4 py-2 rounded-lg mb-3 bg-gray-50 border border-gray-200">
@@ -1215,7 +1304,6 @@ const EditDayCard = ({
                     </div>
                   )}
 
-                  {/* Activities */}
                   {section.key === "activities" && (
                     <div>
                       <p className="text-[11px] text-gray-400 mb-2">
@@ -1250,7 +1338,13 @@ const EditDayCard = ({
 
 // ─── MAIN MODAL ───────────────────────────────────────────────────────────────
 
-const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
+const EditTourBookingModal = ({
+  open,
+  onClose,
+  onSaved,
+  data,
+  tourId: propTourId,
+}) => {
   const dispatch = useDispatch();
 
   const rootState = useSelector((state) => state);
@@ -1275,7 +1369,17 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
   const hasHydratedRef = useRef(false);
 
-  // ─── Fetch tour details ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (open) {
+      dispatch(setDisableLocalStorageSync(true));
+    } else {
+      dispatch(setDisableLocalStorageSync(false));
+    }
+    return () => {
+      dispatch(setDisableLocalStorageSync(false));
+    };
+  }, [open, dispatch]);
+
   const fetchTourDetails = useCallback(async (id) => {
     try {
       setLoading(true);
@@ -1307,7 +1411,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
     }
   }, []);
 
-  // ─── Hydrate ──────────────────────────────────────────────────────────────
   const hydrateReservationIntoNewSystem = useCallback(
     (fullTour, reservationData, reservedTourSnapshot = null) => {
       if (!fullTour?.itinerary?.length) return;
@@ -1387,24 +1490,27 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
         const dayNum = String(day.day);
         const snapshotDay = snapshotByDay[dayNum] || {};
 
-        // ── HOTEL ──
         const hotelOptions = Array.isArray(day.hotel_options)
           ? day.hotel_options
           : [];
         const reservedHotelId =
           reservedHotels[dayNum] || snapshotDay?.hotel_reserved?.id;
 
+        let mappedHotel = null;
+
         if (hotelOptions.length > 0) {
           let hotelRaw = null;
+
           if (reservedHotelId) {
             hotelRaw = hotelOptions.find(
               (h) => String(h.hotel_id) === String(reservedHotelId)
             );
           }
+
           if (!hotelRaw) hotelRaw = hotelOptions[0];
 
           if (hotelRaw) {
-            const mappedHotel = mapHotelFromAPI(hotelRaw);
+            mappedHotel = mapHotelFromAPI(hotelRaw);
             nextActiveHotels[index] = mappedHotel;
             dispatch(selectHotel({ day: Number(dayNum), hotel: mappedHotel }));
 
@@ -1421,6 +1527,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
               dispatch(
                 setDayRooms({
                   day: Number(dayNum),
+                  hotelId: mappedHotel.id || mappedHotel.hotel_id,
                   rooms: snapshotRooms.map((room) => ({
                     adults: Number(room.adults || 0),
                     kids: Number(room.kids || 0),
@@ -1429,12 +1536,17 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                 })
               );
             } else {
-              dispatch(setDayRooms({ day: Number(dayNum), rooms: [] }));
+              dispatch(
+                setDayRooms({
+                  day: Number(dayNum),
+                  hotelId: mappedHotel.id || mappedHotel.hotel_id,
+                  rooms: [],
+                })
+              );
             }
           }
         }
 
-        // ── CARS ──
         const carOptions = Array.isArray(day.cars_options)
           ? day.cars_options
           : [];
@@ -1501,7 +1613,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
           );
         }
 
-        // ── ACTIVITIES ──
         const activityOptions = Array.isArray(day.activities_options)
           ? day.activities_options
           : [];
@@ -1523,18 +1634,22 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
         if (activityOptions.length > 0 && reservedDayActivities.length > 0) {
           const seen = new Set();
+
           reservedDayActivities.forEach(
             ({ actId, numAdults: na, numChildren: nc }) => {
               const matchedAct = activityOptions.find(
                 (act) => String(act.activity_id) === String(actId)
               );
               if (!matchedAct) return;
+
               const dedupeKey = String(matchedAct.activity_id);
               if (seen.has(dedupeKey)) return;
               seen.add(dedupeKey);
+
               const forChildren =
                 matchedAct.for_children === "1" ||
                 matchedAct.for_children === 1;
+
               dispatch(
                 selectActivity({
                   day: Number(dayNum),
@@ -1568,7 +1683,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
     [dispatch]
   );
 
-  // ─── Open effect ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open || !data || hasHydratedRef.current) return;
 
@@ -1607,9 +1721,9 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
     hydrateReservationIntoNewSystem,
   ]);
 
-  // Sync people + dates to Redux
   useEffect(() => {
     if (!open || !tourDetails) return;
+
     dispatch(setPeopleCount({ adults, children: childrenCount, infants: 0 }));
     dispatch(
       setTourInfo({
@@ -1620,11 +1734,11 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
         numInfants: 0,
       })
     );
+
     const timer = setTimeout(() => dispatch(calculateTotal()), 50);
     return () => clearTimeout(timer);
   }, [open, tourDetails, adults, childrenCount, startDate, endDate, dispatch]);
 
-  // Reset on close
   useEffect(() => {
     if (!open) {
       hasHydratedRef.current = false;
@@ -1640,26 +1754,17 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
       setChildrenCount(0);
       setStartDate(null);
       setEndDate(null);
-      dispatch(clearCurrentTourData());
-      dispatch(
-        setTourInfo({
-          startDate: null,
-          endDate: null,
-          numAdults: 1,
-          numChildren: 0,
-          numInfants: 0,
-        })
-      );
-      dispatch(setPeopleCount({ adults: 1, children: 0, infants: 0 }));
     }
-  }, [open, dispatch]);
+  }, [open]);
 
-  // Trim cars if adults decrease
   useEffect(() => {
     if (adults < 1) return;
+
     let wasTrimmed = false;
+
     setSelectedCarsPerDay((prev) => {
       const next = { ...prev };
+
       Object.keys(next).forEach((dayKey) => {
         const cars = Array.isArray(next[dayKey]) ? next[dayKey] : [];
         if (cars.length > adults) {
@@ -1667,25 +1772,30 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
           wasTrimmed = true;
         }
       });
+
       return next;
     });
-    if (wasTrimmed)
+
+    if (wasTrimmed) {
       toast.error("Cars were trimmed to match the new adults count");
+    }
   }, [adults]);
 
-  // ─── Date change ──────────────────────────────────────────────────────────
   const handleDateChange = useCallback(
     (selectedDate) => {
       if (
         !selectedDate ||
         !(selectedDate instanceof Date) ||
         isNaN(selectedDate.getTime())
-      )
+      ) {
         return;
+      }
+
       const duration = tourDetails?.itinerary?.length || 1;
       const nextStart = new Date(selectedDate);
       nextStart.setHours(0, 0, 0, 0);
       const nextEnd = buildEndDate(nextStart, duration);
+
       setStartDate(nextStart);
       setEndDate(nextEnd);
       setCalendarOpen(false);
@@ -1693,7 +1803,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
     [tourDetails]
   );
 
-  // ─── Mapped days ──────────────────────────────────────────────────────────
   const mappedDays = useMemo(() => {
     if (!tourDetails?.itinerary) return [];
     return tourDetails.itinerary.map((day) => ({
@@ -1724,15 +1833,40 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
   const totalCountable = adults + childrenCount;
   const canAddMore = totalCountable < maxPersons;
 
+  const validateChildrenNotAlone = useCallback(() => {
+    for (const dayData of mappedDays) {
+      const dayKey = String(dayData.day);
+      const rooms = Array.isArray(
+        reservationState.selectedByDay?.[dayKey]?.rooms
+      )
+        ? reservationState.selectedByDay[dayKey].rooms
+        : [];
+
+      const childAlone = rooms.find(
+        (r) =>
+          Number(r.adults || 0) === 0 && Number(r.kids ?? r.children ?? 0) > 0
+      );
+
+      if (childAlone) {
+        toast.error(`Day ${dayData.day}: Children can't stay alone in a room`);
+        return false;
+      }
+    }
+
+    return true;
+  }, [mappedDays, reservationState.selectedByDay]);
+
   const validateBeforeSave = useCallback(() => {
     if (!startDate) {
       toast.error("Please select a start date");
       return false;
     }
+
     if (!endDate) {
       toast.error("End date could not be calculated");
       return false;
     }
+
     if (totalCountable > maxPersons) {
       toast.error(`Maximum ${maxPersons} travelers allowed`);
       return false;
@@ -1741,7 +1875,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
     for (const [dayKey, cars] of Object.entries(selectedCarsPerDay)) {
       if ((cars || []).length > adults) {
         toast.error(
-          `Day ${dayKey}: Selected cars (${cars.length}) cannot exceed adults count (${adults})`
+          `Day ${dayKey}: Selected cars (${cars.length}) exceed adults count (${adults})`
         );
         return false;
       }
@@ -1750,6 +1884,7 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
     const carsValidation = validateCarsForAllDays(rootState);
     if (!carsValidation.isValid) {
       const firstError = carsValidation.errors[0];
+
       if (firstError?.type === "no_cars") {
         toast.error(`Day ${firstError.day}: No cars selected`);
       } else {
@@ -1757,16 +1892,22 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
           `Day ${firstError.day}: Car capacity (${firstError.totalCapacity}) is less than passengers (${firstError.requiredSeats})`
         );
       }
+
       return false;
     }
 
     if (adults + childrenCount > 2) {
       const roomsValidation = validateRoomsForAllDays(rootState);
+
       if (!roomsValidation.isValid) {
         const firstError = roomsValidation.errors[0];
         toast.error(
-          `Day ${firstError.day}: ${firstError.assigned}/${firstError.required} travelers assigned to rooms. Please open Hotel options and distribute rooms.`
+          `Day ${firstError.day}: ${firstError.assigned}/${firstError.required} travelers assigned to rooms. Please distribute rooms first.`
         );
+        return false;
+      }
+
+      if (!validateChildrenNotAlone()) {
         return false;
       }
     }
@@ -1781,9 +1922,9 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
     adults,
     childrenCount,
     rootState,
+    validateChildrenNotAlone,
   ]);
 
-  // ─── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!validateBeforeSave()) return;
 
@@ -1800,19 +1941,26 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
     try {
       setSaving(true);
+
       const formattedPayload = formatReservationForAPI(reservationState);
       const payload = {
         reservation_id: String(reservationId),
         ...formattedPayload,
       };
+
       const response = await axios.post(
         `${base_url}/user/tours/update_tour.php`,
         payload,
         { headers: { "Content-Type": "application/json" } }
       );
+
       if (response.data.status === "success" || response.data.success) {
         toast.success("Booking updated successfully! 🎉");
-        onClose();
+        if (typeof onSaved === "function") {
+          onSaved();
+        } else {
+          onClose();
+        }
       } else {
         throw new Error(response.data.message || "Failed to update booking");
       }
@@ -1825,7 +1973,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
     }
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <Modal
       open={open}
@@ -1844,7 +1991,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
       closable={!saving}
     >
       <div className="flex flex-col h-[90vh]">
-        {/* Header */}
         <div className="relative h-40 shrink-0 overflow-hidden">
           <img
             src={
@@ -1878,7 +2024,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
           </div>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto no-scrollbar bg-[#f8f9fb]">
           {loading && (
             <div className="flex flex-col items-center justify-center h-full gap-3">
@@ -1904,8 +2049,11 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                     reservedTourSnapshot?.id ||
                     data?.tour_id ||
                     data?.id;
+
                   if (!targetTourId) return;
+
                   hasHydratedRef.current = false;
+
                   fetchTourDetails(targetTourId).then((fullTour) => {
                     if (!fullTour) return;
                     hydrateReservationIntoNewSystem(
@@ -1924,7 +2072,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
 
           {!loading && !error && (
             <div className="p-5 space-y-4">
-              {/* Config Card */}
               <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 bg-[#295557] rounded-full" />
@@ -1934,7 +2081,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Dates */}
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                       Travel Dates
@@ -1974,7 +2120,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                     </div>
                   </div>
 
-                  {/* Travelers */}
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                       Travelers
@@ -1986,7 +2131,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                     </label>
 
                     <div className="flex gap-2">
-                      {/* Adults */}
                       <div className="flex-1 flex items-center justify-between bg-[#f8f9fb] border border-gray-100 rounded-xl px-3 h-10">
                         <span className="flex items-center gap-1.5 text-xs text-gray-500">
                           <FiUser size={13} /> Adults
@@ -2022,7 +2166,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                         </div>
                       </div>
 
-                      {/* Children */}
                       <div className="flex-1 flex items-center justify-between bg-[#f8f9fb] border border-gray-100 rounded-xl px-3 h-10">
                         <span className="flex items-center gap-1.5 text-xs text-gray-500">
                           <FiUsers size={13} /> Children
@@ -2068,7 +2211,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
                 </div>
               </div>
 
-              {/* Itinerary */}
               {mappedDays.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -2122,7 +2264,6 @@ const EditTourBookingModal = ({ open, onClose, data, tourId: propTourId }) => {
           )}
         </div>
 
-        {/* Footer */}
         {!loading && !error && (
           <div className="shrink-0 bg-white border-t border-gray-100 px-5 py-3 flex items-center justify-between">
             <div>

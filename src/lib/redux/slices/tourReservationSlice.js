@@ -87,6 +87,51 @@ const normalizeTourGuideByDay = (tourGuideByDay = {}) => {
   return normalized;
 };
 
+// ✅ New structure:
+// roomDraftsByDay = {
+//   [dayNumber]: {
+//     [hotelId]: Room[]
+//   }
+// }
+const normalizeRoomDraftsByDay = (roomDraftsByDay = {}) => {
+  const normalized = {};
+  Object.entries(roomDraftsByDay).forEach(([dayKey, hotelsMap]) => {
+    if (!hotelsMap || typeof hotelsMap !== "object") return;
+    normalized[String(dayKey)] = {};
+    Object.entries(hotelsMap).forEach(([hotelId, rooms]) => {
+      normalized[String(dayKey)][String(hotelId)] = Array.isArray(rooms)
+        ? rooms.map(normalizeRoom)
+        : [];
+    });
+  });
+  return normalized;
+};
+
+// ✅ Legacy migration:
+// roomsByHotel[hotelId] = Room[]
+// roomsByHotel[hotelId] = { rooms: Room[], day: number }
+const migrateLegacyRoomsByHotel = (roomsByHotel = {}) => {
+  const migrated = {};
+  Object.entries(roomsByHotel).forEach(([hotelId, data]) => {
+    let rooms = [];
+    let day = null;
+
+    if (Array.isArray(data)) {
+      rooms = data.map(normalizeRoom);
+    } else if (data && typeof data === "object") {
+      rooms = Array.isArray(data.rooms) ? data.rooms.map(normalizeRoom) : [];
+      day = data.day != null ? Number(data.day) : null;
+    }
+
+    if (day != null) {
+      const dayKey = String(day);
+      if (!migrated[dayKey]) migrated[dayKey] = {};
+      migrated[dayKey][String(hotelId)] = rooms;
+    }
+  });
+  return migrated;
+};
+
 const ensureDayState = (state, dayKey) => {
   if (!state.selectedByDay[dayKey]) state.selectedByDay[dayKey] = {};
   if (!Array.isArray(state.selectedByDay[dayKey].activities))
@@ -109,11 +154,17 @@ const getValidDayNumbers = (state) => {
 const sanitizeDaysToItinerary = (state) => {
   if (!state.tourData?.itinerary?.length) return;
   const validDays = new Set(getValidDayNumbers(state).map(String));
+
   Object.keys(state.selectedByDay).forEach((key) => {
     if (!validDays.has(key)) delete state.selectedByDay[key];
   });
+
   Object.keys(state.tourGuideByDay).forEach((key) => {
     if (!validDays.has(key)) delete state.tourGuideByDay[key];
+  });
+
+  Object.keys(state.roomDraftsByDay).forEach((key) => {
+    if (!validDays.has(key)) delete state.roomDraftsByDay[key];
   });
 };
 
@@ -140,23 +191,48 @@ const buildEndDateFromDuration = (startDate, durationDays) => {
   return endDate;
 };
 
-// ✅ source of truth for dates = itinerary length
 const syncDatesWithItinerary = (state) => {
   const itineraryLength = Array.isArray(state.tourData?.itinerary)
     ? state.tourData.itinerary.length
     : 0;
-
   if (!itineraryLength) return;
-
   const parsedStart = parseLocalDateString(state.startDate);
   if (!parsedStart) return;
-
   const expectedEnd = buildEndDateFromDuration(parsedStart, itineraryLength);
   const expectedEndStr = formatLocalDateString(expectedEnd);
-
   if (expectedEndStr && state.endDate !== expectedEndStr) {
     state.endDate = expectedEndStr;
   }
+};
+
+const clearAllRoomDraftsState = (state) => {
+  state.roomDraftsByDay = {};
+  Object.keys(state.selectedByDay).forEach((dayKey) => {
+    if (state.selectedByDay[dayKey]) {
+      state.selectedByDay[dayKey].rooms = [];
+    }
+  });
+};
+
+const buildPeopleSignature = (adults = 1, children = 0, infants = 0) =>
+  `${Number(adults || 1)}::${Number(children || 0)}::${Number(infants || 0)}`;
+
+const shouldSkipRoomResetForCachedPeople = (
+  state,
+  nextAdults,
+  nextChildren,
+  nextInfants
+) => {
+  if (!state.allowCachePeopleSyncWithoutRoomReset) return false;
+  if (!state.restoredPeopleSignature) return false;
+
+  const nextSignature = buildPeopleSignature(
+    nextAdults,
+    nextChildren,
+    nextInfants
+  );
+
+  return nextSignature === state.restoredPeopleSignature;
 };
 
 // ─── localStorage ─────────────────────────────────────────────────────────────
@@ -166,16 +242,13 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const cleanLegacyKey = () => {
   try {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(LEGACY_KEY);
-    }
+    if (typeof window !== "undefined") localStorage.removeItem(LEGACY_KEY);
   } catch {}
 };
 
 const loadAllReservations = () => {
   if (typeof window === "undefined") return {};
   cleanLegacyKey();
-
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
@@ -208,7 +281,9 @@ const saveAllReservations = (all) => {
 
 const saveSelectionsToStorage = (state) => {
   if (typeof window === "undefined") return;
+  if (state.disableLocalStorageSync) return;
   if (!state.tourId || !state.tourData) return;
+
   try {
     const all = loadAllReservations();
     all[String(state.tourId)] = {
@@ -221,6 +296,7 @@ const saveSelectionsToStorage = (state) => {
       numInfants: state.numInfants,
       selectedByDay: state.selectedByDay,
       tourGuideByDay: state.tourGuideByDay,
+      roomDraftsByDay: state.roomDraftsByDay,
       totalAmount: state.totalAmount,
       subtotalAmount: state.subtotalAmount,
       discountPercentage: state.discountPercentage,
@@ -264,9 +340,17 @@ const initialState = {
   tourData: null,
   selectedByDay: {},
   tourGuideByDay: {},
+  roomDraftsByDay: {},
   totalAmount: 0,
   discountPercentage: 0,
   subtotalAmount: 0,
+  hasRestoredSelections: false,
+
+  // ✅ flags علشان لو الناس جاية من الكاش منفضيش الرومات
+  restoredPeopleSignature: null,
+  allowCachePeopleSyncWithoutRoomReset: false,
+  
+  disableLocalStorageSync: false,
 };
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -274,6 +358,10 @@ const tourReservationSlice = createSlice({
   name: "tourReservation",
   initialState,
   reducers: {
+    setDisableLocalStorageSync: (state, action) => {
+      state.disableLocalStorageSync = action.payload;
+    },
+
     setTourData: (state, action) => {
       const newTourId = action.payload?.id;
 
@@ -284,6 +372,7 @@ const tourReservationSlice = createSlice({
       ) {
         state.selectedByDay = {};
         state.tourGuideByDay = {};
+        state.roomDraftsByDay = {};
         state.totalAmount = 0;
         state.subtotalAmount = 0;
         state.startDate = null;
@@ -291,6 +380,9 @@ const tourReservationSlice = createSlice({
         state.numAdults = 1;
         state.numChildren = 0;
         state.numInfants = 0;
+        state.hasRestoredSelections = false;
+        state.restoredPeopleSignature = null;
+        state.allowCachePeopleSyncWithoutRoomReset = false;
       }
 
       state.tourData = action.payload;
@@ -306,11 +398,18 @@ const tourReservationSlice = createSlice({
 
     restoreSavedSelections: (state, action) => {
       const targetTourId = action.payload;
-      if (!targetTourId) return;
+
+      if (!targetTourId) {
+        state.hasRestoredSelections = true;
+        state.restoredPeopleSignature = null;
+        state.allowCachePeopleSyncWithoutRoomReset = false;
+        return;
+      }
 
       if (state.tourId && String(state.tourId) !== String(targetTourId)) {
         state.selectedByDay = {};
         state.tourGuideByDay = {};
+        state.roomDraftsByDay = {};
         state.tourData = null;
         state.totalAmount = 0;
         state.subtotalAmount = 0;
@@ -322,28 +421,62 @@ const tourReservationSlice = createSlice({
       state.tourId = targetTourId;
 
       const saved = loadSelectionsFromStorage(targetTourId);
-      if (!saved) return;
+      if (!saved) {
+        state.hasRestoredSelections = true;
+        state.restoredPeopleSignature = null;
+        state.allowCachePeopleSyncWithoutRoomReset = false;
+        return;
+      }
 
       if (saved.tourData) state.tourData = saved.tourData;
-      if (saved.selectedByDay)
+      if (saved.selectedByDay) {
         state.selectedByDay = normalizeSelectedByDay(saved.selectedByDay);
-      if (saved.tourGuideByDay)
+      }
+      if (saved.tourGuideByDay) {
         state.tourGuideByDay = normalizeTourGuideByDay(saved.tourGuideByDay);
+      }
+
+      if (saved.roomDraftsByDay) {
+        state.roomDraftsByDay = normalizeRoomDraftsByDay(saved.roomDraftsByDay);
+      } else if (saved.roomsByHotel) {
+        state.roomDraftsByDay = migrateLegacyRoomsByHotel(saved.roomsByHotel);
+      } else {
+        state.roomDraftsByDay = {};
+      }
+
+      const restoredAdults =
+        saved.numAdults !== undefined ? Number(saved.numAdults) : 1;
+      const restoredChildren =
+        saved.numChildren !== undefined ? Number(saved.numChildren) : 0;
+      const restoredInfants =
+        saved.numInfants !== undefined ? Number(saved.numInfants) : 0;
+
+      state.numAdults = restoredAdults;
+      state.numChildren = restoredChildren;
+      state.numInfants = restoredInfants;
+
       if (saved.startDate !== undefined) state.startDate = saved.startDate;
       if (saved.endDate !== undefined) state.endDate = saved.endDate;
-      if (saved.numAdults !== undefined) state.numAdults = saved.numAdults;
-      if (saved.numChildren !== undefined)
-        state.numChildren = saved.numChildren;
-      if (saved.numInfants !== undefined) state.numInfants = saved.numInfants;
       if (saved.totalAmount !== undefined)
         state.totalAmount = saved.totalAmount;
-      if (saved.subtotalAmount !== undefined)
+      if (saved.subtotalAmount !== undefined) {
         state.subtotalAmount = saved.subtotalAmount;
-      if (saved.discountPercentage !== undefined)
+      }
+      if (saved.discountPercentage !== undefined) {
         state.discountPercentage = saved.discountPercentage;
+      }
 
       sanitizeDaysToItinerary(state);
       syncDatesWithItinerary(state);
+
+      state.hasRestoredSelections = true;
+      state.restoredPeopleSignature = buildPeopleSignature(
+        restoredAdults,
+        restoredChildren,
+        restoredInfants
+      );
+      state.allowCachePeopleSyncWithoutRoomReset =
+        Object.keys(state.roomDraftsByDay || {}).length > 0;
     },
 
     saveSelections: (state) => {
@@ -353,6 +486,7 @@ const tourReservationSlice = createSlice({
     initializeTourGuide: (state, action) => {
       const itinerary = action.payload;
       if (!Array.isArray(itinerary)) return;
+
       if (!state.tourGuideByDay) state.tourGuideByDay = {};
 
       itinerary.forEach((day) => {
@@ -380,8 +514,10 @@ const tourReservationSlice = createSlice({
       const dayNumber = String(action.payload);
       if (!state.tourGuideByDay?.[dayNumber]) return;
       if (!state.tourGuideByDay[dayNumber].isAvailable) return;
+
       state.tourGuideByDay[dayNumber].isSelected =
         !state.tourGuideByDay[dayNumber].isSelected;
+
       saveSelectionsToStorage(state);
     },
 
@@ -396,6 +532,7 @@ const tourReservationSlice = createSlice({
         const hasSaved =
           Array.isArray(state.selectedByDay[dayKey].activities) &&
           state.selectedByDay[dayKey].activities.length > 0;
+
         if (hasSaved) return;
 
         const activities = day.activities_options || [];
@@ -405,6 +542,7 @@ const tourReservationSlice = createSlice({
         activities.forEach((activity) => {
           const activityId = String(activity.activity_id || activity.id);
           if (!activityId || seen.has(activityId)) return;
+
           seen.add(activityId);
 
           const forChildren =
@@ -475,6 +613,7 @@ const tourReservationSlice = createSlice({
     removeActivity: (state, action) => {
       const { day, activityId } = action.payload;
       const dayKey = String(day);
+
       if (state.selectedByDay[dayKey]?.activities) {
         state.selectedByDay[dayKey].activities = state.selectedByDay[
           dayKey
@@ -482,12 +621,14 @@ const tourReservationSlice = createSlice({
           (a) => a.id !== activityId && a.activity_id !== activityId
         );
       }
+
       saveSelectionsToStorage(state);
     },
 
     updateActivityPeople: (state, action) => {
       const { day, activityId, num_adults, num_children } = action.payload;
       const dayKey = String(day);
+
       if (!state.selectedByDay[dayKey]?.activities) return;
 
       const actIdx = state.selectedByDay[dayKey].activities.findIndex(
@@ -512,22 +653,7 @@ const tourReservationSlice = createSlice({
       const { day, hotel } = action.payload;
       const dayKey = String(day);
       ensureDayState(state, dayKey);
-
-      const previousHotelId =
-        state.selectedByDay[dayKey].hotel?.id ||
-        state.selectedByDay[dayKey].hotel?.hotel_id;
-      const newHotelId = hotel?.id || hotel?.hotel_id;
-
       state.selectedByDay[dayKey].hotel = hotel;
-
-      if (
-        previousHotelId &&
-        newHotelId &&
-        String(previousHotelId) !== String(newHotelId)
-      ) {
-        state.selectedByDay[dayKey].rooms = [];
-      }
-
       saveSelectionsToStorage(state);
     },
 
@@ -537,6 +663,69 @@ const tourReservationSlice = createSlice({
         delete state.selectedByDay[dayKey].hotel;
         state.selectedByDay[dayKey].rooms = [];
       }
+      saveSelectionsToStorage(state);
+    },
+
+    setHotelRoomDraft: (state, action) => {
+      const { dayNumber, hotelId, rooms } = action.payload;
+      if (!dayNumber || !hotelId) return;
+
+      const dayKey = String(dayNumber);
+      const hotelKey = String(hotelId);
+
+      if (!state.roomDraftsByDay[dayKey]) {
+        state.roomDraftsByDay[dayKey] = {};
+      }
+
+      state.roomDraftsByDay[dayKey][hotelKey] = Array.isArray(rooms)
+        ? rooms.map(normalizeRoom)
+        : [];
+
+      saveSelectionsToStorage(state);
+    },
+
+    setHotelRooms: (state, action) => {
+      const { hotelId, rooms, day } = action.payload;
+      if (!hotelId || !day) return;
+
+      const dayKey = String(day);
+      const hotelKey = String(hotelId);
+
+      if (!state.roomDraftsByDay[dayKey]) {
+        state.roomDraftsByDay[dayKey] = {};
+      }
+
+      state.roomDraftsByDay[dayKey][hotelKey] = Array.isArray(rooms)
+        ? rooms.map(normalizeRoom)
+        : [];
+
+      saveSelectionsToStorage(state);
+    },
+
+    setDayRooms: (state, action) => {
+      const { day, rooms, hotelId } = action.payload;
+      const dayKey = String(day);
+      ensureDayState(state, dayKey);
+
+      if (hotelId) {
+        const hotelKey = String(hotelId);
+        if (!state.roomDraftsByDay[dayKey]) {
+          state.roomDraftsByDay[dayKey] = {};
+        }
+        state.roomDraftsByDay[dayKey][hotelKey] = Array.isArray(rooms)
+          ? rooms.map(normalizeRoom)
+          : [];
+      }
+
+      state.selectedByDay[dayKey].rooms = Array.isArray(rooms)
+        ? rooms.map(normalizeRoom)
+        : [];
+
+      saveSelectionsToStorage(state);
+    },
+
+    clearAllRoomDrafts: (state) => {
+      clearAllRoomDraftsState(state);
       saveSelectionsToStorage(state);
     },
 
@@ -553,6 +742,7 @@ const tourReservationSlice = createSlice({
 
       state.selectedByDay[dayKey].cars = [normalizedCar];
       state.selectedByDay[dayKey].car = normalizedCar;
+
       saveSelectionsToStorage(state);
     },
 
@@ -567,7 +757,25 @@ const tourReservationSlice = createSlice({
 
       state.selectedByDay[dayKey].cars = normalizedCars;
       state.selectedByDay[dayKey].car = normalizedCars[0] || null;
+
       saveSelectionsToStorage(state);
+    },
+
+    trimCarsToAdults: (state, action) => {
+      const { day, maxCars } = action.payload;
+      const dayKey = String(day);
+      if (!state.selectedByDay[dayKey]) return;
+
+      const currentCars = Array.isArray(state.selectedByDay[dayKey].cars)
+        ? state.selectedByDay[dayKey].cars
+        : [];
+
+      if (currentCars.length > maxCars) {
+        const trimmed = currentCars.slice(0, maxCars);
+        state.selectedByDay[dayKey].cars = trimmed;
+        state.selectedByDay[dayKey].car = trimmed[0] || null;
+        saveSelectionsToStorage(state);
+      }
     },
 
     removeCar: (state, action) => {
@@ -576,16 +784,6 @@ const tourReservationSlice = createSlice({
         state.selectedByDay[dayKey].cars = [];
         delete state.selectedByDay[dayKey].car;
       }
-      saveSelectionsToStorage(state);
-    },
-
-    setDayRooms: (state, action) => {
-      const { day, rooms } = action.payload;
-      const dayKey = String(day);
-      ensureDayState(state, dayKey);
-      state.selectedByDay[dayKey].rooms = Array.isArray(rooms)
-        ? rooms.map(normalizeRoom)
-        : [];
       saveSelectionsToStorage(state);
     },
 
@@ -601,30 +799,41 @@ const tourReservationSlice = createSlice({
       const { userId, startDate, endDate, numAdults, numChildren, numInfants } =
         action.payload;
 
-      // ✅ لو عدد البالغين أو الأطفال اتغير، نُصفّر توزيع الغرف لكل الأيام عشان نمنع إرسال بيانات قديمة
-      if (numAdults !== undefined || numChildren !== undefined) {
-        const newAdults = numAdults !== undefined ? numAdults : state.numAdults;
-        const newChildren =
-          numChildren !== undefined ? numChildren : state.numChildren;
+      const nextAdults =
+        numAdults !== undefined ? Number(numAdults || 1) : state.numAdults;
+      const nextChildren =
+        numChildren !== undefined
+          ? Number(numChildren || 0)
+          : state.numChildren;
+      const nextInfants =
+        numInfants !== undefined ? Number(numInfants || 0) : state.numInfants;
 
-        if (
-          newAdults !== state.numAdults ||
-          newChildren !== state.numChildren
-        ) {
-          Object.keys(state.selectedByDay).forEach((dayKey) => {
-            if (state.selectedByDay[dayKey]) {
-              state.selectedByDay[dayKey].rooms = [];
-            }
-          });
+      const adultsChanged = nextAdults !== state.numAdults;
+      const childrenChanged = nextChildren !== state.numChildren;
+
+      if (adultsChanged || childrenChanged) {
+        const skipRoomReset = shouldSkipRoomResetForCachedPeople(
+          state,
+          nextAdults,
+          nextChildren,
+          nextInfants
+        );
+
+        if (!skipRoomReset) {
+          clearAllRoomDraftsState(state);
+        }
+
+        if (skipRoomReset || adultsChanged || childrenChanged) {
+          state.allowCachePeopleSyncWithoutRoomReset = false;
         }
       }
 
       if (userId !== undefined) state.userId = userId;
       if (startDate !== undefined) state.startDate = startDate;
       if (endDate !== undefined) state.endDate = endDate;
-      if (numAdults !== undefined) state.numAdults = numAdults;
-      if (numChildren !== undefined) state.numChildren = numChildren;
-      if (numInfants !== undefined) state.numInfants = numInfants;
+      if (numAdults !== undefined) state.numAdults = nextAdults;
+      if (numChildren !== undefined) state.numChildren = nextChildren;
+      if (numInfants !== undefined) state.numInfants = nextInfants;
 
       syncDatesWithItinerary(state);
       saveSelectionsToStorage(state);
@@ -632,21 +841,35 @@ const tourReservationSlice = createSlice({
 
     setPeopleCount: (state, action) => {
       const { adults, children, infants } = action.payload;
-      const newAdults = adults || 1;
-      const newChildren = children || 0;
 
-      // ✅ لو عدد البالغين أو الأطفال اتغير، نُصفّر توزيع الغرف لكل الأيام
-      if (newAdults !== state.numAdults || newChildren !== state.numChildren) {
-        Object.keys(state.selectedByDay).forEach((dayKey) => {
-          if (state.selectedByDay[dayKey]) {
-            state.selectedByDay[dayKey].rooms = [];
-          }
-        });
+      const nextAdults = Number(adults || 1);
+      const nextChildren = Number(children || 0);
+      const nextInfants = Number(infants || 0);
+
+      const adultsChanged = nextAdults !== state.numAdults;
+      const childrenChanged = nextChildren !== state.numChildren;
+
+      if (adultsChanged || childrenChanged) {
+        const skipRoomReset = shouldSkipRoomResetForCachedPeople(
+          state,
+          nextAdults,
+          nextChildren,
+          nextInfants
+        );
+
+        if (!skipRoomReset) {
+          clearAllRoomDraftsState(state);
+        }
+
+        if (skipRoomReset || adultsChanged || childrenChanged) {
+          state.allowCachePeopleSyncWithoutRoomReset = false;
+        }
       }
 
-      state.numAdults = newAdults;
-      state.numChildren = newChildren;
-      state.numInfants = infants || 0;
+      state.numAdults = nextAdults;
+      state.numChildren = nextChildren;
+      state.numInfants = nextInfants;
+
       saveSelectionsToStorage(state);
     },
 
@@ -719,19 +942,25 @@ const tourReservationSlice = createSlice({
     },
 
     resetReservation: (state) => {
-      if (state.tourId) {
-        removeSingleTourFromStorage(state.tourId);
-      }
-      return { ...initialState, userId: getUserIdFromStorage() };
+      if (state.tourId) removeSingleTourFromStorage(state.tourId);
+      return {
+        ...initialState,
+        userId: getUserIdFromStorage(),
+        hasRestoredSelections: true,
+      };
     },
 
     clearCurrentTourData: (state) => {
       state.selectedByDay = {};
       state.tourGuideByDay = {};
+      state.roomDraftsByDay = {};
       state.tourData = null;
       state.tourId = null;
       state.totalAmount = 0;
       state.subtotalAmount = 0;
+      state.hasRestoredSelections = false;
+      state.restoredPeopleSignature = null;
+      state.allowCachePeopleSyncWithoutRoomReset = false;
     },
   },
 });
@@ -743,10 +972,15 @@ export const {
   refreshUserId,
   setTourInfo,
   setPeopleCount,
+  setDisableLocalStorageSync,
   selectHotel,
   selectCar,
   setDayCars,
   setDayRooms,
+  setHotelRooms,
+  setHotelRoomDraft,
+  clearAllRoomDrafts,
+  trimCarsToAdults,
   selectActivity,
   toggleTourGuide,
   removeHotel,
@@ -767,7 +1001,9 @@ export const {
 export const selectPriceDetails = (state) => {
   const { subtotalAmount, discountPercentage, totalAmount } =
     state.tourReservation;
+
   const discountAmount = (subtotalAmount * discountPercentage) / 100;
+
   return {
     subtotal: subtotalAmount,
     discountPercentage,
@@ -776,11 +1012,42 @@ export const selectPriceDetails = (state) => {
   };
 };
 
+export const selectRoomsForHotel =
+  (hotelId, dayNumber = null) =>
+  (state) => {
+    if (!hotelId) return [];
+    const hotelKey = String(hotelId);
+    const drafts = state.tourReservation.roomDraftsByDay || {};
+
+    if (dayNumber != null) {
+      return drafts?.[String(dayNumber)]?.[hotelKey] || [];
+    }
+
+    for (const dayKey of Object.keys(drafts)) {
+      if (Array.isArray(drafts[dayKey]?.[hotelKey])) {
+        return drafts[dayKey][hotelKey];
+      }
+    }
+
+    return [];
+  };
+
+export const selectRoomDraftForHotelInDay = (dayNumber, hotelId) => (state) => {
+  if (!dayNumber || !hotelId) return [];
+  return (
+    state.tourReservation.roomDraftsByDay?.[String(dayNumber)]?.[
+      String(hotelId)
+    ] || []
+  );
+};
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 export const validateRoomsForAllDays = (state) => {
-  const { selectedByDay, numAdults, numChildren, tourData } =
+  const { selectedByDay, numAdults, numChildren, tourData, roomDraftsByDay } =
     state.tourReservation;
+
   const totalTravelers = (numAdults || 1) + (numChildren || 0);
+
   const validDayNumbers = (tourData?.itinerary || [])
     .map((d) => Number(d.day))
     .filter(Boolean);
@@ -792,14 +1059,19 @@ export const validateRoomsForAllDays = (state) => {
     const dayData = selectedByDay?.[dayKey];
     if (!dayData?.hotel) return;
 
-    const rooms = Array.isArray(dayData.rooms) ? dayData.rooms : [];
+    const activeHotelId = String(
+      dayData.hotel.id || dayData.hotel.hotel_id || ""
+    );
+    if (!activeHotelId) return;
 
-    // ✅ لو أقل من أو يساوي 2 مسافر → no room validation required (auto fallback)
     if (totalTravelers <= 2) return;
+
+    const rooms = roomDraftsByDay?.[dayKey]?.[activeHotelId] || [];
 
     if (rooms.length === 0) {
       errors.push({
         day: dayNum,
+        hotelId: activeHotelId,
         message: `Day ${dayNum}: Room distribution not set`,
         assigned: 0,
         required: totalTravelers,
@@ -818,6 +1090,7 @@ export const validateRoomsForAllDays = (state) => {
     if (assignedTravelers !== totalTravelers) {
       errors.push({
         day: dayNum,
+        hotelId: activeHotelId,
         message: `Day ${dayNum}: ${assignedTravelers}/${totalTravelers} travelers assigned`,
         assigned: assignedTravelers,
         required: totalTravelers,
@@ -835,6 +1108,7 @@ export const validateRoomsForAllDays = (state) => {
 export const validateCarsForAllDays = (state) => {
   const { selectedByDay, numAdults, numChildren, tourData } =
     state.tourReservation;
+
   const validDayNumbers = (tourData?.itinerary || [])
     .map((d) => Number(d.day))
     .filter(Boolean);
@@ -907,7 +1181,6 @@ export const formatReservationForAPI = (state, inviteCode = "") => {
 
   const formatActivities = () => {
     const segments = [];
-
     validDays.forEach((day) => {
       const activities = state.selectedByDay?.[String(day)]?.activities || [];
       const seen = new Set();
@@ -915,23 +1188,21 @@ export const formatReservationForAPI = (state, inviteCode = "") => {
       activities.forEach((a) => {
         const id = a.id || a.activity_id;
         if (!id) return;
+
         const key = String(id);
         if (seen.has(key)) return;
         seen.add(key);
 
         const numAdults = Number(a.num_adults ?? 1);
         const numChildren = Number(a.num_children ?? 0);
-
         segments.push(`${day}**${id}**${numAdults}**${numChildren}`);
       });
     });
-
     return segments.join("**day**");
   };
 
   const formatCars = () => {
     const segments = [];
-
     validDays.forEach((day) => {
       const cars = state.selectedByDay?.[String(day)]?.cars || [];
       if (!cars.length) {
@@ -945,7 +1216,6 @@ export const formatReservationForAPI = (state, inviteCode = "") => {
         segments.push(`${day}**${carId}**${car.withDriver ? 1 : 0}`);
       });
     });
-
     return segments.join("**day**");
   };
 
@@ -959,53 +1229,52 @@ export const formatReservationForAPI = (state, inviteCode = "") => {
       })
       .join("**day**");
 
-  const formatRooms = () =>
-    validDays.flatMap((day) => {
+  const formatRooms = () => {
+    const adults = Number(state.numAdults || 1);
+    const kids = Number(state.numChildren || 0);
+    const babies = Number(state.numInfants || 0);
+    const totalTravelers = adults + kids;
+    const result = [];
+
+    validDays.forEach((day) => {
       const dayKey = String(day);
       const dayData = state.selectedByDay?.[dayKey];
+      if (!dayData?.hotel) return;
 
-      // لو مفيش فندق في اليوم ده، منبعتش غرف ليه
-      if (!dayData?.hotel) return [];
+      const activeHotelId = String(
+        dayData.hotel.id || dayData.hotel.hotel_id || ""
+      );
+      if (!activeHotelId) return;
 
-      const savedRooms = Array.isArray(dayData.rooms) ? dayData.rooms : [];
-      const adults = Number(state.numAdults || 1);
-      const kids = Number(state.numChildren || 0);
-      const babies = Number(state.numInfants || 0);
-      const totalTravelers = adults + kids;
+      const savedRooms = state.roomDraftsByDay?.[dayKey]?.[activeHotelId] || [];
 
-      // نحسب عدد المسافرين المتوزعين فعلياً في الغرف المحفوظة
       const assignedSum = savedRooms.reduce(
         (sum, r) =>
           sum + Number(r.adults || 0) + Number(r.kids ?? r.children ?? 0),
         0
       );
 
-      // لو التوزيع اللي متسيف بيساوي بالضبط عدد المسافرين الحاليين، نبعته
       if (savedRooms.length > 0 && assignedSum === totalTravelers) {
-        return savedRooms.map((room) => ({
-          day: Number(day),
-          adults: Number(room.adults || 0),
-          kids: Number(room.kids ?? room.children ?? 0),
-          babies: Number(room.babies ?? room.infants ?? 0),
-        }));
-      }
-
-      // لو التوزيع مش متوافق أو فاضي، والعدد <= 2، نعمل Auto-Fallback لروم واحدة
-      if (totalTravelers <= 2 && totalTravelers > 0) {
-        return [
-          {
+        savedRooms.forEach((room) => {
+          result.push({
             day: Number(day),
-            adults,
-            kids,
-            babies,
-          },
-        ];
+            adults: Number(room.adults || 0),
+            kids: Number(room.kids ?? room.children ?? 0),
+            babies: Number(room.babies ?? room.infants ?? 0),
+          });
+        });
+      } else if (totalTravelers <= 2 && totalTravelers > 0) {
+        result.push({
+          day: Number(day),
+          adults,
+          kids,
+          babies,
+        });
       }
-
-      // لو العدد > 2 والتوزيع مش صح أو مش موجود، نرجع مصفوفة فاضية
-      // (عشان الـ Validation في الكومبوننت يمسكها ويمنع الإرسال)
-      return [];
     });
+
+    return result;
+  };
 
   return {
     tour_id: state.tourId?.toString(),

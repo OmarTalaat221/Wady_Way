@@ -22,13 +22,73 @@ import useInviteCode, { INVITE_CODE_TYPES } from "@/hooks/useInviteCode";
 import GallerySection from "../../package/package-details/[packageId]/_components/GallerySection";
 import toast from "react-hot-toast";
 
+/* ─── localStorage helpers ─────────────────────────────────────────────── */
+const STORAGE_KEY = "hotelReservations";
+const TTL_MS = 24 * 60 * 60 * 1000;
+
+function loadHotelStorage(hotelId) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const all = JSON.parse(raw);
+    const entry = all[hotelId];
+    if (!entry) return null;
+    if (Date.now() - entry._savedAt > TTL_MS) {
+      delete all[hotelId];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+      return null;
+    }
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+function saveHotelStorage(hotelId, data) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[hotelId] = { ...data, _savedAt: Date.now() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // silent
+  }
+}
+
+function removeHotelFromStorage(hotelId) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const all = JSON.parse(raw);
+    delete all[hotelId];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // silent
+  }
+}
+/* ───────────────────────────────────────────────────────────────────────── */
+
 const Page = () => {
+  const searchParams = useSearchParams();
+  const hotelID = searchParams.get("hotel");
+
+  /* ─── core state ──────────────────────────────────────────────────────── */
   const [dateRange, setDateRange] = useState([
     new Date(),
     moment().add(1, "day").toDate(),
   ]);
   const [startDate, endDate] = dateRange;
 
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
+  const [infants, setInfants] = useState(0);
+
+  const [rooms, setRooms] = useState([
+    { id: 1, adults: 1, children: 0, babies: 0 },
+  ]);
+  const [isRoomDrawerOpen, setIsRoomDrawerOpen] = useState(false);
+
+  /* ─── UI state ────────────────────────────────────────────────────────── */
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isOpen, setOpen] = useState(false);
   const [isOpenimg, setOpenimg] = useState({
@@ -36,46 +96,9 @@ const Page = () => {
     openingIndex: 0,
   });
 
-  const [rooms, setRooms] = useState([
-    { id: 1, adults: 0, children: 0, babies: 0 },
-  ]);
-  const [isRoomDrawerOpen, setIsRoomDrawerOpen] = useState(false);
-
-  const [infants, setInfants] = useState(0);
-
-  const handleAdultQuantityChange = (newQuantity) => {
-    setAdults(newQuantity);
-  };
-
-  const handleChildQuantityChange = (newQuantity) => {
-    setChildren(newQuantity);
-  };
-
-  const handleInfantQuantityChange = (newQuantity) => {
-    setInfants(newQuantity);
-  };
-
-  const extractYouTubeVideoId = (url) => {
-    if (!url) return null;
-    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-      /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
-    ];
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match && match[1]) return match[1];
-    }
-    return null;
-  };
-
   const [hotelData, setHotelData] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(0);
   const [bookingLoading, setBookingLoading] = useState(false);
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -88,9 +111,10 @@ const Page = () => {
   const confirmModalRef = useRef(null);
   const bookingModalRef = useRef(null);
 
-  const searchParams = useSearchParams();
-  const hotelID = searchParams.get("hotel");
+  const hasRestoredRef = useRef(false);
+  const skipNextResetRef = useRef(false);
 
+  /* ─── invite code ─────────────────────────────────────────────────────── */
   const {
     inviteCode,
     hasStoredCode,
@@ -102,6 +126,7 @@ const Page = () => {
   const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
   const [invitationLoading, setInvitationLoading] = useState(false);
 
+  /* ─── modal helpers ───────────────────────────────────────────────────── */
   const openConfirmModal = () => setIsConfirmModalOpen(true);
   const closeConfirmModal = () => setIsConfirmModalOpen(false);
   const openBookingModal = () => setIsBookingModalOpen(true);
@@ -118,6 +143,7 @@ const Page = () => {
     }
   };
 
+  /* ─── user ────────────────────────────────────────────────────────────── */
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
@@ -130,36 +156,208 @@ const Page = () => {
     }
   }, []);
 
+  /* ─── fetch hotel ─────────────────────────────────────────────────────── */
   useEffect(() => {
     if (hotelID) {
       fetchHotelData();
     }
   }, [hotelID]);
 
+  const fetchHotelData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await axios.post(
+        `${base_url}/user/hotels/hotel_by_id.php`,
+        { hotel_id: hotelID },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+      if (response.data.status === "success") {
+        setHotelData(response.data.message[0]);
+      } else {
+        const errorMsg = response.data.message || "Failed to fetch hotel data";
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.message || "Network error occurred";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ─── derived values ──────────────────────────────────────────────────── */
   const perRoom = useMemo(() => {
     return parseInt(hotelData?.per_room) || 4;
   }, [hotelData?.per_room]);
 
-  const maxRooms = useMemo(() => {
-    return Math.max(adults, 1);
-  }, [adults]);
+  const apiRoomsCount = useMemo(() => {
+    const val = parseInt(hotelData?.rooms);
+    return isNaN(val) || val <= 0 ? Infinity : val;
+  }, [hotelData?.rooms]);
 
+  const maxRooms = useMemo(() => {
+    return Math.min(Math.max(adults, 1), apiRoomsCount);
+  }, [adults, apiRoomsCount]);
+
+  /* ─── restore from localStorage AFTER hotelData is loaded ─────────── */
+  useEffect(() => {
+    if (!hotelID || !hotelData?.title || hasRestoredRef.current) return;
+
+    const saved = loadHotelStorage(hotelID);
+    if (!saved) {
+      hasRestoredRef.current = true;
+      return;
+    }
+
+    skipNextResetRef.current = true;
+
+    if (saved.startDate && saved.endDate) {
+      const restoredStart = new Date(saved.startDate);
+      const restoredEnd = new Date(saved.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (restoredStart >= today) {
+        setDateRange([restoredStart, restoredEnd]);
+      }
+    }
+
+    if (typeof saved.adults === "number" && saved.adults >= 1)
+      setAdults(saved.adults);
+    if (typeof saved.children === "number" && saved.children >= 0)
+      setChildren(saved.children);
+    if (typeof saved.infants === "number" && saved.infants >= 0)
+      setInfants(saved.infants);
+
+    if (Array.isArray(saved.rooms) && saved.rooms.length > 0) {
+      setRooms(saved.rooms);
+    }
+
+    hasRestoredRef.current = true;
+  }, [hotelID, hotelData?.title]);
+
+  /* ─── persist to localStorage on every meaningful change ──────────── */
+  useEffect(() => {
+    if (!hotelID || !hasRestoredRef.current) return;
+
+    saveHotelStorage(hotelID, {
+      startDate: startDate?.toISOString() || null,
+      endDate: endDate?.toISOString() || null,
+      adults,
+      children,
+      infants,
+      rooms,
+    });
+  }, [hotelID, startDate, endDate, adults, children, infants, rooms]);
+
+  /* ─── traveler change handlers ────────────────────────────────────── */
+  const handleAdultQuantityChange = (newQuantity) => {
+    setAdults(newQuantity);
+  };
+
+  const handleChildQuantityChange = (newQuantity) => {
+    setChildren(newQuantity);
+  };
+
+  const handleInfantQuantityChange = (newQuantity) => {
+    setInfants(newQuantity);
+  };
+
+  /* ─── reset rooms when travelers change (skip on restore) ─────────── */
+  useEffect(() => {
+    if (skipNextResetRef.current) {
+      skipNextResetRef.current = false;
+      return;
+    }
+    setRooms([{ id: 1, adults: 1, children: 0, babies: 0 }]);
+  }, [adults, children, infants]);
+
+  /* ─── distribution progress (needs to be before addRoom) ──────────── */
+  const distributionProgress = useMemo(() => {
+    const distributedAdults = rooms.reduce((s, r) => s + r.adults, 0);
+    const distributedChildren = rooms.reduce((s, r) => s + r.children, 0);
+    const distributedBabies = rooms.reduce((s, r) => s + r.babies, 0);
+
+    return {
+      adults: { distributed: distributedAdults, total: adults },
+      children: { distributed: distributedChildren, total: children },
+      babies: { distributed: distributedBabies, total: infants },
+      remainingAdults: adults - distributedAdults,
+      remainingChildren: children - distributedChildren,
+      remainingBabies: infants - distributedBabies,
+    };
+  }, [rooms, adults, children, infants]);
+
+  /* ─── room operations ─────────────────────────────────────────────── */
   const addRoom = () => {
     if (rooms.length >= maxRooms) {
+      if (apiRoomsCount !== Infinity && rooms.length >= apiRoomsCount) {
+        toast.error(
+          `This hotel only has ${apiRoomsCount} available ${apiRoomsCount === 1 ? "room" : "rooms"}`
+        );
+      } else {
+        toast.error(
+          `Maximum ${maxRooms} ${maxRooms === 1 ? "room" : "rooms"} allowed (1 room per adult)`
+        );
+      }
+      return;
+    }
+
+    // ✅ Check if there's at least 1 unassigned adult available
+    if (distributionProgress.remainingAdults < 1) {
       toast.error(
-        `Maximum ${maxRooms} ${maxRooms === 1 ? "room" : "rooms"} allowed (1 room per adult)`
+        "Cannot add a new room — no unassigned adults available. Each room requires at least 1 adult."
       );
       return;
     }
+
+    // ✅ New room starts with 1 adult auto-assigned
     setRooms((prev) => [
       ...prev,
-      { id: Date.now(), adults: 0, children: 0, babies: 0 },
+      { id: Date.now(), adults: 1, children: 0, babies: 0 },
     ]);
   };
 
   const removeRoom = (roomId) => {
     if (rooms.length <= 1) return;
-    setRooms((prev) => prev.filter((r) => r.id !== roomId));
+
+    const removedRoom = rooms.find((r) => r.id === roomId);
+    if (!removedRoom) return;
+
+    // Return the removed room's occupants to the first remaining room
+    setRooms((prev) => {
+      const filtered = prev.filter((r) => r.id !== roomId);
+      if (filtered.length === 0) return prev;
+
+      // Add removed room's guests back to first room
+      const updated = [...filtered];
+      updated[0] = {
+        ...updated[0],
+        adults: updated[0].adults + removedRoom.adults,
+        children: updated[0].children + removedRoom.children,
+        babies: updated[0].babies + removedRoom.babies,
+      };
+
+      // Check if first room exceeds capacity after merge
+      const firstRoomOccupancy = updated[0].adults + updated[0].children;
+      if (firstRoomOccupancy > perRoom) {
+        toast(
+          `Room 1 now has ${firstRoomOccupancy} guests (max ${perRoom}). Please redistribute.`,
+          {
+            icon: "⚠️",
+            duration: 5000,
+          }
+        );
+      }
+
+      return updated;
+    });
   };
 
   const handleRoomChange = (action, roomId, type) => {
@@ -200,12 +398,20 @@ const Page = () => {
           }
           return { ...room, [type]: room[type] + 1 };
         } else {
+          // ✅ Prevent reducing adults below 1 per room
+          if (type === "adults" && room.adults <= 1) {
+            toast.error(
+              "Each room must have at least 1 adult. Remove the room instead."
+            );
+            return room;
+          }
           return { ...room, [type]: Math.max(0, room[type] - 1) };
         }
       })
     );
   };
 
+  /* ─── distribution check ──────────────────────────────────────────── */
   const isDistributionComplete = useMemo(() => {
     const totalDistributedAdults = rooms.reduce((s, r) => s + r.adults, 0);
     const totalDistributedChildren = rooms.reduce((s, r) => s + r.children, 0);
@@ -215,6 +421,8 @@ const Page = () => {
     const childrenOk = totalDistributedChildren === children;
     const babiesOk = infants === 0 || totalDistributedBabies === infants;
 
+    // ✅ Every room must have at least 1 adult
+    const everyRoomHasAdult = rooms.every((r) => r.adults >= 1);
     const noChildAlone = !rooms.some((r) => r.adults === 0 && r.children > 0);
     const noEmptyRoom = !rooms.some(
       (r) => r.adults === 0 && r.children === 0 && r.babies === 0
@@ -225,6 +433,7 @@ const Page = () => {
       adultsOk &&
       childrenOk &&
       babiesOk &&
+      everyRoomHasAdult &&
       noChildAlone &&
       noEmptyRoom &&
       noOverCapacity
@@ -246,6 +455,16 @@ const Page = () => {
     }
     if (infants > 0 && totalDistributedBabies !== infants) {
       toast.error(`Please distribute all ${infants} infants across rooms`);
+      return false;
+    }
+
+    // ✅ Check each room has at least 1 adult
+    const roomWithNoAdult = rooms.find((r) => r.adults === 0);
+    if (roomWithNoAdult) {
+      const idx = rooms.indexOf(roomWithNoAdult) + 1;
+      toast.error(
+        `Room ${idx} has no adult. Each room requires at least 1 adult.`
+      );
       return false;
     }
 
@@ -281,38 +500,22 @@ const Page = () => {
     }
   };
 
-  useEffect(() => {
-    setRooms([{ id: 1, adults: 0, children: 0, babies: 0 }]);
-  }, [adults, children, infants]);
-
-  const fetchHotelData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await axios.post(
-        `${base_url}/user/hotels/hotel_by_id.php`,
-        { hotel_id: hotelID },
-        { headers: { "Content-Type": "application/json" } }
-      );
-
-      if (response.data.status === "success") {
-        setHotelData(response.data.message[0]);
-      } else {
-        const errorMsg = response.data.message || "Failed to fetch hotel data";
-        setError(errorMsg);
-        toast.error(errorMsg);
-      }
-    } catch (err) {
-      const errorMessage =
-        err.response?.data?.message || "Network error occurred";
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
+  /* ─── YouTube helper ──────────────────────────────────────────────── */
+  const extractYouTubeVideoId = (url) => {
+    if (!url) return null;
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) return match[1];
     }
+    return null;
   };
 
+  /* ─── pricing ─────────────────────────────────────────────────────── */
   const { adultPrice, childPrice, totalDays } = useMemo(() => {
     if (!startDate || !endDate) {
       return {
@@ -374,6 +577,7 @@ const Page = () => {
     }));
   }, [rooms]);
 
+  /* ─── booking ─────────────────────────────────────────────────────── */
   const handleBooking = async (e) => {
     e.preventDefault();
 
@@ -460,12 +664,15 @@ const Page = () => {
         setBookingError(null);
         clearCurrentInviteCode();
 
+        removeHotelFromStorage(hotelID);
+
         setTimeout(() => {
           const tomorrow = moment().add(1, "day").toDate();
           setDateRange([new Date(), tomorrow]);
           setAdults(1);
           setChildren(0);
           setInfants(0);
+          setRooms([{ id: 1, adults: 1, children: 0, babies: 0 }]);
         }, 2000);
       } else {
         setBookingSuccess(false);
@@ -483,6 +690,7 @@ const Page = () => {
     }
   };
 
+  /* ─── gallery ─────────────────────────────────────────────────────── */
   const images = useMemo(() => {
     if (hotelData?.image && hotelData.image.split("//CAMP//")?.length > 0) {
       return hotelData.image.split("//CAMP//").map((image, index) => ({
@@ -511,11 +719,10 @@ const Page = () => {
     const score = parseFloat(validRating.score);
     const maxScore = parseFloat(validRating.maxScore) || 5;
     if (isNaN(score)) return null;
-    // normalize to /5
     return maxScore > 5 ? (score / maxScore) * 5 : score;
   }, [hotelData?.ratings]);
 
-  // ─── Map ────────────────────────────────────────────────────────────────────
+  /* ─── map ─────────────────────────────────────────────────────────── */
   const mapEmbedUrl = useMemo(() => {
     const lat = parseFloat(hotelData?.latitude);
     const lng = parseFloat(hotelData?.longitude);
@@ -529,23 +736,21 @@ const Page = () => {
     }
     return `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
   }, [hotelData?.latitude, hotelData?.longitude]);
-  // ────────────────────────────────────────────────────────────────────────────
 
-  const distributionProgress = useMemo(() => {
-    const distributedAdults = rooms.reduce((s, r) => s + r.adults, 0);
-    const distributedChildren = rooms.reduce((s, r) => s + r.children, 0);
-    const distributedBabies = rooms.reduce((s, r) => s + r.babies, 0);
+  /* ─── room availability display text ──────────────────────────────── */
+  const roomAvailabilityText = useMemo(() => {
+    if (apiRoomsCount === Infinity) return null;
+    return `${apiRoomsCount} ${apiRoomsCount === 1 ? "room" : "rooms"} available in this hotel`;
+  }, [apiRoomsCount]);
 
-    return {
-      adults: { distributed: distributedAdults, total: adults },
-      children: { distributed: distributedChildren, total: children },
-      babies: { distributed: distributedBabies, total: infants },
-      remainingAdults: adults - distributedAdults,
-      remainingChildren: children - distributedChildren,
-      remainingBabies: infants - distributedBabies,
-    };
-  }, [rooms, adults, children, infants]);
+  /* ─── can add room check ──────────────────────────────────────────── */
+  const canAddRoom = useMemo(() => {
+    if (rooms.length >= maxRooms) return false;
+    if (distributionProgress.remainingAdults < 1) return false;
+    return true;
+  }, [rooms.length, maxRooms, distributionProgress.remainingAdults]);
 
+  /* ─── loading / error / not found ─────────────────────────────────── */
   if (loading || inviteCodeLoading) {
     return (
       <>
@@ -701,7 +906,9 @@ const Page = () => {
                         {amenity.icon ? (
                           <span
                             className="inline-flex items-center justify-center w-[30px] h-[30px] shrink-0"
-                            dangerouslySetInnerHTML={{ __html: amenity.icon }}
+                            dangerouslySetInnerHTML={{
+                              __html: amenity.icon,
+                            }}
                           />
                         ) : (
                           <span className="inline-flex items-center justify-center w-[30px] h-[30px] shrink-0 text-[#295557]">
@@ -735,11 +942,18 @@ const Page = () => {
                   <span className="text-sm text-gray-700">
                     <strong>Room Capacity:</strong> Maximum {perRoom} guests
                     (adults + children) per room. Infants are not counted.
+                    {apiRoomsCount !== Infinity && (
+                      <>
+                        {" "}
+                        • <strong>{apiRoomsCount}</strong> room
+                        {apiRoomsCount !== 1 ? "s" : ""} available.
+                      </>
+                    )}
                   </span>
                 </div>
               )}
 
-              {/* ─── Map Section ─────────────────────────────────────────────── */}
+              {/* ─── Map Section ─────────────────────────────────────── */}
               <div className="hotel-map-section mt-4 mb-4">
                 <h4 className="mb-3">Location</h4>
                 {mapEmbedUrl ? (
@@ -850,7 +1064,7 @@ const Page = () => {
                   </div>
                 )}
               </div>
-              {/* ──────────────────────────────────────────────────────────────── */}
+              {/* ─────────────────────────────────────────────────────── */}
 
               <div className="review-wrapper mt-70">
                 <h4>Customer Review</h4>
@@ -1097,9 +1311,12 @@ const Page = () => {
                               </span>
                             </button>
                             <p className="text-xs text-gray-400 mt-1 mb-0 !border-none">
-                              Max {perRoom} guests per room (excl. infants) •
-                              Max {maxRooms} {maxRooms === 1 ? "room" : "rooms"}{" "}
-                              (1 per adult)
+                              Max {perRoom} guests per room (excl. infants)
+                              {apiRoomsCount !== Infinity
+                                ? ` • ${apiRoomsCount} room${apiRoomsCount !== 1 ? "s" : ""} available`
+                                : ""}
+                              {" • "}
+                              Max {maxRooms} {maxRooms === 1 ? "room" : "rooms"}
                             </p>
                           </div>
                         </div>
@@ -1472,7 +1689,9 @@ const Page = () => {
               {adults} Adults
               {children > 0 ? `, ${children} Children` : ""}
               {infants > 0 ? `, ${infants} Infants` : ""} — {rooms.length}{" "}
-              {rooms.length === 1 ? "Room" : "Rooms"} (max {maxRooms})
+              {rooms.length === 1 ? "Room" : "Rooms"} (max {maxRooms}
+              {apiRoomsCount !== Infinity ? `, ${apiRoomsCount} available` : ""}
+              )
             </p>
           </div>
         }
@@ -1503,6 +1722,18 @@ const Page = () => {
         }
       >
         <div className="space-y-4">
+          {/* availability banner */}
+          {apiRoomsCount !== Infinity && (
+            <div className="flex items-center gap-2 border border-blue-200 rounded-lg px-4 py-2.5 bg-blue-50">
+              <FaHotel className="text-blue-600 shrink-0 text-sm" />
+              <span className="text-xs text-blue-700 font-medium">
+                This hotel has {apiRoomsCount} available room
+                {apiRoomsCount !== 1 ? "s" : ""}. You can book up to {maxRooms}{" "}
+                room{maxRooms !== 1 ? "s" : ""} based on your selection.
+              </span>
+            </div>
+          )}
+
           <div className="border border-gray-200 rounded-lg px-4 py-3 bg-gray-50">
             <p className="text-sm font-medium text-gray-800 mb-2">
               Remaining to distribute:
@@ -1541,8 +1772,12 @@ const Page = () => {
               )}
             </div>
             <p className="text-[11px] text-gray-400 mt-2 mb-0">
-              Max {perRoom} per room (adults + children). Infants not counted. •
-              Max {maxRooms} {maxRooms === 1 ? "room" : "rooms"} total.
+              Max {perRoom} per room (adults + children). Infants not counted.
+              Each room requires at least 1 adult.
+              {apiRoomsCount !== Infinity
+                ? ` • ${apiRoomsCount} room${apiRoomsCount !== 1 ? "s" : ""} available in hotel.`
+                : ""}
+              {" • "}Max {maxRooms} {maxRooms === 1 ? "room" : "rooms"} total.
             </p>
           </div>
 
@@ -1554,7 +1789,11 @@ const Page = () => {
               <div
                 key={room.id}
                 className={`border rounded-xl p-4 bg-white shadow-sm ${
-                  isAtCapacity ? "border-amber-300" : "border-gray-200"
+                  isAtCapacity
+                    ? "border-amber-300"
+                    : room.adults === 0
+                      ? "border-red-300"
+                      : "border-gray-200"
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
@@ -1580,6 +1819,13 @@ const Page = () => {
                   )}
                 </div>
 
+                {/* ✅ Warning: room has no adult */}
+                {room.adults === 0 && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg mb-3">
+                    <span>⚠️ This room needs at least 1 adult</span>
+                  </div>
+                )}
+
                 {room.adults === 0 && room.children > 0 && (
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg mb-3">
                     <span>Children can&apos;t stay alone in a room</span>
@@ -1593,13 +1839,18 @@ const Page = () => {
                 )}
 
                 <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-gray-700">Adults</span>
+                  <div>
+                    <span className="text-sm text-gray-700">Adults</span>
+                    <span className="text-[10px] text-gray-400 block">
+                      Min 1 per room
+                    </span>
+                  </div>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() =>
                         handleRoomChange("decrease", room.id, "adults")
                       }
-                      disabled={room.adults <= 0}
+                      disabled={room.adults <= 1}
                       className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-[#295557] hover:text-[#295557] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
                       <FaMinus className="text-xs" />
@@ -1698,23 +1949,32 @@ const Page = () => {
             );
           })}
 
-          {rooms.length < maxRooms && (
-            <button
-              onClick={addRoom}
-              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-3 text-gray-500 hover:border-[#295557] hover:text-[#295557] transition-colors"
-            >
-              <FaPlus className="text-xs" />
-              <span className="text-sm font-medium">
-                Add Room ({rooms.length}/{maxRooms})
-              </span>
-            </button>
-          )}
-
-          {rooms.length >= maxRooms && maxRooms > 1 && (
+          {/* ✅ Add Room button — disabled state with clear reason */}
+          {rooms.length < maxRooms ? (
+            canAddRoom ? (
+              <button
+                onClick={addRoom}
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-3 text-gray-500 hover:border-[#295557] hover:text-[#295557] transition-colors"
+              >
+                <FaPlus className="text-xs" />
+                <span className="text-sm font-medium">
+                  Add Room ({rooms.length}/{maxRooms})
+                </span>
+              </button>
+            ) : (
+              <div className="w-full flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-200 rounded-xl py-3 text-gray-400">
+                <span className="text-sm">No unassigned adults available</span>
+                <span className="text-[11px]">
+                  Each new room requires at least 1 adult
+                </span>
+              </div>
+            )
+          ) : (
             <div className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-3 text-gray-400">
               <span className="text-sm">
-                Maximum {maxRooms} {maxRooms === 1 ? "room" : "rooms"} reached
-                (1 per adult)
+                {apiRoomsCount !== Infinity && rooms.length >= apiRoomsCount
+                  ? `All ${apiRoomsCount} available room${apiRoomsCount !== 1 ? "s" : ""} used`
+                  : `Maximum ${maxRooms} ${maxRooms === 1 ? "room" : "rooms"} reached (1 per adult)`}
               </span>
             </div>
           )}

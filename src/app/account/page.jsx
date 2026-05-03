@@ -773,29 +773,70 @@ const Account = () => {
             apiStatus
           );
           const statusConfig = getStatusConfig("hotel", apiStatus);
+
           const additionalServices = item.aditional_services
             ? item.aditional_services.split("**").filter(Boolean)
             : [];
+
           const nights = Math.max(totalDays - 1, 1);
-          const parsedRooms = [
-            ...(Array.isArray(item.rooms) ? item.rooms : []),
-            ...(Array.isArray(item.hotel_reserved?.rooms)
-              ? item.hotel_reserved.rooms
-              : []),
-            ...(parseMaybeJsonArray(item.rooms_json) || []),
-          ];
-          const uniqueRooms = parsedRooms.filter(
-            (room, index, arr) =>
-              arr.findIndex(
-                (r) =>
-                  String(r.id || index) === String(room.id || index) &&
-                  String(r.adults || 0) === String(room.adults || 0) &&
-                  String(r.kids ?? r.children ?? 0) ===
-                    String(room.kids ?? room.children ?? 0) &&
-                  String(r.babies ?? r.infants ?? 0) ===
-                    String(room.babies ?? room.infants ?? 0)
-              ) === index
+
+          // ── Rooms normalization ────────────────────────────────────────────
+          // Priority: item.rooms (direct from API) → then fallback sources
+          const rawRoomsFromItem = Array.isArray(item.rooms) ? item.rooms : [];
+          const rawRoomsFromHotelReserved = Array.isArray(
+            item.hotel_reserved?.rooms
+          )
+            ? item.hotel_reserved.rooms
+            : [];
+          const rawRoomsFromJson = parseMaybeJsonArray(item.rooms_json);
+
+          // Use the first non-empty source
+          let bestRoomsSource = [];
+          if (rawRoomsFromItem.length > 0) {
+            bestRoomsSource = rawRoomsFromItem;
+          } else if (rawRoomsFromHotelReserved.length > 0) {
+            bestRoomsSource = rawRoomsFromHotelReserved;
+          } else if (rawRoomsFromJson.length > 0) {
+            bestRoomsSource = rawRoomsFromJson;
+          }
+
+          // Normalize each room to a consistent shape
+          const normalizedRooms = bestRoomsSource.map((room, idx) => ({
+            id: room?.room_id || room?.id || idx + 1,
+            room_id: room?.room_id || room?.id || null,
+            day: room?.day || null,
+            adults: Math.max(0, parseInt(room?.adults || 0)),
+            kids: Math.max(0, parseInt(room?.kids ?? room?.children ?? 0)),
+            babies: Math.max(0, parseInt(room?.babies ?? room?.infants ?? 0)),
+          }));
+
+          // Calculate totals from rooms if available
+          const roomTotals = normalizedRooms.reduce(
+            (acc, room) => ({
+              adults: acc.adults + (room.adults || 0),
+              kids: acc.kids + (room.kids || 0),
+              babies: acc.babies + (room.babies || 0),
+            }),
+            { adults: 0, kids: 0, babies: 0 }
           );
+
+          // Adults: prefer room totals if rooms exist, else fallback to item field
+          const numAdults =
+            normalizedRooms.length > 0 && roomTotals.adults > 0
+              ? roomTotals.adults
+              : Math.max(1, parseInt(item.adults_num || item.adults || 1));
+
+          const numChildren =
+            normalizedRooms.length > 0
+              ? roomTotals.kids
+              : Math.max(0, parseInt(item.childs_num || item.kids || 0));
+
+          const numBabies =
+            normalizedRooms.length > 0
+              ? roomTotals.babies
+              : Math.max(0, parseInt(item.babies_num || item.babies || 0));
+
+          // ── Images ─────────────────────────────────────────────────────────
           const hotelImages = splitCampImages(
             item.background_image || item.image
           );
@@ -805,6 +846,7 @@ const Account = () => {
             id: item.reserving_id,
             bookingType: "hotel",
             hotel_id: item.hotel_id,
+            hotelId: item.hotel_id,
             title: item.title,
             subtitle: item.subtitle,
             description: item.description,
@@ -826,25 +868,45 @@ const Account = () => {
               item.background_image ||
               item.image,
             mainLocations: item.location ? [item.location] : [],
-            price: parseFloat(item.total_amount),
+            price: parseFloat(item.total_amount || 0),
             priceCurrency: item.price_currency || "$",
-            pricePerNight: parseFloat(item.price_current),
-            originalPrice: parseFloat(item.price_original),
-            numAdults: parseInt(item.adults_num),
-            numChildren: 0,
+            pricePerNight: parseFloat(
+              item.price_current || item.adult_price || 0
+            ),
+            originalPrice: parseFloat(item.price_original || 0),
+            adult_price: parseFloat(
+              item.adult_price || item.price_current || 0
+            ),
+            child_price: parseFloat(item.child_price || 0),
+            per_room: parseInt(item.per_room || 4),
+            numAdults,
+            numChildren,
+            numBabies,
+            adults: numAdults,
+            kids: numChildren,
+            babies: numBabies,
             startDate: item.start_date,
             endDate: item.end_date,
             progress,
             category: item.category,
             location: item.location,
+            city: item.city || "",
             countryId: item.country_id,
             amenities: item.hotel_amenities || [],
             ratings: item.hotel_ratings || [],
             additionalServices,
+            aditional_services: item.aditional_services || "",
             priceNote: item.price_note,
-            rooms: uniqueRooms,
+            rooms: normalizedRooms,
+            max_persons: parseInt(item.max_persons || item.adults_num || 50),
+            invite_code: item.invite_code || "",
+            day: item.day || String(nights),
+            reservation_id: item.reserving_id,
             _rawApiItem: {
               ...normalizedItem,
+              // Preserve the original rooms array as-is for the edit modal
+              rooms: bestRoomsSource,
+              // Also keep hotel_reserved normalized
               hotel_reserved: item.hotel_reserved
                 ? {
                     ...normalizeMediaEntity(item.hotel_reserved),
@@ -853,6 +915,52 @@ const Account = () => {
                       : [],
                   }
                 : item.hotel_reserved,
+              // Store computed values for easy access in edit modal
+              reservation: {
+                reservation_id: item.reserving_id,
+                reserving_id: item.reserving_id,
+                user_id: item.user_id,
+                hotel_id: item.hotel_id,
+                aditional_services: item.aditional_services || "",
+                total_amount: item.total_amount,
+                start_date: item.start_date,
+                end_date: item.end_date,
+                status: apiStatus,
+                invite_code: item.invite_code || "",
+                day: item.day || String(nights),
+                adults: String(numAdults),
+                kids: String(numChildren),
+                babies: String(numBabies),
+                rooms: bestRoomsSource,
+              },
+              hotel_details: {
+                id: item.id || item.hotel_id,
+                hotel_id: item.hotel_id,
+                title: item.title,
+                name: item.title,
+                subtitle: item.subtitle,
+                description: item.description,
+                background_image:
+                  getFirstImage(item.background_image || item.image) ||
+                  item.background_image ||
+                  item.image,
+                image:
+                  getFirstImage(item.image || item.background_image) ||
+                  item.image,
+                location: item.location || "",
+                route: item.route || "",
+                duration: item.duration || "",
+                category: item.category || "hotel",
+                price_current: item.price_current || "0",
+                price_original: item.price_original || "0",
+                adult_price: item.adult_price || item.price_current || "0",
+                child_price: item.child_price || "0",
+                per_room: item.per_room || "4",
+                adults_num: item.adults_num || "1",
+                max_persons: 1000000,
+                amenities: item.hotel_amenities || [],
+                ratings: item.hotel_ratings || [],
+              },
             },
           };
         });
